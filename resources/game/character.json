@@ -1,0 +1,19 @@
+{
+  "maxHp": {
+    "base": 50,
+    "perVitality": 10
+  },
+  "regen": {
+    "tickSeconds": 10,
+    "vitalityDivisor": 2,
+    "vitalityBonus": 1
+  },
+  "level": {
+    "max": 10,
+    "expPerLevelMultiplier": 100,
+    "statPointsPerLevel": 3
+  },
+  "statSpend": {
+    "vitalityHpGain": 10
+  }
+}

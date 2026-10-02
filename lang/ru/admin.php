@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'labels' => [
+        'agility' => 'Ловкость',
+        'armor_id' => 'Броня',
+        'arena_points' => 'Очки арены',
+        'created_at' => 'Создан',
+        'current_hp' => 'HP',
+        'durability' => 'Прочность',
+        'enemy' => 'Враг',
+        'exp' => 'Опыт',
+        'gold' => 'Золото',
+        'instinct' => 'Инстинкт',
+        'is_equipped' => 'Надето',
+        'item_id' => 'ID предмета',
+        'item_name' => 'Предмет',
+        'item_type' => 'Тип',
+        'kind' => 'Тип боя',
+        'last_hp_update' => 'HP обновлено',
+        'level' => 'Уровень',
+        'location' => 'Локация',
+        'log' => 'Лог боя',
+        'max_durability' => 'Макс. прочность',
+        'onboarding_step' => 'Онбординг',
+        'player_attack' => 'Атака',
+        'player_defend' => 'Защита',
+        'player_hp' => 'HP игрока',
+        'player_max_hp' => 'Макс. HP',
+        'player_stance' => 'Стойка',
+        'potions' => 'Зелья',
+        'premium_until' => 'Премиум до',
+        'slot' => 'Слот',
+        'stat_bonus' => 'Бонус',
+        'stat_points' => 'Очки статов',
+        'step' => 'Шаг боя',
+        'strength' => 'Сила',
+        'tg_id' => 'Telegram ID',
+        'tutorial' => 'Туториал',
+        'updated_at' => 'Обновлён',
+        'use_potion' => 'Зелье',
+        'username' => 'Ник',
+        'vitality' => 'Живучесть',
+        'weapon_class' => 'Класс оружия',
+        'weapon_id' => 'Оружие',
+    ],
+    'models' => [
+        'character' => [
+            'plural' => 'Персонажи',
+            'singular' => 'Персонаж',
+        ],
+        'fight' => [
+            'plural' => 'Бои',
+            'singular' => 'Бой',
+        ],
+        'inventory' => [
+            'plural' => 'Инвентарь',
+            'singular' => 'Предмет инвентаря',
+        ],
+    ],
+    'navigation' => [
+        'characters' => 'Персонажи',
+        'fights' => 'Бои',
+        'inventories' => 'Инвентарь',
+    ],
+];

@@ -1,0 +1,447 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Telegram\Handlers;
+
+use App\Enums\OnboardingStepEnum;
+use App\Models\Character;
+use App\Services\Character\CharacterService;
+use App\Services\Game\GameConfig;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Shop\ShopCatalog;
+use App\Support\Telegram\FightStatusFormatter;
+use App\Support\Telegram\TelegramResponder;
+use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Keyboards\TelegramKeyboards;
+use RuntimeException;
+
+final class OnboardingHandler
+{
+    public function __construct(
+        private readonly CharacterService $characters,
+        private readonly OnboardingService $onboarding,
+        private readonly ShopCatalog $shop,
+        private readonly GameConfig $config,
+        private readonly FightStatusFormatter $fightStatus,
+    ) {}
+
+    public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = $this->onboarding->ensurePlayer($update->userId());
+
+        if ($player->onboarding_step === OnboardingStepEnum::DONE) {
+            $player = $this->characters->applyRegen($player);
+            $responder->reply(
+                __('onboarding.welcome_back', [
+                    'name' => $player->username,
+                    'profile' => $this->characters->profileText($player),
+                ]),
+                TelegramKeyboards::mainMenu(),
+            );
+
+            return;
+        }
+
+        $this->resume($responder, $player);
+    }
+
+    public function handleText(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::NICK) {
+            $res = $this->onboarding->setNick($player, $update->text());
+
+            if (! $res->ok || ! $res->character instanceof Character) {
+                $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+                return;
+            }
+
+            $responder->reply(
+                __('onboarding.nice_to_meet', ['name' => $res->character->username]),
+                TelegramKeyboards::city($this->onboarding->cities()),
+            );
+
+            return;
+        }
+
+        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
+            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+            $this->resume($responder, $player);
+        }
+    }
+
+    public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $data = $update->callbackData();
+        $responder->answerCallback();
+
+        if (str_starts_with($data, 'ob:city:')) {
+            $this->city($update, $responder, mb_substr($data, 8));
+
+            return;
+        }
+
+        if ($data === 'ob:intro_fight') {
+            $this->introFight($update, $responder);
+
+            return;
+        }
+
+        if (preg_match('/^ob:stat:(STRENGTH|AGILITY|INSTINCT|VITALITY)$/', $data, $m) === 1) {
+            $this->stat($update, $responder, $m[1]);
+
+            return;
+        }
+
+        if ($data === 'ob:stats_done') {
+            $this->statsDone($update, $responder);
+
+            return;
+        }
+
+        if ($data === 'ob:equip_mail') {
+            $this->equipMail($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'ob:buy:')) {
+            $this->buyWeapon($update, $responder, mb_substr($data, 7));
+
+            return;
+        }
+
+        if ($data === 'ob:claim_club') {
+            $this->claimClub($update, $responder);
+
+            return;
+        }
+
+        if ($data === 'ob:novice_potion') {
+            $this->novicePotion($update, $responder);
+        }
+    }
+
+    private function resume(TelegramResponder $responder, Character $player): void
+    {
+        $nick = $this->nickLimits();
+
+        if ($player->onboarding_step === OnboardingStepEnum::NICK) {
+            $responder->reply(
+                __('onboarding.welcome', [
+                    'nickMin' => $nick['min'],
+                    'nickMax' => $nick['max'],
+                ]),
+                null,
+            );
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::CITY) {
+            $responder->reply(__('onboarding.pick_city'), TelegramKeyboards::city($this->onboarding->cities()));
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::INTRO) {
+            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::TUTORIAL_FIGHT) {
+            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+            $player->onboarding_step = OnboardingStepEnum::INTRO;
+            $player->save();
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::QUEST_STATS) {
+            $responder->reply(
+                $this->onboarding->statsQuestText($player),
+                TelegramKeyboards::statsQuest($player),
+            );
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::QUEST_EQUIP) {
+            $responder->reply(__('onboarding.equip_prompt'), TelegramKeyboards::equipMail());
+
+            return;
+        }
+
+        if ($player->onboarding_step === OnboardingStepEnum::QUEST_SHOP) {
+            $responder->reply(
+                __('onboarding.shop_prompt', ['gold' => $player->gold]),
+                TelegramKeyboards::noviceShop($this->shop),
+            );
+
+            return;
+        }
+
+        $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+    }
+
+    private function city(TelegramUpdate $update, TelegramResponder $responder, string $cityName): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::CITY) {
+            return;
+        }
+
+        $res = $this->onboarding->setLocation($player, $cityName);
+
+        if (! $res->ok) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('onboarding.city_chosen', [
+                'city' => $cityName,
+                'intro' => $this->onboarding->introText(),
+            ]),
+            TelegramKeyboards::intro(),
+        );
+    }
+
+    private function introFight(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            return;
+        }
+
+        if (
+            $player->onboarding_step !== OnboardingStepEnum::INTRO
+            && $player->onboarding_step !== OnboardingStepEnum::TUTORIAL_FIGHT
+        ) {
+            return;
+        }
+
+        $player = $this->characters->applyRegen($player);
+        $player->current_hp = $this->characters->maxHp($player);
+        $player->save();
+        $fight = $this->onboarding->startTutorialFight($player);
+
+        $responder->edit(
+            $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
+            TelegramKeyboards::stance(),
+        );
+    }
+
+    private function stat(TelegramUpdate $update, TelegramResponder $responder, string $stat): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_STATS) {
+            return;
+        }
+
+        $res = $this->characters->spendStatPoint($player, $stat);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            $this->onboarding->statsQuestText($res->character),
+            TelegramKeyboards::statsQuest($res->character),
+        );
+    }
+
+    private function statsDone(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_STATS) {
+            return;
+        }
+
+        $res = $this->onboarding->finishStatsQuest($player);
+
+        if (! $res->ok) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('onboarding.stats_done', [
+                'armorHp' => $this->shop->mailShirt()->statBonus,
+            ]),
+            TelegramKeyboards::equipMail(),
+        );
+    }
+
+    private function equipMail(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_EQUIP) {
+            return;
+        }
+
+        $res = $this->onboarding->finishEquipQuest($player);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $reward = $this->equipReward();
+
+        $responder->edit(
+            __('onboarding.mail_equipped', [
+                'exp' => $reward['exp'],
+                'goldReward' => $reward['gold'],
+                'gold' => $res->character->gold,
+            ]),
+            TelegramKeyboards::noviceShop($this->shop),
+        );
+    }
+
+    private function buyWeapon(TelegramUpdate $update, TelegramResponder $responder, string $itemId): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+            return;
+        }
+
+        $res = $this->onboarding->finishShopQuestBuy($player, $itemId);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('onboarding.graduated_buy', [
+                'level' => $this->graduateLevel(),
+                'profile' => $this->characters->profileText($res->character),
+            ]),
+            TelegramKeyboards::mainMenu(),
+        );
+    }
+
+    private function claimClub(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+            return;
+        }
+
+        $res = $this->onboarding->finishShopQuestClaim($player, $this->shop->freeTrainerItemId());
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('onboarding.graduated_claim', [
+                'level' => $this->graduateLevel(),
+                'profile' => $this->characters->profileText($res->character),
+            ]),
+            TelegramKeyboards::mainMenu(),
+        );
+    }
+
+    private function novicePotion(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+            return;
+        }
+
+        $res = $this->onboarding->buyNovicePotion($player);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('onboarding.potion_bought', [
+                'potions' => $res->character->potions,
+                'gold' => $res->character->gold,
+            ]),
+            TelegramKeyboards::noviceShop($this->shop),
+        );
+    }
+
+    /**
+     * @return array{min: int, max: int}
+     */
+    private function nickLimits(): array
+    {
+        $onboarding = $this->config->onboarding();
+
+        if (! array_key_exists('nick', $onboarding) || ! is_array($onboarding['nick'])) {
+            throw new RuntimeException('onboarding.nick missing.');
+        }
+
+        $nick = $onboarding['nick'];
+
+        if (! is_int($nick['min']) || ! is_int($nick['max'])) {
+            throw new RuntimeException('onboarding.nick invalid.');
+        }
+
+        return ['min' => $nick['min'], 'max' => $nick['max']];
+    }
+
+    /**
+     * @return array{exp: int, gold: int}
+     */
+    private function equipReward(): array
+    {
+        $onboarding = $this->config->onboarding();
+
+        if (! array_key_exists('rewards', $onboarding) || ! is_array($onboarding['rewards'])) {
+            throw new RuntimeException('onboarding.rewards missing.');
+        }
+
+        $row = $onboarding['rewards']['equipQuest'] ?? null;
+
+        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['gold'])) {
+            throw new RuntimeException('equipQuest reward missing.');
+        }
+
+        return ['exp' => $row['exp'], 'gold' => $row['gold']];
+    }
+
+    private function graduateLevel(): int
+    {
+        $onboarding = $this->config->onboarding();
+
+        if (! array_key_exists('graduateLevel', $onboarding) || ! is_int($onboarding['graduateLevel'])) {
+            throw new RuntimeException('onboarding.graduateLevel missing.');
+        }
+
+        return $onboarding['graduateLevel'];
+    }
+}

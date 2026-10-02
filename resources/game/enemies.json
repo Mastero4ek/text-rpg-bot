@@ -1,0 +1,22 @@
+{
+  "woodenSoldier": {
+    "level": 0,
+    "strength": 2,
+    "agility": 2,
+    "instinct": 2,
+    "vitality": 3,
+    "maxHp": 70,
+    "weaponDamage": 0,
+    "weaponMf": { "dodge": 0, "antiDodge": 0, "crit": 0, "antiCrit": 0 },
+    "stance": "DEFEND"
+  },
+  "wanderer": {
+    "statBase": 3,
+    "statPerLevel": 1,
+    "hpBase": 50,
+    "hpPerStat": 10,
+    "weaponDamagePerLevel": 1,
+    "weaponMf": { "dodge": 0, "antiDodge": 0, "crit": 0, "antiCrit": 0 },
+    "stance": "DEFEND"
+  }
+}

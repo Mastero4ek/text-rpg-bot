@@ -1,0 +1,101 @@
+{
+  "potionPrice": 15,
+  "mailShirtId": "mail_shirt",
+  "noviceWeaponPrice": 20,
+  "freeTrainerItemId": "train_club",
+  "noviceWeapons": [
+    {
+      "item_id": "train_knife",
+      "weapon_class": "KNIFE",
+      "price": 20,
+      "weaponDamage": 2,
+      "mf": { "dodge": 6, "antiDodge": 0, "crit": 2, "antiCrit": 0 }
+    },
+    {
+      "item_id": "train_axe",
+      "weapon_class": "AXE",
+      "price": 20,
+      "weaponDamage": 3,
+      "mf": { "dodge": 0, "antiDodge": 2, "crit": 6, "antiCrit": 0 }
+    },
+    {
+      "item_id": "train_club",
+      "weapon_class": "CLUB",
+      "price": 20,
+      "weaponDamage": 3,
+      "mf": { "dodge": 0, "antiDodge": 4, "crit": 0, "antiCrit": 4 }
+    }
+  ],
+  "tierWeapons": [
+    {
+      "item_id": "knife_t1",
+      "weapon_class": "KNIFE",
+      "price": 40,
+      "weaponDamage": 4,
+      "mf": { "dodge": 10, "antiDodge": 2, "crit": 4, "antiCrit": 0 }
+    },
+    {
+      "item_id": "axe_t1",
+      "weapon_class": "AXE",
+      "price": 40,
+      "weaponDamage": 5,
+      "mf": { "dodge": 0, "antiDodge": 4, "crit": 10, "antiCrit": 0 }
+    },
+    {
+      "item_id": "club_t1",
+      "weapon_class": "CLUB",
+      "price": 40,
+      "weaponDamage": 5,
+      "mf": { "dodge": 0, "antiDodge": 6, "crit": 2, "antiCrit": 6 }
+    },
+    {
+      "item_id": "knife_t2",
+      "weapon_class": "KNIFE",
+      "price": 100,
+      "weaponDamage": 7,
+      "mf": { "dodge": 16, "antiDodge": 4, "crit": 6, "antiCrit": 0 }
+    },
+    {
+      "item_id": "axe_t2",
+      "weapon_class": "AXE",
+      "price": 100,
+      "weaponDamage": 8,
+      "mf": { "dodge": 0, "antiDodge": 8, "crit": 16, "antiCrit": 2 }
+    },
+    {
+      "item_id": "club_t2",
+      "weapon_class": "CLUB",
+      "price": 100,
+      "weaponDamage": 8,
+      "mf": { "dodge": 2, "antiDodge": 10, "crit": 4, "antiCrit": 12 }
+    },
+    {
+      "item_id": "knife_t3",
+      "weapon_class": "KNIFE",
+      "price": 250,
+      "weaponDamage": 11,
+      "mf": { "dodge": 24, "antiDodge": 8, "crit": 10, "antiCrit": 0 }
+    },
+    {
+      "item_id": "axe_t3",
+      "weapon_class": "AXE",
+      "price": 250,
+      "weaponDamage": 12,
+      "mf": { "dodge": 0, "antiDodge": 14, "crit": 24, "antiCrit": 4 }
+    },
+    {
+      "item_id": "club_t3",
+      "weapon_class": "CLUB",
+      "price": 250,
+      "weaponDamage": 12,
+      "mf": { "dodge": 4, "antiDodge": 16, "crit": 6, "antiCrit": 20 }
+    }
+  ],
+  "armor": [
+    {
+      "item_id": "mail_shirt",
+      "price": 0,
+      "stat_bonus": 15
+    }
+  ]
+}
