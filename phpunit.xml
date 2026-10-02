@@ -16,6 +16,7 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:2fl+KtvkdphvQyE8qRRdKM+nYfHK4k7ZQnF3xYp0m1A=" force="true"/>
         <env name="APP_LOCALE" value="ru"/>
         <env name="APP_FALLBACK_LOCALE" value="ru"/>
         <env name="TELEGRAM_BOT_TOKEN" value="test-token"/>
