@@ -9,7 +9,7 @@ it('createDraft from onboarding.start', function (): void {
     $cfg = gameConfig()->onboarding()['start'];
     $p = characters()->createDraft(1001);
 
-    expect($p->gold)->toBe($cfg['gold'])
+    expect($p->silver)->toBe($cfg['silver'])
         ->and($p->strength)->toBe($cfg['strength'])
         ->and($p->stat_points)->toBe($cfg['statPoints'])
         ->and($p->level)->toBe($cfg['level'])

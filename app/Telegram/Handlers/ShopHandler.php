@@ -35,7 +35,7 @@ final class ShopHandler
 
         if ($data === 'menu:shop') {
             $responder->edit(
-                __('shop.balance', ['gold' => $player->gold]),
+                __('shop.balance', ['silver' => $player->silver]),
                 TelegramKeyboards::fullShop(
                     $this->shop->weaponsForMode('full'),
                     $this->shop->potionPrice(),
@@ -54,7 +54,7 @@ final class ShopHandler
                 return;
             }
 
-            if (! $res->def instanceof \App\Support\Game\ItemDef) {
+            if (! $res->def instanceof \App\Support\Game\EquipmentDef) {
                 $responder->reply(__('common.error'), null);
 
                 return;

@@ -33,8 +33,8 @@ it('pveRewards in configured range', function (): void {
     for ($i = 0; $i < 20; $i++) {
         $reward = combat()->pveRewards(2);
         expect($reward['exp'])->toBe($r['expBase'] + 2 * $r['expPerLevel'])
-            ->and($reward['gold'])->toBeGreaterThanOrEqual($r['goldMin'])
-            ->and($reward['gold'])->toBeLessThanOrEqual($r['goldMax']);
+            ->and($reward['silver'])->toBeGreaterThanOrEqual($r['silverMin'])
+            ->and($reward['silver'])->toBeLessThanOrEqual($r['silverMax']);
     }
 });
 

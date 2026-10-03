@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'card' => "👤 :name\n🏙 :city · ур. :level\n❤️ :hp/:maxHp · 🪙 :gold · 🧪 :potions\n⭐ опыт: :exp\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit",
+    'card' => "👤 :name\n🏙 :city · ур. :level\n❤️ :hp/:maxHp · 🪙 :silver · 🥇 :gold · 🧪 :potions\n⭐ опыт: :exp\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit",
     'free_points' => 'Свободно очков: :points',
     'weapon_line' => '⚔️ :weapon',
     'armor_line' => '🛡 :armor',

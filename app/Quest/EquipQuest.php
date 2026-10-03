@@ -21,7 +21,7 @@ use RuntimeException;
  *
  * Что сделать: надеть кольчугу.
  *
- * Награда (`onboarding.rewards.equipQuest`): exp + gold → `quest_shop`.
+ * Награда (`onboarding.rewards.equipQuest`): exp + silver → `quest_shop`.
  */
 final class EquipQuest
 {
@@ -43,7 +43,7 @@ final class EquipQuest
 
             $player = $res->character;
             $reward = $this->reward();
-            $this->characters->addExpGold($player, $reward['exp'], $reward['gold']);
+            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
             $player->onboarding_step = OnboardingStepEnum::QUEST_SHOP;
             $player->save();
 
@@ -52,7 +52,7 @@ final class EquipQuest
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function reward(): array
     {
@@ -72,13 +72,13 @@ final class EquipQuest
             throw new RuntimeException('equipQuest.exp missing.');
         }
 
-        if (! array_key_exists('gold', $row) || ! is_int($row['gold'])) {
-            throw new RuntimeException('equipQuest.gold missing.');
+        if (! array_key_exists('silver', $row) || ! is_int($row['silver'])) {
+            throw new RuntimeException('equipQuest.silver missing.');
         }
 
         return [
             'exp' => $row['exp'],
-            'gold' => $row['gold'],
+            'silver' => $row['silver'],
         ];
     }
 }

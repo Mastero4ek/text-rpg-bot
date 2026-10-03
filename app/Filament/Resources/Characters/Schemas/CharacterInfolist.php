@@ -34,6 +34,9 @@ final class CharacterInfolist
                         TextEntry::make('exp')
                             ->label(__('admin.labels.exp'))
                             ->numeric(),
+                        TextEntry::make('silver')
+                            ->label(__('admin.labels.silver'))
+                            ->numeric(),
                         TextEntry::make('gold')
                             ->label(__('admin.labels.gold'))
                             ->numeric(),

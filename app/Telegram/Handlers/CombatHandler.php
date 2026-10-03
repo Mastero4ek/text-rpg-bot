@@ -283,7 +283,7 @@ final class CombatHandler
                 $responder->edit(
                     $text . __('onboarding.tutorial_win', [
                         'exp' => $reward['exp'],
-                        'gold' => $reward['gold'],
+                        'silver' => $reward['silver'],
                     ]),
                     null,
                 );
@@ -308,14 +308,14 @@ final class CombatHandler
         if ($won) {
             $enemy = $this->fights->enemy($fight);
             $reward = $this->combat->pveRewards($enemy->level);
-            $this->characters->addExpGold($player, $reward['exp'], $reward['gold']);
+            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
             $player->current_hp = max(1, $fight->player_hp);
             $player->save();
             $this->fights->clear($player->tg_id);
             $responder->edit(
                 $text . __('combat.win', [
                     'exp' => $reward['exp'],
-                    'gold' => $reward['gold'],
+                    'silver' => $reward['silver'],
                 ]),
                 TelegramKeyboards::mainMenu(),
             );
@@ -356,7 +356,7 @@ final class CombatHandler
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function tutorialReward(): array
     {
@@ -368,10 +368,10 @@ final class CombatHandler
 
         $row = $onboarding['rewards']['tutorialWin'] ?? null;
 
-        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['gold'])) {
+        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
             throw new RuntimeException('tutorialWin reward missing.');
         }
 
-        return ['exp' => $row['exp'], 'gold' => $row['gold']];
+        return ['exp' => $row['exp'], 'silver' => $row['silver']];
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\ItemTypeEnum;
-use App\Enums\WeaponClassEnum;
+use App\Enums\Equipment\EquipmentProfileEnum;
+use App\Enums\Equipment\TypeEnum;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,10 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $tg_id
  * @property string $item_id
  * @property string $item_name
- * @property ItemTypeEnum $item_type
- * @property ItemTypeEnum|null $slot
+ * @property TypeEnum $item_type
+ * @property TypeEnum|null $slot
  * @property int $stat_bonus
- * @property WeaponClassEnum|null $weapon_class
+ * @property EquipmentProfileEnum|null $profile
  * @property int|null $durability
  * @property int|null $max_durability
  * @property bool $is_equipped
@@ -30,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'item_type',
     'slot',
     'stat_bonus',
-    'weapon_class',
+    'profile',
     'durability',
     'max_durability',
     'is_equipped',
@@ -54,10 +54,10 @@ final class Inventory extends Model
     {
         return [
             'tg_id' => 'integer',
-            'item_type' => ItemTypeEnum::class,
-            'slot' => ItemTypeEnum::class,
+            'item_type' => TypeEnum::class,
+            'slot' => TypeEnum::class,
             'stat_bonus' => 'integer',
-            'weapon_class' => WeaponClassEnum::class,
+            'profile' => EquipmentProfileEnum::class,
             'durability' => 'integer',
             'max_durability' => 'integer',
             'is_equipped' => 'boolean',

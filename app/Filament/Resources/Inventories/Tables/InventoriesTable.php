@@ -48,8 +48,8 @@ final class InventoriesTable
                     ->label(__('admin.labels.stat_bonus'))
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('weapon_class')
-                    ->label(__('admin.labels.weapon_class'))
+                TextColumn::make('profile')
+                    ->label(__('admin.labels.profile'))
                     ->badge()
                     ->placeholder('-')
                     ->toggleable(),

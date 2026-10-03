@@ -39,8 +39,8 @@ final class InventoryInfolist
                         TextEntry::make('stat_bonus')
                             ->label(__('admin.labels.stat_bonus'))
                             ->numeric(),
-                        TextEntry::make('weapon_class')
-                            ->label(__('admin.labels.weapon_class'))
+                        TextEntry::make('profile')
+                            ->label(__('admin.labels.profile'))
                             ->badge()
                             ->placeholder('-'),
                         TextEntry::make('durability')

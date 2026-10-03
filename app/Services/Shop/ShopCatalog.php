@@ -4,57 +4,157 @@ declare(strict_types=1);
 
 namespace App\Services\Shop;
 
-use App\Enums\ItemTypeEnum;
-use App\Enums\WeaponClassEnum;
-use App\Services\Game\GameConfig;
-use App\Support\Game\ItemDef;
-use App\Support\Game\Mf;
+use App\Enums\Equipment\EffectTypeEnum;
+use App\Enums\Equipment\TypeEnum;
+use App\Models\Equipment;
+use App\Support\Game\EquipmentCatalogRow;
+use App\Support\Game\EquipmentDef;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 final class ShopCatalog
 {
-    public function __construct(
-        private readonly GameConfig $config,
-    ) {}
+    private const string CACHE_KEY = 'equipment.catalog.v5';
+
+    private const string STARTER_ARMOR_ID = 'mail_shirt';
+
+    private const string TRAINER_WEAPON_ID = 'train_club';
+
+    /**
+     * Onboarding shop weapons — fixed set, not a DB flag.
+     *
+     * @var list<string>
+     */
+    private const array NOVICE_WEAPON_IDS = [
+        'train_axe',
+        'train_club',
+        'train_knife',
+    ];
+
+    public function forgetCache(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
 
     public function potionPrice(): int
     {
-        return $this->intFromShop('potionPrice');
+        return $this->shopPotion()->price;
+    }
+
+    public function shopPotionId(): string
+    {
+        return $this->shopPotion()->itemId;
+    }
+
+    public function isShopWeapon(string $itemId): bool
+    {
+        foreach ($this->cachedRows() as $row) {
+            if ($row->def->itemId !== $itemId) {
+                continue;
+            }
+
+            if (! $row->enabled) {
+                return false;
+            }
+
+            if ($row->def->itemType !== TypeEnum::WEAPON) {
+                return false;
+            }
+
+            if (self::isNoviceWeaponId($itemId)) {
+                return true;
+            }
+
+            return $row->inShop;
+        }
+
+        return false;
+    }
+
+    public function potionHeal(): int
+    {
+        $potion = $this->shopPotion();
+
+        if ($potion->effectType !== EffectTypeEnum::HEAL_HP) {
+            throw new RuntimeException('Shop potion effect_type must be HEAL_HP.');
+        }
+
+        if ($potion->effectValue === null) {
+            throw new RuntimeException('Shop potion effect_value missing.');
+        }
+
+        return $potion->effectValue;
     }
 
     public function mailShirtId(): string
     {
-        return $this->stringFromShop('mailShirtId');
-    }
-
-    public function noviceWeaponPrice(): int
-    {
-        return $this->intFromShop('noviceWeaponPrice');
+        return self::STARTER_ARMOR_ID;
     }
 
     public function freeTrainerItemId(): string
     {
-        return $this->stringFromShop('freeTrainerItemId');
+        return self::TRAINER_WEAPON_ID;
     }
 
     /**
-     * @return list<ItemDef>
+     * @return list<EquipmentDef>
      */
     public function noviceWeapons(): array
     {
-        return $this->weaponList('noviceWeapons');
+        $items = [];
+
+        foreach ($this->cachedRows() as $row) {
+            if (! $row->enabled) {
+                continue;
+            }
+
+            if ($row->def->itemType !== TypeEnum::WEAPON) {
+                continue;
+            }
+
+            if (! self::isNoviceWeaponId($row->def->itemId)) {
+                continue;
+            }
+
+            $items[] = $row->def;
+        }
+
+        return $this->sortedDefs($items);
     }
 
     /**
-     * @return list<ItemDef>
+     * @return list<EquipmentDef>
      */
     public function tierWeapons(): array
     {
-        return $this->weaponList('tierWeapons');
+        $items = [];
+
+        foreach ($this->cachedRows() as $row) {
+            if (! $row->enabled) {
+                continue;
+            }
+
+            if (! $row->inShop) {
+                continue;
+            }
+
+            if ($row->def->itemType !== TypeEnum::WEAPON) {
+                continue;
+            }
+
+            if (self::isNoviceWeaponId($row->def->itemId)) {
+                continue;
+            }
+
+            $items[] = $row->def;
+        }
+
+        return $this->sortedDefs($items);
     }
 
     /**
-     * @return list<ItemDef>
+     * @return list<EquipmentDef>
      */
     public function weaponsForMode(string $mode): array
     {
@@ -69,27 +169,21 @@ final class ShopCatalog
         throw new RuntimeException("Unknown shop mode: {$mode}");
     }
 
-    public function findItem(string $itemId): ItemDef
+    public function findItem(string $itemId): EquipmentDef
     {
-        foreach ($this->noviceWeapons() as $weapon) {
-            if ($weapon->itemId === $itemId) {
-                return $weapon;
+        foreach ($this->cachedRows() as $row) {
+            if ($row->def->itemId === $itemId) {
+                return $row->def;
             }
         }
 
-        foreach ($this->tierWeapons() as $weapon) {
-            if ($weapon->itemId === $itemId) {
-                return $weapon;
-            }
+        $equipment = Equipment::withTrashed()->where('item_id', $itemId)->first();
+
+        if ($equipment === null) {
+            throw new RuntimeException("Unknown item {$itemId}");
         }
 
-        foreach ($this->armorItems() as $armor) {
-            if ($armor->itemId === $itemId) {
-                return $armor;
-            }
-        }
-
-        throw new RuntimeException("Unknown item {$itemId}");
+        return $equipment->toEquipmentDef();
     }
 
     public function hasItem(string $itemId): bool
@@ -103,128 +197,88 @@ final class ShopCatalog
         return true;
     }
 
-    public function mailShirt(): ItemDef
+    public function mailShirt(): EquipmentDef
     {
-        return $this->findItem($this->mailShirtId());
+        return $this->findItem(self::STARTER_ARMOR_ID);
     }
 
-    public function itemName(string $itemId): string
+    private static function isNoviceWeaponId(string $itemId): bool
     {
-        $key = 'items.' . $itemId;
-        $name = __($key);
+        return in_array($itemId, self::NOVICE_WEAPON_IDS, true);
+    }
 
-        if ($name === $key) {
-            return $itemId;
+    private function shopPotion(): EquipmentDef
+    {
+        foreach ($this->cachedRows() as $row) {
+            if (! $row->enabled) {
+                continue;
+            }
+
+            if (! $row->inShop) {
+                continue;
+            }
+
+            if ($row->def->itemType !== TypeEnum::POTION) {
+                continue;
+            }
+
+            return $row->def;
         }
 
-        return $name;
+        throw new RuntimeException('Shop potion missing in equipment catalog.');
     }
 
     /**
-     * @return list<ItemDef>
+     * @return Collection<string, EquipmentCatalogRow>
      */
-    private function armorItems(): array
+    private function cachedRows(): Collection
     {
-        $shop = $this->config->shop();
+        $cached = Cache::get(self::CACHE_KEY);
 
-        if (! array_key_exists('armor', $shop) || ! is_array($shop['armor'])) {
-            throw new RuntimeException('shop.armor missing.');
+        if ($cached instanceof Collection) {
+            $first = $cached->first();
+
+            if ($first instanceof EquipmentCatalogRow || $cached->isEmpty()) {
+                /** @var Collection<string, EquipmentCatalogRow> $cached */
+                return $cached;
+            }
         }
 
-        $items = [];
+        Cache::forget(self::CACHE_KEY);
 
-        foreach ($shop['armor'] as $row) {
-            if (! is_array($row)) {
-                throw new RuntimeException('Invalid armor row.');
+        /** @var Collection<string, EquipmentCatalogRow> $rows */
+        $rows = Cache::remember(self::CACHE_KEY, 3600, function (): Collection {
+            $rows = new Collection;
+
+            foreach (
+                Equipment::query()
+                    ->orderBy('sort_order')
+                    ->orderBy('item_id')
+                    ->get() as $equipment
+            ) {
+                $rows->put($equipment->item_id, new EquipmentCatalogRow(
+                    $equipment->toEquipmentDef(),
+                    $equipment->enabled,
+                    $equipment->in_shop,
+                ));
             }
 
-            $items[] = new ItemDef(
-                $this->stringField($row, 'item_id'),
-                $this->itemName($this->stringField($row, 'item_id')),
-                ItemTypeEnum::ARMOR,
-                null,
-                $this->intField($row, 'price'),
-                0,
-                new Mf(0, 0, 0, 0),
-                $this->intField($row, 'stat_bonus'),
-            );
-        }
+            return $rows;
+        });
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<EquipmentDef>  $items
+     * @return list<EquipmentDef>
+     */
+    private function sortedDefs(array $items): array
+    {
+        usort($items, function (EquipmentDef $a, EquipmentDef $b): int {
+            return $a->itemId <=> $b->itemId;
+        });
 
         return $items;
-    }
-
-    /**
-     * @return list<ItemDef>
-     */
-    private function weaponList(string $key): array
-    {
-        $shop = $this->config->shop();
-
-        if (! array_key_exists($key, $shop) || ! is_array($shop[$key])) {
-            throw new RuntimeException("shop.{$key} missing.");
-        }
-
-        $items = [];
-
-        foreach ($shop[$key] as $row) {
-            if (! is_array($row)) {
-                throw new RuntimeException("Invalid weapon row in {$key}.");
-            }
-
-            if (! array_key_exists('mf', $row) || ! is_array($row['mf'])) {
-                throw new RuntimeException('Weapon mf missing.');
-            }
-
-            $items[] = new ItemDef(
-                $this->stringField($row, 'item_id'),
-                $this->itemName($this->stringField($row, 'item_id')),
-                ItemTypeEnum::WEAPON,
-                WeaponClassEnum::from($this->stringField($row, 'weapon_class')),
-                $this->intField($row, 'price'),
-                $this->intField($row, 'weaponDamage'),
-                Mf::fromArray($row['mf']),
-                0,
-            );
-        }
-
-        return $items;
-    }
-
-    private function intFromShop(string $key): int
-    {
-        $shop = $this->config->shop();
-
-        return $this->intField($shop, $key);
-    }
-
-    private function stringFromShop(string $key): string
-    {
-        $shop = $this->config->shop();
-
-        return $this->stringField($shop, $key);
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function intField(array $row, string $key): int
-    {
-        if (! array_key_exists($key, $row) || ! is_int($row[$key])) {
-            throw new RuntimeException("Expected int {$key}.");
-        }
-
-        return $row[$key];
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function stringField(array $row, string $key): string
-    {
-        if (! array_key_exists($key, $row) || ! is_string($row[$key])) {
-            throw new RuntimeException("Expected string {$key}.");
-        }
-
-        return $row[$key];
     }
 }

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property OnboardingStepEnum $onboarding_step
  * @property int $level
  * @property int $exp
+ * @property int $silver
  * @property int $gold
  * @property int $strength
  * @property int $agility
@@ -41,6 +42,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'onboarding_step',
     'level',
     'exp',
+    'silver',
     'gold',
     'strength',
     'agility',
@@ -89,6 +91,7 @@ final class Character extends Model
             'onboarding_step' => OnboardingStepEnum::class,
             'level' => 'integer',
             'exp' => 'integer',
+            'silver' => 'integer',
             'gold' => 'integer',
             'strength' => 'integer',
             'agility' => 'integer',

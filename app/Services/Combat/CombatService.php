@@ -8,10 +8,11 @@ use App\Enums\StanceEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Game\GameConfig;
+use App\Services\Shop\ShopCatalog;
 use App\Support\Game\Enemy;
+use App\Support\Game\EquipmentDef;
 use App\Support\Game\Fighter;
 use App\Support\Game\HitResult;
-use App\Support\Game\ItemDef;
 use App\Support\Game\Mf;
 use App\Support\Random\RandomSourceContract;
 use RuntimeException;
@@ -21,6 +22,7 @@ final class CombatService
     public function __construct(
         private readonly GameConfig $config,
         private readonly RandomSourceContract $random,
+        private readonly ShopCatalog $shop,
     ) {}
 
     /**
@@ -260,28 +262,28 @@ final class CombatService
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     public function pveRewards(int $enemyLevel): array
     {
         $lvl = max(0, $enemyLevel);
         $r = $this->pveRewardsConfig();
-        $goldSpan = $r['goldMax'] - $r['goldMin'] + 1;
+        $silverSpan = $r['silverMax'] - $r['silverMin'] + 1;
 
         return [
             'exp' => $r['expBase'] + $lvl * $r['expPerLevel'],
-            'gold' => $r['goldMin'] + (int) floor($this->random->float() * $goldSpan),
+            'silver' => $r['silverMin'] + (int) floor($this->random->float() * $silverSpan),
         ];
     }
 
     public function potionHeal(): int
     {
-        return $this->intField($this->config->combat(), 'potionHeal');
+        return $this->shop->potionHeal();
     }
 
-    public function fighterFromPlayer(Character $character, ?ItemDef $weaponDef, string $name): Fighter
+    public function fighterFromPlayer(Character $character, ?EquipmentDef $weaponDef, string $name): Fighter
     {
-        if (! $weaponDef instanceof ItemDef) {
+        if (! $weaponDef instanceof EquipmentDef) {
             $weaponDamage = 0;
             $weaponMf = new Mf(0, 0, 0, 0);
         } else {
@@ -301,7 +303,7 @@ final class CombatService
         );
     }
 
-    public function fighterFromPlayerDefaultName(Character $character, ?ItemDef $weaponDef): Fighter
+    public function fighterFromPlayerDefaultName(Character $character, ?EquipmentDef $weaponDef): Fighter
     {
         if ($character->username === null) {
             $name = __('common.you');
@@ -447,7 +449,7 @@ final class CombatService
     }
 
     /**
-     * @return array{expBase: int, expPerLevel: int, goldMin: int, goldMax: int}
+     * @return array{expBase: int, expPerLevel: int, silverMin: int, silverMax: int}
      */
     private function pveRewardsConfig(): array
     {
@@ -462,8 +464,8 @@ final class CombatService
         return [
             'expBase' => $this->intField($r, 'expBase'),
             'expPerLevel' => $this->intField($r, 'expPerLevel'),
-            'goldMin' => $this->intField($r, 'goldMin'),
-            'goldMax' => $this->intField($r, 'goldMax'),
+            'silverMin' => $this->intField($r, 'silverMin'),
+            'silverMax' => $this->intField($r, 'silverMax'),
         ];
     }
 

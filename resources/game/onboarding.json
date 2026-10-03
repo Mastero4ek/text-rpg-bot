@@ -1,7 +1,8 @@
 {
   "cityKeys": ["aurora", "morion", "balance"],
   "start": {
-    "gold": 20,
+    "silver": 20,
+    "gold": 0,
     "strength": 3,
     "agility": 3,
     "instinct": 3,
@@ -12,10 +13,10 @@
     "potions": 0
   },
   "rewards": {
-    "tutorialWin": { "exp": 15, "gold": 2 },
-    "statsQuest": { "exp": 10, "gold": 0 },
-    "equipQuest": { "exp": 10, "gold": 25 },
-    "shopQuest": { "exp": 20, "gold": 5 }
+    "tutorialWin": { "exp": 15, "silver": 2 },
+    "statsQuest": { "exp": 10, "silver": 0 },
+    "equipQuest": { "exp": 10, "silver": 25 },
+    "shopQuest": { "exp": 20, "silver": 5 }
   },
   "graduateLevel": 1,
   "nick": {

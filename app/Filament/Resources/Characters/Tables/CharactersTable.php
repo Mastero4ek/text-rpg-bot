@@ -35,6 +35,10 @@ final class CharactersTable
                     ->label(__('admin.labels.level'))
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('silver')
+                    ->label(__('admin.labels.silver'))
+                    ->numeric()
+                    ->sortable(),
                 TextColumn::make('gold')
                     ->label(__('admin.labels.gold'))
                     ->numeric()

@@ -9,7 +9,7 @@ use App\Enums\StatKeyEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\ItemDef;
+use App\Support\Game\EquipmentDef;
 
 final class TelegramKeyboards
 {
@@ -121,7 +121,7 @@ final class TelegramKeyboards
     }
 
     /**
-     * @param  list<ItemDef>  $weapons
+     * @param  list<EquipmentDef>  $weapons
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
     public static function fullShop(array $weapons, int $potionPrice): array
@@ -242,7 +242,7 @@ final class TelegramKeyboards
     /**
      * @return array{text: string, callback_data: string}
      */
-    private static function weaponButton(ItemDef $weapon, string $data): array
+    private static function weaponButton(EquipmentDef $weapon, string $data): array
     {
         return self::cb(
             __('shop.weapon_btn', [

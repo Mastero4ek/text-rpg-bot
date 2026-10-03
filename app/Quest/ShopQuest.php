@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Quest;
 
-use App\Enums\ItemTypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
@@ -13,7 +12,7 @@ use App\Services\Inventory\InventoryService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\Game\ActionResult;
-use App\Support\Game\ItemDef;
+use App\Support\Game\EquipmentDef;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -25,7 +24,7 @@ use RuntimeException;
  * Что сделать: купить учебное оружие или забрать дубину у Тренера и экипировать.
  * Зелье квест не завершает.
  *
- * Награда (`onboarding.rewards.shopQuest`): exp + gold, level = graduateLevel,
+ * Награда (`onboarding.rewards.shopQuest`): exp + silver, level = graduateLevel,
  * full heal → `done`.
  */
 final class ShopQuest
@@ -45,10 +44,6 @@ final class ShopQuest
 
             if ($check instanceof ActionResult) {
                 return $check;
-            }
-
-            if ($check->price !== $this->shop->noviceWeaponPrice()) {
-                return ActionResult::fail(__('errors.pick_train_weapon'));
             }
 
             $player = $character;
@@ -95,19 +90,15 @@ final class ShopQuest
         return $this->shopService->buyPotion($character->tg_id);
     }
 
-    private function noviceWeaponOrFail(string $itemId): ActionResult|ItemDef
+    private function noviceWeaponOrFail(string $itemId): ActionResult|EquipmentDef
     {
-        if (! $this->shop->hasItem($itemId)) {
-            return ActionResult::fail(__('errors.pick_train_weapon'));
+        foreach ($this->shop->noviceWeapons() as $weapon) {
+            if ($weapon->itemId === $itemId) {
+                return $weapon;
+            }
         }
 
-        $def = $this->shop->findItem($itemId);
-
-        if ($def->itemType !== ItemTypeEnum::WEAPON) {
-            return ActionResult::fail(__('errors.pick_train_weapon'));
-        }
-
-        return $def;
+        return ActionResult::fail(__('errors.pick_train_weapon'));
     }
 
     private function equipAndGraduate(Character $player, string $itemId): ActionResult
@@ -120,7 +111,7 @@ final class ShopQuest
 
         $player = $eq->character;
         $reward = $this->reward();
-        $this->characters->addExpGold($player, $reward['exp'], $reward['gold']);
+        $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
         $player->level = $this->graduateLevel();
         $player->current_hp = $this->characters->maxHp($player);
         $player->last_hp_update = now();
@@ -142,7 +133,7 @@ final class ShopQuest
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function reward(): array
     {
@@ -162,13 +153,13 @@ final class ShopQuest
             throw new RuntimeException('shopQuest.exp missing.');
         }
 
-        if (! array_key_exists('gold', $row) || ! is_int($row['gold'])) {
-            throw new RuntimeException('shopQuest.gold missing.');
+        if (! array_key_exists('silver', $row) || ! is_int($row['silver'])) {
+            throw new RuntimeException('shopQuest.silver missing.');
         }
 
         return [
             'exp' => $row['exp'],
-            'gold' => $row['gold'],
+            'silver' => $row['silver'],
         ];
     }
 }

@@ -59,7 +59,7 @@ it('tutorial fight persists and win lose', function (): void {
 
     $p = onboarding()->onTutorialWin($p);
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_STATS)
-        ->and($p->gold)->toBe($ob['start']['gold'] + $ob['rewards']['tutorialWin']['gold']);
+        ->and($p->silver)->toBe($ob['start']['silver'] + $ob['rewards']['tutorialWin']['silver']);
 });
 
 it('stats equip shop free club full path', function (): void {

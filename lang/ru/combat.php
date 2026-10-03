@@ -28,7 +28,7 @@ return [
     'pick_attack' => "\n\nКуда бьёшь?",
     'pick_defend' => "\n\nЧто блокируешь?",
     'potion_then_defend' => "\n\nЗелье вместо удара. Что блокируешь?",
-    'win' => "\n\nПобеда! +:exp опыта, +:gold🪙",
+    'win' => "\n\nПобеда! +:exp опыта, +:silver🪙",
     'lose' => "\n\nПоражение. Жди реген или купи зелье.",
     'btn_attack' => '⚔ Атака',
     'btn_defend' => '🛡 Защита',

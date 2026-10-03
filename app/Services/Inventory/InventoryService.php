@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Inventory;
 
-use App\Enums\ItemTypeEnum;
+use App\Enums\Equipment\TypeEnum;
 use App\Models\Character;
 use App\Models\Inventory;
 use App\Services\Character\CharacterService;
@@ -44,10 +44,10 @@ final class InventoryService
         $row->slot = $def->itemType;
         $row->stat_bonus = $def->statBonus;
 
-        if (! $def->weaponClass instanceof \App\Enums\WeaponClassEnum) {
-            $row->weapon_class = null;
+        if (! $def->profile instanceof \App\Enums\Equipment\EquipmentProfileEnum) {
+            $row->profile = null;
         } else {
-            $row->weapon_class = $def->weaponClass;
+            $row->profile = $def->profile;
         }
 
         $row->durability = null;
@@ -92,19 +92,19 @@ final class InventoryService
                 return ActionResult::fail(__('errors.item_not_found'));
             }
 
-            if ($row->item_type === ItemTypeEnum::WEAPON) {
+            if ($row->item_type === TypeEnum::WEAPON) {
                 Inventory::query()
                     ->where('tg_id', $character->tg_id)
-                    ->where('item_type', ItemTypeEnum::WEAPON->value)
+                    ->where('item_type', TypeEnum::WEAPON->value)
                     ->update(['is_equipped' => false]);
 
                 $row->is_equipped = true;
                 $row->save();
                 $character->weapon_id = $row->item_id;
-            } else {
+            } elseif ($row->item_type === TypeEnum::ARMOR) {
                 Inventory::query()
                     ->where('tg_id', $character->tg_id)
-                    ->where('item_type', ItemTypeEnum::ARMOR->value)
+                    ->where('item_type', TypeEnum::ARMOR->value)
                     ->update(['is_equipped' => false]);
 
                 $row->is_equipped = true;
@@ -125,6 +125,8 @@ final class InventoryService
                         $newCap,
                     );
                 }
+            } else {
+                return ActionResult::fail(__('errors.cannot_equip'));
             }
 
             $character->save();

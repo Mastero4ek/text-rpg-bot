@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p = characters()->createDraft(5001);
-    $p->gold = 100;
+    $p->silver = 100;
     $p->save();
 
     $buy = shopService()->buyWeapon($p->tg_id, 'train_knife');
@@ -14,11 +14,11 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
     expect(shopService()->buyWeapon($p->tg_id, 'train_knife')->ok)->toBeFalse();
 
     $p = characters()->findByTgId($p->tg_id);
-    $p->gold = 0;
+    $p->silver = 0;
     $p->save();
     expect(shopService()->buyPotion($p->tg_id)->ok)->toBeFalse();
 
-    $p->gold = shopCatalog()->potionPrice();
+    $p->silver = shopCatalog()->potionPrice();
     $p->save();
     $potion = shopService()->buyPotion($p->tg_id);
     expect($potion->ok)->toBeTrue()
@@ -49,6 +49,6 @@ it('fight create and clear', function (): void {
     expect($fight->tutorial)->toBeTrue()
         ->and(fights()->exists($p->tg_id))->toBeTrue();
 
-    app(App\Actions\Fight\Clear\FightClearAction::class)->handle($p->tg_id);
+    app(App\Actions\Fight\FightClearAction::class)->handle($p->tg_id);
     expect(fights()->exists($p->tg_id))->toBeFalse();
 });

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Character;
 
-use App\Enums\ItemTypeEnum;
+use App\Enums\Equipment\TypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
@@ -46,7 +46,7 @@ final class CharacterService
 
         $item = $this->shop->findItem($character->armor_id);
 
-        if ($item->itemType !== ItemTypeEnum::ARMOR) {
+        if ($item->itemType !== TypeEnum::ARMOR) {
             return 0;
         }
 
@@ -89,6 +89,7 @@ final class CharacterService
             $character->onboarding_step = OnboardingStepEnum::NICK;
             $character->level = $start['level'];
             $character->exp = $start['exp'];
+            $character->silver = $start['silver'];
             $character->gold = $start['gold'];
             $character->strength = $start['strength'];
             $character->agility = $start['agility'];
@@ -165,16 +166,16 @@ final class CharacterService
         return $leveled;
     }
 
-    public function addExpGold(Character $character, int $expGain, int $goldGain): Character
+    public function addExpSilver(Character $character, int $expGain, int $silverGain): Character
     {
-        return DB::transaction(function () use ($character, $expGain, $goldGain): Character {
+        return DB::transaction(function () use ($character, $expGain, $silverGain): Character {
             $levelCfg = $this->characterLevelConfig();
 
             if ($character->level < $levelCfg['max']) {
                 $character->exp += $expGain;
             }
 
-            $character->gold += $goldGain;
+            $character->silver += $silverGain;
             $this->tryLevelUp($character);
             $character->save();
 
@@ -259,6 +260,7 @@ final class CharacterService
                 'level' => $character->level,
                 'hp' => $character->current_hp,
                 'maxHp' => $cap,
+                'silver' => $character->silver,
                 'gold' => $character->gold,
                 'potions' => $character->potions,
                 'exp' => $need,
@@ -359,6 +361,7 @@ final class CharacterService
 
     /**
      * @return array{
+     *     silver: int,
      *     gold: int,
      *     strength: int,
      *     agility: int,
@@ -381,6 +384,7 @@ final class CharacterService
         $start = $onboarding['start'];
 
         return [
+            'silver' => $this->intField($start, 'silver'),
             'gold' => $this->intField($start, 'gold'),
             'strength' => $this->intField($start, 'strength'),
             'agility' => $this->intField($start, 'agility'),
