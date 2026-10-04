@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Equipment;
 
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\ZoneEnum;
 use App\Models\Inventory;
 use App\Support\Game\Mf;
 

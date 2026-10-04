@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\StanceEnum;
 use App\Models\Character;
 use App\Models\Inventory;
 use App\Services\Character\CharacterService;

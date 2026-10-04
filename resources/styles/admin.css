@@ -1,0 +1,45 @@
+.fi-fo-field-label-ctn > .fi-sc.fi-inline,
+.fi-in-entry-label-ctn > .fi-sc.fi-inline {
+    flex-grow: 0;
+}
+
+.fi-btn,
+.fi-btn * {
+    color: #ffffff !important;
+}
+
+.fi-ta-appearance-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: rgb(249 250 251);
+    color: rgb(156 163 175);
+}
+
+.dark .fi-ta-appearance-placeholder {
+    background-color: rgb(46 46 49);
+    color: rgb(255 255 255 / 0.8);
+}
+
+.fi-ta-appearance-placeholder svg {
+    width: 70%;
+    height: 70%;
+}
+
+.fi-fight-crossed-swords {
+    display: block;
+    width: 6rem;
+    height: 6rem;
+    color: rgb(156 163 175);
+}
+
+.dark .fi-fight-crossed-swords {
+    color: rgb(255 255 255 / 0.8);
+}
+
+.fi-fight-crossed-swords svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}

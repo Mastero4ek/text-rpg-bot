@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 use App\Support\Game\Mf;
 
 it('makeWoodenSoldier from enemies.json', function (): void {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Enums\StanceEnum;
 use App\Models\Equipment;
 use App\Services\Inventory\LoadoutService;
 use App\Support\Telegram\TelegramClient;
@@ -220,7 +220,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
     $enemy['maxHp'] = 500;
     $fight->enemy = $enemy;
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
     $fight->player_defend = null;
     $fight->step = FightStepEnum::DEFEND;
     $fight->pierce_count = 0;
@@ -233,7 +233,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
     expect($fight->pierce_count)->toBe(1);
 
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
     $fight->player_defend = null;
     $fight->step = FightStepEnum::DEFEND;
     $fight->save();

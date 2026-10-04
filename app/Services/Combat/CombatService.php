@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Combat;
 
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 use App\Models\Character;
 use App\Services\Game\GameConfig;
 use App\Services\Shop\ShopCatalog;

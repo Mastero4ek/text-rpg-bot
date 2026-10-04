@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Game;
 
-use App\Enums\StanceEnum;
+use App\Enums\Combat\StanceEnum;
 use InvalidArgumentException;
 
 final readonly class Enemy

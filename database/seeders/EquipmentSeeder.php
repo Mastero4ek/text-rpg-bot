@@ -10,19 +10,22 @@ use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Equipment;
+use App\Services\Shop\ShopCatalog;
 use Illuminate\Database\Seeder;
 
 final class EquipmentSeeder extends Seeder
 {
     public function run(): void
     {
+        app(ShopCatalog::class)->forgetCache();
+
         foreach ($this->catalog() as $row) {
             $equipment = Equipment::query()->updateOrCreate(
                 ['item_id' => $row['item_id']],
                 $row,
             );
 
-            $this->syncAppearanceImage($equipment);
+            $equipment->clearMediaCollection('image');
         }
     }
 
@@ -738,20 +741,5 @@ final class EquipmentSeeder extends Seeder
             'hammer_1' => ['req_level' => 3, 'req_strength' => 6, 'req_instinct' => 4, 'req_vitality' => 3],
             default => [],
         };
-    }
-
-    private function syncAppearanceImage(Equipment $equipment): void
-    {
-        $path = database_path('seeders/fixtures/equipment/' . $equipment->item_id . '.png');
-
-        if (! is_file($path)) {
-            return;
-        }
-
-        $equipment->clearMediaCollection('image');
-        $equipment
-            ->addMedia($path)
-            ->preservingOriginal()
-            ->toMediaCollection('image', 'public');
     }
 }

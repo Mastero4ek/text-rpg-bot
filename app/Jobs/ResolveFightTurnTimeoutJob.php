@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\Fight\FightClearAction;
 use App\Actions\Gem\GemBreakOnLoseAction;
 use App\Actions\Inventory\InventoryApplyFightWearAction;
 use App\Enums\OnboardingStepEnum;
@@ -42,6 +43,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         GemBreakOnLoseAction $breakGems,
         OnboardingService $onboarding,
         GameConfig $config,
+        FightClearAction $clearFight,
     ): void {
         if (! $fights->exists($this->tgId)) {
             return;
@@ -90,6 +92,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             $this->finishWin(
                 $telegram,
                 $fights,
+                $clearFight,
                 $characters,
                 $combat,
                 $fightWear,
@@ -107,7 +110,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
 
         $this->finishLose(
             $telegram,
-            $fights,
+            $clearFight,
             $characters,
             $fightWear,
             $breakGems,
@@ -123,6 +126,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
     private function finishWin(
         TelegramClient $telegram,
         FightService $fights,
+        FightClearAction $clearFight,
         CharacterService $characters,
         CombatService $combat,
         InventoryApplyFightWearAction $fightWear,
@@ -136,7 +140,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
     ): void {
         if ($fight->tutorial) {
             $player = $onboarding->onTutorialWin($player);
-            $fights->clear($player->tg_id);
+            $clearFight->handle($player->tg_id);
             $reward = $this->tutorialReward($config);
 
             if ($chatId !== null && $messageId !== null) {
@@ -168,7 +172,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         $player = $characters->findByTgId($player->tg_id);
         $player->current_hp = max(1, min($fight->player_hp, $characters->maxHp($player)));
         $player->save();
-        $fights->clear($player->tg_id);
+        $clearFight->handle($player->tg_id);
 
         if ($chatId !== null && $messageId !== null) {
             $telegram->editMessageText(
@@ -185,7 +189,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
 
     private function finishLose(
         TelegramClient $telegram,
-        FightService $fights,
+        FightClearAction $clearFight,
         CharacterService $characters,
         InventoryApplyFightWearAction $fightWear,
         GemBreakOnLoseAction $breakGems,
@@ -198,7 +202,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
     ): void {
         if ($fight->tutorial) {
             $player = $onboarding->onTutorialLose($player);
-            $fights->clear($player->tg_id);
+            $clearFight->handle($player->tg_id);
 
             if ($chatId !== null && $messageId !== null) {
                 $telegram->editMessageText(
@@ -227,7 +231,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         $player->current_hp = 0;
         $player->last_hp_update = now();
         $player->save();
-        $fights->clear($player->tg_id);
+        $clearFight->handle($player->tg_id);
 
         if ($chatId !== null && $messageId !== null) {
             $telegram->editMessageText(

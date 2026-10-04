@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Fight;
 
-use App\Enums\FightKindEnum;
-use App\Enums\FightStepEnum;
+use App\Enums\Fight\FightKindEnum;
+use App\Enums\Fight\FightStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Character;
 use App\Models\Fight;

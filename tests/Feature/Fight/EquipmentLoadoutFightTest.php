@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\FightStepEnum;
+use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
 use App\Models\Inventory;
 use App\Services\Inventory\LoadoutService;
 use App\Support\Telegram\TelegramClient;
@@ -141,7 +141,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
     $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::DEFEND;
-    $fight->player_attack = App\Enums\FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::HEAD;
     $fight->save();
 
     $update = new TelegramUpdate([
@@ -204,7 +204,7 @@ it('resolves after one defend zone without shield', function (): void {
     $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = App\Enums\FightPlayerAttackEnum::CHEST;
+    $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::CHEST;
     $fight->save();
 
     $update = new TelegramUpdate([

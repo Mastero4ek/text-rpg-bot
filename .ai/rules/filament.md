@@ -9,16 +9,17 @@ paths:
 - Panel: `/admin`, single User from `AdminUserSeeder` (`.env` ADMIN\_\*).
 - MVP resources are **read-only**: `canCreate` / `canEdit` / `canDelete` → `false`. No Create/Edit pages.
 - Exception (roadmap **1.0**): full **CRUD каталога снаряжения** (`Equipment` resource) — Create / Edit / View / Archive / Delete, все поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
+- Exception (live sessions): `FightResource` — List/View + Delete/bulk force-clear (`FightClearAction`); `canDelete` / `canDeleteAny` → `true`; Create/Edit **нет**.
 - Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/` (page/table mixins), `app/Filament/Support/` (presentation helpers, не traits), `app/Filament/Tables/Columns/`.
 - Labels / actions / hints: `lang/ru/admin.php` (`labels.*`, `models.*`, `navigation.*`, `actions.*`, `hints.*`, `sections.*`). Не хардкодить RU-строки в Table/Form/Pages.
-- Глобальный CSS в `AdminPanelProvider` (`PanelsRenderHook::HEAD_END`): hint-icon `flex-grow:0`; текст всех `.fi-btn` → `#ffffff` (light/dark); `.fi-ta-appearance-placeholder` (empty appearance circle).
+- Глобальный CSS: `resources/styles/admin.css`, подключается через `AdminPanelProvider` → `->assets([Css::make('admin', ...)])` (после правок — `php artisan filament:assets`). hint-icon `flex-grow:0`; текст всех `.fi-btn` → `#ffffff` (light/dark); `.fi-ta-appearance-placeholder`; `.fi-fight-crossed-swords`.
 - Tests: `tests/Feature/Filament/*` via `pest-plugin-livewire` (`livewire(...)`).
 
 ## Soft delete = архив
 
 - Soft delete → UI **Архивировать**; ForceDelete → **Удалить**; Restore → **Восстановить**.
 - ForceDelete только на уже архивной записи и если нет ссылок в inventory (`$record->trashed() && ! $record->isReferencedByInventory()` / `EquipmentResource::canForceDelete`).
-- Copy: `admin.actions.archive|delete|restore|archive_bulk|trashed_filter|view|edit|clone`.
+- Copy: `admin.actions.archive|delete|restore|archive_bulk|delete_bulk|trashed_filter|view|edit|clone`.
 
 ## Pages — канон
 
@@ -47,7 +48,8 @@ paths:
 
 - Та же Form, что create/edit (`ViewRecord` сам `->disabled()`). **Не** определять `infolist()` у write-ресурсов.
 - Header: `Клонировать` (gray) → `EditAction`. Клон через trait `HasCloneToCreate` (`getCloneAction()`).
-- Отдельный Infolist — только у read-only ресурсов (Characters / Inventories).
+- Отдельный Infolist — только у read-only ресурсов Characters / Inventories.
+- `FightResource` (live sessions): View через **Form** (как Equipment/Gem: Section + icon + collapsible/collapsed), без Infolist; Create/Edit страниц нет.
 
 ### Clone → Create
 
@@ -106,6 +108,7 @@ paths:
     - Restore → `Color::Green` + `heroicon-o-arrow-uturn-left` + `admin.actions.restore`
     - Delete (force) → `Color::Red` + `heroicon-o-trash` + `admin.actions.delete`; `visible` если `trashed()` и нет inventory refs
 - Bulk: `BulkActionGroup` + `DeleteBulkAction` как **архив** (`admin.actions.archive_bulk`, amber, archive icon) — только у write-ресурсов.
+- `FightResource` bulk: hard clear через `FightClearAction` + `admin.actions.delete_bulk`, red + trash (`canDeleteAny` → `true`).
 
 ### Enums для UI
 
@@ -120,7 +123,7 @@ paths:
 
 - Schema: `->columns(1)`.
 - Каждая `Section`: `->columnSpanFull()` + collapsible + `->icon(Heroicon::Outlined…)`. Первая ключевая (identity) — `->collapsible()` открыта; остальные — `->collapsed()`.
-- Navigation sort (после Dashboard): Characters `1` → Equipment `2` → Gems `3`. Inventory — не отдельный пункт меню: RelationManager на Character (`InventoriesRelationManager`), `InventoryResource::$shouldRegisterNavigation = false` (view по URL остаётся). FightResource в админке нет (бои — runtime `fights`, не каталог).
+- Navigation sort (после Dashboard): Characters `1` → Equipment `2` → Gems `3` → Fights `4`. Inventory — не отдельный пункт меню: RelationManager на Character (`InventoriesRelationManager`), `InventoryResource::$shouldRegisterNavigation = false` (view по URL остаётся). `FightResource` — live-сессии: List/View + Delete (`FightClearAction` force-clear); Create/Edit **нет**.
 - Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `enabled`+`in_shop` (ряд `columns(3)`), справа art/description. `GemForm`: слева name → ряд `columns(3)` = `type` + `max_durability` + MF (пока тип не выбран — disabled-плейсхолдер `gem_stat`; иначе одно MF-поле по типу) → флаги `columns(3)`; отдельных секций прочность/характеристики **нет**. `item_id` / `gem_id` — `Hidden`, автоген на create; не в таблице и не в UI формы. В форме не показываем: `sort_order` (БД + defaultSort); нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier` (VIP-витрина = `currency=GOLD`; лечение = profile `HEAL` + `effect_value`; камни — любой type в `gem_slots`). Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`. Поиск по name в List также матчит `item_id` / `gem_id`.
 - Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
 - `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот только `RIGHT_HAND` + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL; зелье: POCKET + `HEAL`. Слот и профиль disabled пока тип не выбран.
