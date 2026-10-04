@@ -12,7 +12,7 @@ use Filament\Support\Enums\Alignment;
  * @method Action getCancelFormAction()
  * @method Action getSubmitFormAction()
  */
-trait HasBetweenFormActions
+trait HasFormActionsBetween
 {
     public function getFormActionsAlignment(): string|Alignment
     {

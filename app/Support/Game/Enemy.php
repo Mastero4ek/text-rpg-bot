@@ -98,6 +98,12 @@ final readonly class Enemy
             $this->weaponDamage,
             $this->weaponMf,
             $this->stance,
+            [
+                'HEAD' => 0,
+                'CHEST' => 0,
+                'BELLY' => 0,
+                'LEGS' => 0,
+            ],
         );
     }
 

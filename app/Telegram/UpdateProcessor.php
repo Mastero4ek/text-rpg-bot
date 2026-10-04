@@ -74,7 +74,9 @@ final class UpdateProcessor
         if (
             str_starts_with($data, 'menu:')
             || str_starts_with($data, 'inv:')
+            || str_starts_with($data, 'gear:')
             || str_starts_with($data, 'stat:')
+            || str_starts_with($data, 'smith:')
         ) {
             if ($data === 'menu:shop') {
                 $this->shop->handleCallback($update, $responder);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Shop;
 
-use App\Enums\Equipment\CurrencyEnum;
+use App\Enums\Economy\CurrencyEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Inventory\InventoryService;
@@ -22,6 +22,28 @@ final class ShopService
 
     public function buyWeapon(int $tgId, string $itemId): ActionResult
     {
+        if (! $this->catalog->isShopWeapon($itemId)) {
+            return ActionResult::fail(__('errors.pick_train_weapon'));
+        }
+
+        return $this->buyCatalogItem($tgId, $itemId);
+    }
+
+    public function buyGear(int $tgId, string $itemId): ActionResult
+    {
+        if ($this->catalog->isShopWeapon($itemId)) {
+            return ActionResult::fail(__('errors.item_not_in_shop'));
+        }
+
+        if (! $this->catalog->isShopMerchandise($itemId)) {
+            return ActionResult::fail(__('errors.item_not_in_shop'));
+        }
+
+        return $this->buyCatalogItem($tgId, $itemId);
+    }
+
+    public function buyCatalogItem(int $tgId, string $itemId): ActionResult
+    {
         return DB::transaction(function () use ($tgId, $itemId): ActionResult {
             $character = Character::query()->find($tgId);
 
@@ -29,8 +51,8 @@ final class ShopService
                 return ActionResult::fail(__('common.press_start'));
             }
 
-            if (! $this->catalog->isShopWeapon($itemId)) {
-                return ActionResult::fail(__('errors.pick_train_weapon'));
+            if (! $this->catalog->isShopMerchandise($itemId)) {
+                return ActionResult::fail(__('errors.item_not_in_shop'));
             }
 
             $def = $this->catalog->findItem($itemId);

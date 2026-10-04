@@ -10,7 +10,7 @@ use App\Models\Character;
 use App\Services\Game\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Game\Enemy;
-use App\Support\Game\EquipmentDef;
+use App\Support\Game\EquippedLoadout;
 use App\Support\Game\Fighter;
 use App\Support\Game\HitResult;
 use App\Support\Game\Mf;
@@ -92,11 +92,14 @@ final class CombatService
         return StanceEnum::ATTACK;
     }
 
+    /**
+     * @param  list<ZoneEnum>  $defendZones
+     */
     public function calculateHit(
         Fighter $attacker,
         Fighter $defender,
         ZoneEnum $atkZone,
-        ZoneEnum $defZone,
+        array $defendZones,
     ): HitResult {
         $atkMf = $this->applyStanceToMf(
             $this->baseMf($attacker)->merge($attacker->weaponMf),
@@ -107,7 +110,7 @@ final class CombatService
             $defender->stance,
         );
 
-        $blocked = $atkZone === $defZone;
+        $blocked = in_array($atkZone, $defendZones, true);
         $zone = $this->zoneRu($atkZone);
         $pierce = $this->pierceConfig();
         $dodge = $this->dodgeConfig();
@@ -123,7 +126,8 @@ final class CombatService
             if ($this->random->float() * 100 < $pierceChance) {
                 $base = $this->calcBaseDamage($attacker, $atkMf['damageMult']);
                 $mult = $pierce['multMin'] + $this->random->float() * $pierce['multRange'];
-                $dmg = max(1, (int) floor($base * $mult));
+                $raw = max(1, (int) floor($base * $mult));
+                $dmg = $this->applyZoneArmor($raw, $defender, $atkZone);
 
                 return new HitResult(
                     $dmg,
@@ -170,12 +174,13 @@ final class CombatService
         }
 
         $base = $this->calcBaseDamage($attacker, $atkMf['damageMult']);
-        $dmg = max(
+        $raw = max(
             1,
             (int) floor(
                 $base * ($dmgCfg['varianceMin'] + $this->random->float() * $dmgCfg['varianceRange'])
             ),
         );
+        $dmg = $this->applyZoneArmor($raw, $defender, $atkZone);
 
         return new HitResult(
             $dmg,
@@ -281,29 +286,37 @@ final class CombatService
         return $this->shop->potionHeal();
     }
 
-    public function fighterFromPlayer(Character $character, ?EquipmentDef $weaponDef, string $name): Fighter
+    public function fighterFromPlayer(Character $character, EquippedLoadout $loadout, string $name): Fighter
     {
-        if (! $weaponDef instanceof EquipmentDef) {
-            $weaponDamage = 0;
-            $weaponMf = new Mf(0, 0, 0, 0);
-        } else {
-            $weaponDamage = $weaponDef->weaponDamage;
-            $weaponMf = $weaponDef->mf;
-        }
-
         return new Fighter(
             $name,
             $character->strength,
             $character->agility,
             $character->instinct,
             $character->vitality,
-            $weaponDamage,
-            $weaponMf,
+            $this->rollWeaponDamage($loadout->weaponDamageMin, $loadout->weaponDamageMax),
+            $loadout->mf,
             StanceEnum::DEFEND,
+            $loadout->armorByZone,
         );
     }
 
-    public function fighterFromPlayerDefaultName(Character $character, ?EquipmentDef $weaponDef): Fighter
+    public function rollWeaponDamage(int $min, int $max): int
+    {
+        if ($max < $min) {
+            throw new RuntimeException('weapon damage max must be >= min.');
+        }
+
+        if ($min === $max) {
+            return $min;
+        }
+
+        $span = $max - $min + 1;
+
+        return $min + (int) floor($this->random->float() * $span);
+    }
+
+    public function fighterFromPlayerDefaultName(Character $character, EquippedLoadout $loadout): Fighter
     {
         if ($character->username === null) {
             $name = __('common.you');
@@ -311,7 +324,7 @@ final class CombatService
             $name = $character->username;
         }
 
-        return $this->fighterFromPlayer($character, $weaponDef, $name);
+        return $this->fighterFromPlayer($character, $loadout, $name);
     }
 
     private function baseMf(Fighter $fighter): Mf
@@ -340,6 +353,11 @@ final class CombatService
             'antiCrit' => $mf->antiCrit + $s['antiCrit'],
             'damageMult' => $s['damageMult'],
         ];
+    }
+
+    private function applyZoneArmor(int $rawDamage, Fighter $defender, ZoneEnum $atkZone): int
+    {
+        return max(1, $rawDamage - $defender->armorForZone($atkZone));
     }
 
     private function calcBaseDamage(Fighter $attacker, float $damageMult): float

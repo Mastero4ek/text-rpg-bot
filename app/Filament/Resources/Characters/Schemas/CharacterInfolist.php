@@ -71,11 +71,29 @@ final class CharacterInfolist
                         TextEntry::make('potions')
                             ->label(__('admin.labels.potions'))
                             ->numeric(),
-                        TextEntry::make('weapon_id')
-                            ->label(__('admin.labels.weapon_id'))
+                        TextEntry::make('gem_pouch')
+                            ->label(__('admin.labels.gem_pouch'))
+                            ->formatStateUsing(function (mixed $state): string {
+                                if (! is_array($state) || $state === []) {
+                                    return '-';
+                                }
+
+                                $parts = [];
+
+                                foreach ($state as $gemId => $qty) {
+                                    $parts[] = $gemId . '×' . $qty;
+                                }
+
+                                return implode(', ', $parts);
+                            })
                             ->placeholder('-'),
-                        TextEntry::make('armor_id')
-                            ->label(__('admin.labels.armor_id'))
+                        TextEntry::make('gem_insurance_charges')
+                            ->label(__('admin.labels.gem_insurance_charges'))
+                            ->numeric(),
+                        TextEntry::make('equippedInventories.item_name')
+                            ->label(__('admin.labels.equipped'))
+                            ->listWithLineBreaks()
+                            ->bulleted()
                             ->placeholder('-'),
                         TextEntry::make('created_at')
                             ->label(__('admin.labels.created_at'))

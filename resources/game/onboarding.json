@@ -19,6 +19,7 @@
     "shopQuest": { "exp": 20, "silver": 5 }
   },
   "graduateLevel": 1,
+  "starterGemId": "gem_ruby_t1",
   "nick": {
     "min": 3,
     "max": 20

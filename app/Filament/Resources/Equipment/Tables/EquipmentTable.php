@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Equipment\Tables;
 
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Filament\Concerns\HasAppearanceColumn;
 use App\Models\Equipment;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -26,29 +27,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class EquipmentTable
 {
+    use HasAppearanceColumn;
+
     public static function configure(Table $table): Table
     {
         return $table
             ->defaultSort('sort_order')
             ->columns([
-                TextColumn::make('item_id')
-                    ->label(__('admin.labels.item_id'))
-                    ->searchable()
-                    ->tooltip(fn (Equipment $record): string => $record->item_id)
-                    ->limit(15)
-                    ->placeholder('-')
-                    ->sortable(),
+                self::appearanceColumn(),
                 TextColumn::make('name')
                     ->label(__('admin.labels.name'))
-                    ->searchable()
+                    ->searchable(['name', 'item_id'])
                     ->tooltip(fn (Equipment $record): string => $record->name)
-                    ->limit(20)
+                    ->limit(40)
                     ->placeholder('-')
-                    ->sortable(),
-                TextColumn::make('tier')
-                    ->label(__('admin.labels.tier'))
-                    ->placeholder('-')
-                    ->alignCenter()
                     ->sortable(),
                 TextColumn::make('item_type')
                     ->label(__('admin.labels.item_type'))
@@ -92,15 +84,6 @@ final class EquipmentTable
                     ->label(__('admin.labels.slot'))
                     ->native(false)
                     ->options(SlotEnum::class),
-                SelectFilter::make('tier')
-                    ->label(__('admin.labels.tier'))
-                    ->native(false)
-                    ->options([
-                        0 => '0',
-                        1 => '1',
-                        2 => '2',
-                        3 => '3',
-                    ]),
                 TernaryFilter::make('in_shop')
                     ->label(__('admin.labels.in_shop'))
                     ->native(false),
@@ -154,8 +137,7 @@ final class EquipmentTable
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.delete.modal_submit'))
-                    ->successNotificationTitle(__('admin.actions.delete.notification'))
-                    ->visible(fn (Equipment $record): bool => $record->trashed() && ! $record->isReferencedByInventory()),
+                    ->successNotificationTitle(__('admin.actions.delete.notification')),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -164,7 +146,7 @@ final class EquipmentTable
                         ->modalHeading(__('admin.actions.archive_bulk.modal_heading'))
                         ->modalSubmitActionLabel(__('admin.actions.archive_bulk.modal_submit'))
                         ->successNotificationTitle(__('admin.actions.archive_bulk.notification'))
-                        ->icon(Heroicon::OutlinedArchiveBox)
+                        ->icon(null)
                         ->color(Color::Amber),
                 ]),
             ])

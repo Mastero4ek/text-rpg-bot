@@ -18,12 +18,10 @@ return new class extends Migration
             $table->string('item_name');
             $table->string('item_type')->default(TypeEnum::WEAPON->value);
             $table->string('slot')->nullable();
-            $table->integer('stat_bonus')->default(0);
-            $table->string('profile')->nullable();
             $table->unsignedInteger('durability')->nullable();
             $table->unsignedInteger('max_durability')->nullable();
             $table->boolean('is_equipped')->default(false);
-
+            $table->json('socketed_gems')->nullable();
             $table->index('tg_id');
             $table->foreign('tg_id')->references('tg_id')->on('characters');
         });

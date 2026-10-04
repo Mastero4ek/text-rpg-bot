@@ -7,11 +7,11 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p->silver = 100;
     $p->save();
 
-    $buy = shopService()->buyWeapon($p->tg_id, 'train_knife');
+    $buy = shopService()->buyWeapon($p->tg_id, 'knife_0');
     expect($buy->ok)->toBeTrue()
-        ->and(inventory()->owns($p->tg_id, 'train_knife'))->toBeTrue();
+        ->and(inventory()->owns($p->tg_id, 'knife_0'))->toBeTrue();
 
-    expect(shopService()->buyWeapon($p->tg_id, 'train_knife')->ok)->toBeFalse();
+    expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse();
 
     $p = characters()->findByTgId($p->tg_id);
     $p->silver = 0;
@@ -27,18 +27,27 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
 
 it('equip weapon and armor', function (): void {
     $p = characters()->createDraft(5002);
-    inventory()->addItem($p->tg_id, 'train_axe');
+    inventory()->addItem($p->tg_id, 'axe_0');
     inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
 
-    $weapon = inventory()->findOwned($p->tg_id, 'train_axe');
+    $weapon = inventory()->findOwned($p->tg_id, 'axe_0');
     $eq = inventory()->equip($p, $weapon->id);
-    expect($eq->ok)->toBeTrue()
-        ->and($eq->character->weapon_id)->toBe('train_axe');
+    expect($eq->ok)->toBeTrue();
+    $weapon->refresh();
+    expect($weapon->is_equipped)->toBeTrue()
+        ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 
     $armor = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
     $eqArmor = inventory()->equip($eq->character, $armor->id);
-    expect($eqArmor->ok)->toBeTrue()
-        ->and($eqArmor->character->armor_id)->toBe(shopCatalog()->mailShirtId());
+    expect($eqArmor->ok)->toBeTrue();
+    $armor->refresh();
+    expect($armor->is_equipped)->toBeTrue()
+        ->and($armor->slot)->toBe(App\Enums\Equipment\SlotEnum::ARMOR);
+
+    $uneq = inventory()->unequip($eqArmor->character, $armor->id);
+    expect($uneq->ok)->toBeTrue();
+    $armor->refresh();
+    expect($armor->is_equipped)->toBeFalse();
 });
 
 it('fight create and clear', function (): void {

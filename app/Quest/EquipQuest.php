@@ -17,7 +17,7 @@ use RuntimeException;
 /**
  * Квест экипировки (кольчуга).
  *
- * Как получить: после StatsQuest (`quest_equip`), в инвентаре уже `mail_shirt`.
+ * Как получить: после StatsQuest (`quest_equip`), в инвентаре уже `heavy_0`.
  *
  * Что сделать: надеть кольчугу.
  *

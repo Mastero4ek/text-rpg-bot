@@ -77,7 +77,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 ## Out of scope
 
-Roadmap stages 1–6 (equipment slots, Stars, PvP, clans, mass fights, world, …). Do not extend the schema for them.
+Roadmap stages 1–6 (equipment slots, gold/VIP, PvP, clans, mass fights, world, …). Do not extend the schema for them.
 
 === .ai/code-style rules ===
 

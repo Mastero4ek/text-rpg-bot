@@ -18,7 +18,7 @@ use Illuminate\Support\Arr;
  * @method Model getRecord()
  * @method static class-string<Resource> getResource()
  */
-trait CanCloneToCreate
+trait HasCloneToCreate
 {
     protected function fillFormFromClone(): void
     {

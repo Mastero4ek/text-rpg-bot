@@ -3,23 +3,22 @@
 declare(strict_types=1);
 
 return [
-    'effect_types' => [
-        'HEAL_HP' => 'Лечение',
-    ],
     'repair_tiers' => [
         'NORMAL' => 'Обычный',
         'VIP' => 'VIP',
     ],
     'slots' => [
-        'AMULET' => 'Амулет',
+        'AMULET' => 'Ожерелье',
         'ARMOR' => 'Доспех',
-        'BELT' => 'Пояс',
         'BOOTS' => 'Сапоги',
+        'GLOVES' => 'Перчатки',
         'HELMET' => 'Шлем',
         'LEFT_HAND' => 'Левая рука',
+        'PANTS' => 'Штаны',
         'POCKET' => 'Карман',
         'RIGHT_HAND' => 'Правая рука',
-        'RING' => 'Кольцо',
+        'RING_1' => 'Кольцо 1',
+        'RING_2' => 'Кольцо 2',
         'SHIELD' => 'Щит',
     ],
     'types' => [
@@ -29,16 +28,17 @@ return [
         'WEAPON' => 'Оружие',
     ],
     'profiles' => [
+        'AXE' => 'Топор',
         'CHARM' => 'Талисман',
-        'CLEAVE' => 'Рубящая',
-        'CRUSH' => 'Дробящая',
+        'CLUB' => 'Дубина',
         'FOCUS' => 'Фокус',
-        'GUARD' => 'Защита',
+        'HAMMER' => 'Молот',
         'HEAL' => 'Лечение',
         'HEAVY' => 'Тяжёлая',
-        'LIGHT' => 'Лёгкая',
+        'KNIFE' => 'Нож',
+        'KNUCKLES' => 'Кастет',
         'MOBILE' => 'Лёгкая',
-        'STIM' => 'Стимул',
+        'SWORD' => 'Меч',
         'VITAL' => 'Здоровье',
         'WARD' => 'Волшебная',
     ],

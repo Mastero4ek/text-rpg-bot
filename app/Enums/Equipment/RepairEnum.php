@@ -7,19 +7,21 @@ namespace App\Enums\Equipment;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum EffectTypeEnum: string implements HasColor, HasLabel
+enum RepairEnum: string implements HasColor, HasLabel
 {
-    case HEAL_HP = 'HEAL_HP';
+    case NORMAL = 'NORMAL';
+    case VIP = 'VIP';
 
     public function getLabel(): string
     {
-        return __('equipment.effect_types.' . $this->value);
+        return __('equipment.repair_tiers.' . $this->value);
     }
 
     public function getColor(): string
     {
         return match ($this) {
-            self::HEAL_HP => 'success',
+            self::NORMAL => 'gray',
+            self::VIP => 'warning',
         };
     }
 }

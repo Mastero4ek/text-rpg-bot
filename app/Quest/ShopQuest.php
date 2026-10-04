@@ -8,6 +8,7 @@ use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
+use App\Services\Inventory\GemService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
@@ -33,6 +34,7 @@ final class ShopQuest
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
         private readonly InventoryService $inventory,
+        private readonly GemService $gems,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
     ) {}
@@ -117,8 +119,24 @@ final class ShopQuest
         $player->last_hp_update = now();
         $player->onboarding_step = OnboardingStepEnum::DONE;
         $player->save();
+        $player = $this->gems->grantToPouch($player, $this->starterGemId(), 1);
 
         return ActionResult::ok($player);
+    }
+
+    private function starterGemId(): string
+    {
+        $onboarding = $this->config->onboarding();
+
+        if (! array_key_exists('starterGemId', $onboarding) || ! is_string($onboarding['starterGemId'])) {
+            throw new RuntimeException('onboarding.starterGemId missing.');
+        }
+
+        if ($onboarding['starterGemId'] === '') {
+            throw new RuntimeException('onboarding.starterGemId empty.');
+        }
+
+        return $onboarding['starterGemId'];
     }
 
     private function graduateLevel(): int

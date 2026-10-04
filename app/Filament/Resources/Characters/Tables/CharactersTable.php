@@ -76,11 +76,9 @@ final class CharactersTable
                     ->label(__('admin.labels.vitality'))
                     ->numeric()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('weapon_id')
-                    ->label(__('admin.labels.weapon_id'))
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('armor_id')
-                    ->label(__('admin.labels.armor_id'))
+                TextColumn::make('equipped_inventories_count')
+                    ->counts('equippedInventories')
+                    ->label(__('admin.labels.equipped_count'))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('stat_points')
                     ->label(__('admin.labels.stat_points'))

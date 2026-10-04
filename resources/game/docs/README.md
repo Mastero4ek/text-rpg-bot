@@ -1,4 +1,4 @@
-> Баланс игры. JSON в этой папке читает `App\Services\Game\GameConfig` (character/combat/enemies/onboarding). Каталог экипа — таблица `equipment` (`ShopCatalog`); initial seed — `EquipmentSeeder`.
+> Баланс игры. JSON в этой папке читает `App\Services\Game\GameConfig` (character/combat/enemies/onboarding/settings). Каталог экипа — таблица `equipment` (`ShopCatalog`); initial seed — `EquipmentSeeder`. Камни — `gems.json` (`GemCatalog`).
 
 ## Каталог снаряжения (этап 1.0)
 

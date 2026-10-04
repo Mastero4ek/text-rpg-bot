@@ -1,6 +1,7 @@
 {
   "zones": ["HEAD", "CHEST", "BELLY", "LEGS"],
   "aiDefendChance": 0.55,
+  "dualWieldMinLevel": 1,
   "mfPerStat": 3,
   "damage": {
     "base": 8,

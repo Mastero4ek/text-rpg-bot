@@ -14,7 +14,8 @@ it('createDraft from onboarding.start', function (): void {
         ->and($p->stat_points)->toBe($cfg['statPoints'])
         ->and($p->level)->toBe($cfg['level'])
         ->and($p->onboarding_step)->toBe(OnboardingStepEnum::NICK)
-        ->and($p->current_hp)->toBe(characters()->baseMaxHp($cfg['vitality']));
+        ->and($p->current_hp)->toBe(characters()->baseMaxHp($cfg['vitality']))
+        ->and(inventory()->owns($p->tg_id, shopCatalog()->starterKnucklesId()))->toBeFalse();
 });
 
 it('maxHp includes armor bonus', function (): void {
@@ -24,7 +25,10 @@ it('maxHp includes armor bonus', function (): void {
 
     expect($without)->toBe($charCfg['base'] + $p->vitality * $charCfg['perVitality']);
 
-    $p->armor_id = shopCatalog()->mailShirtId();
+    inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
+    $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
+    inventory()->equip($p, $mail->id);
+
     expect(characters()->maxHp($p))->toBe($without + shopCatalog()->mailShirt()->statBonus);
 });
 

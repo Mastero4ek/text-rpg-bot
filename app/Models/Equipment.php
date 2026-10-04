@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\Equipment\EquipmentSyncInventoryNamesAction;
-use App\Enums\Equipment\CurrencyEnum;
-use App\Enums\Equipment\EffectTypeEnum;
-use App\Enums\Equipment\EquipmentProfileEnum;
-use App\Enums\Equipment\RepairTierEnum;
+use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\ProfileEnum;
+use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Services\Shop\ShopCatalog;
@@ -29,32 +28,30 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string|null $description
  * @property TypeEnum $item_type
  * @property SlotEnum|null $slot
- * @property EquipmentProfileEnum|null $profile
- * @property int|null $tier
+ * @property ProfileEnum|null $profile
  * @property bool $in_shop
  * @property bool $enabled
  * @property int $price
  * @property CurrencyEnum $currency
- * @property bool $vip_only
- * @property RepairTierEnum $repair_tier
- * @property int $weapon_damage
+ * @property RepairEnum $repair_tier
+ * @property int $weapon_damage_min
+ * @property int $weapon_damage_max
  * @property int $stat_bonus
  * @property int $armor
  * @property int $mf_dodge
  * @property int $mf_anti_dodge
  * @property int $mf_crit
  * @property int $mf_anti_crit
- * @property EffectTypeEnum|null $effect_type
  * @property int|null $effect_value
  * @property int|null $req_strength
  * @property int|null $req_agility
  * @property int|null $req_instinct
+ * @property int|null $req_vitality
  * @property int|null $req_level
  * @property int|null $max_durability
  * @property int|null $durability_loss_per_fight
  * @property bool $repairable
  * @property int|null $gem_slots
- * @property list<string>|null $allowed_gem_types
  * @property int $sort_order
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
@@ -67,31 +64,29 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'item_type',
     'slot',
     'profile',
-    'tier',
     'in_shop',
     'enabled',
     'price',
     'currency',
-    'vip_only',
     'repair_tier',
-    'weapon_damage',
+    'weapon_damage_min',
+    'weapon_damage_max',
     'stat_bonus',
     'armor',
     'mf_dodge',
     'mf_anti_dodge',
     'mf_crit',
     'mf_anti_crit',
-    'effect_type',
     'effect_value',
     'req_strength',
     'req_agility',
     'req_instinct',
+    'req_vitality',
     'req_level',
     'max_durability',
     'durability_loss_per_fight',
     'repairable',
     'gem_slots',
-    'allowed_gem_types',
     'sort_order',
 ])]
 final class Equipment extends Model implements HasMedia
@@ -110,11 +105,34 @@ final class Equipment extends Model implements HasMedia
 
     protected $table = 'equipment';
 
-    public function registerMediaCollections(): void
+    public static function nextItemIdForProfile(ProfileEnum $profile): string
     {
-        $this->addMediaCollection('image')
-            ->singleFile()
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+        $prefix = mb_strtolower($profile->value);
+        $pattern = '/^' . preg_quote($prefix, '/') . '_(\d+)$/';
+        $max = -1;
+
+        $ids = self::query()
+            ->withTrashed()
+            ->where('item_id', 'like', $prefix . '_%')
+            ->pluck('item_id');
+
+        foreach ($ids as $itemId) {
+            if (! is_string($itemId)) {
+                continue;
+            }
+
+            if (preg_match($pattern, $itemId, $matches) !== 1) {
+                continue;
+            }
+
+            $n = (int) $matches[1];
+
+            if ($n > $max) {
+                $max = $n;
+            }
+        }
+
+        return $prefix . '_' . ($max + 1);
     }
 
     public function isReferencedByInventory(): bool
@@ -124,16 +142,26 @@ final class Equipment extends Model implements HasMedia
             ->exists();
     }
 
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('image')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
     public function toEquipmentDef(): EquipmentDef
     {
         return new EquipmentDef(
             $this->item_id,
             $this->name,
+            $this->description,
             $this->item_type,
+            $this->slot,
             $this->profile,
             $this->price,
             $this->currency,
-            $this->weapon_damage,
+            $this->weapon_damage_min,
+            $this->weapon_damage_max,
             new Mf(
                 $this->mf_dodge,
                 $this->mf_anti_dodge,
@@ -142,13 +170,60 @@ final class Equipment extends Model implements HasMedia
             ),
             $this->stat_bonus,
             $this->armor,
-            $this->effect_type,
             $this->effect_value,
+            $this->req_level,
+            $this->req_strength,
+            $this->req_agility,
+            $this->req_instinct,
+            $this->req_vitality,
+            $this->max_durability,
+            $this->durability_loss_per_fight,
+            $this->repairable,
+            $this->repair_tier,
+            $this->gem_slots,
         );
     }
 
     protected static function booted(): void
     {
+        self::saving(function (Equipment $equipment): void {
+            foreach ([
+                'weapon_damage_min',
+                'weapon_damage_max',
+                'stat_bonus',
+                'armor',
+                'mf_dodge',
+                'mf_anti_dodge',
+                'mf_crit',
+                'mf_anti_crit',
+                'price',
+            ] as $attribute) {
+                $raw = $equipment->getAttributes()[$attribute] ?? null;
+
+                if ($raw === null) {
+                    $equipment->{$attribute} = 0;
+                }
+            }
+
+            if ($equipment->weapon_damage_max < $equipment->weapon_damage_min) {
+                $equipment->weapon_damage_max = $equipment->weapon_damage_min;
+            }
+
+            if (
+                $equipment->slot === SlotEnum::GLOVES
+                || $equipment->slot === SlotEnum::SHIELD
+            ) {
+                $equipment->armor = 0;
+            }
+
+            if (
+                $equipment->item_type === TypeEnum::JEWELRY
+                || $equipment->item_type === TypeEnum::POTION
+            ) {
+                $equipment->gem_slots = null;
+            }
+        });
+
         self::saved(function (Equipment $equipment): void {
             app(ShopCatalog::class)->forgetCache();
 
@@ -174,32 +249,30 @@ final class Equipment extends Model implements HasMedia
         return [
             'item_type' => TypeEnum::class,
             'slot' => SlotEnum::class,
-            'profile' => EquipmentProfileEnum::class,
-            'tier' => 'integer',
+            'profile' => ProfileEnum::class,
             'in_shop' => 'boolean',
             'enabled' => 'boolean',
             'price' => 'integer',
             'currency' => CurrencyEnum::class,
-            'vip_only' => 'boolean',
-            'repair_tier' => RepairTierEnum::class,
-            'weapon_damage' => 'integer',
+            'repair_tier' => RepairEnum::class,
+            'weapon_damage_min' => 'integer',
+            'weapon_damage_max' => 'integer',
             'stat_bonus' => 'integer',
             'armor' => 'integer',
             'mf_dodge' => 'integer',
             'mf_anti_dodge' => 'integer',
             'mf_crit' => 'integer',
             'mf_anti_crit' => 'integer',
-            'effect_type' => EffectTypeEnum::class,
             'effect_value' => 'integer',
             'req_strength' => 'integer',
             'req_agility' => 'integer',
             'req_instinct' => 'integer',
+            'req_vitality' => 'integer',
             'req_level' => 'integer',
             'max_durability' => 'integer',
             'durability_loss_per_fight' => 'integer',
             'repairable' => 'boolean',
             'gem_slots' => 'integer',
-            'allowed_gem_types' => 'array',
             'sort_order' => 'integer',
         ];
     }

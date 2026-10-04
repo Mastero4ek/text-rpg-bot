@@ -49,6 +49,25 @@ final class AdminPanelProvider extends PanelProvider
                         .fi-btn * {
                             color: #ffffff !important;
                         }
+
+                        .fi-ta-appearance-placeholder {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 9999px;
+                            background-color: rgb(249 250 251);
+                            color: rgb(156 163 175);
+                        }
+
+                        .dark .fi-ta-appearance-placeholder {
+                            background-color: rgb(46 46 49);
+                            color: rgb(255 255 255 / 0.8);
+                        }
+
+                        .fi-ta-appearance-placeholder svg {
+                            width: 70%;
+                            height: 70%;
+                        }
                     </style>
                     HTML),
             )

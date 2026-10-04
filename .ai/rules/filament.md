@@ -10,7 +10,7 @@ paths:
 - Exception (roadmap **1.0**): full **CRUD каталога снаряжения** (`Equipment` resource) — Create / Edit / View / Archive / Delete, все поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
 - Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/`.
 - Labels / actions / hints: `lang/ru/admin.php` (`labels.*`, `models.*`, `navigation.*`, `actions.*`, `hints.*`, `sections.*`). Не хардкодить RU-строки в Table/Form/Pages.
-- Глобальный CSS в `AdminPanelProvider` (`PanelsRenderHook::HEAD_END`): hint-icon `flex-grow:0`; текст всех `.fi-btn` → `#ffffff` (light/dark).
+- Глобальный CSS в `AdminPanelProvider` (`PanelsRenderHook::HEAD_END`): hint-icon `flex-grow:0`; текст всех `.fi-btn` → `#ffffff` (light/dark); `.fi-ta-appearance-placeholder` (empty appearance circle).
 - Tests: `tests/Feature/Filament/*` via `pest-plugin-livewire` (`livewire(...)`).
 
 ## Soft delete = архив
@@ -29,13 +29,13 @@ paths:
 
 ### Create (`CreateRecord`)
 
-- `use HasBetweenFormActions`.
+- `use HasFormActionsBetween`.
 - `protected static bool $canCreateAnother = false`.
 - Без кастомного `getFormActions()` — всё в трейте.
 
 ### Edit (`EditRecord`)
 
-- `use HasBetweenFormActions`.
+- `use HasFormActionsBetween`.
 - Header **без** View: Архивировать / Восстановить / Удалить (порядок: restore перед force-delete).
 - Архивировать = `DeleteAction` + labels из `admin.actions.archive.*`, `->color('warning')`, **без** иконки на header-кнопке.
 - Удалить = `ForceDeleteAction` + `admin.actions.delete.*`, `->visible` только если `trashed()` и нет inventory refs.
@@ -45,20 +45,20 @@ paths:
 ### View (`ViewRecord`)
 
 - Та же Form, что create/edit (`ViewRecord` сам `->disabled()`). **Не** определять `infolist()` у write-ресурсов.
-- Header: `Клонировать` (gray) → `EditAction`. Клон через trait `CanCloneToCreate` (`getCloneAction()`).
+- Header: `Клонировать` (gray) → `EditAction`. Клон через trait `HasCloneToCreate` (`getCloneAction()`).
 - Отдельный Infolist — только у read-only ресурсов (Characters / Fights / Inventories).
 
 ### Clone → Create
 
 - Встроенный Filament `ReplicateAction` **не** используем: он сразу `replicate()->save()` в БД.
-- Trait `App\Filament\Concerns\CanCloneToCreate`:
+- Trait `App\Filament\Concerns\HasCloneToCreate`:
   - View/Edit: `getCloneAction()` — кладёт attributes в session (без PK/timestamps/`deleted_at`; override `getCloneExcludedAttributes()`), редирект на `create`.
   - Create: после `parent::mount()` → `fillFormFromClone()` (session `pull`).
 - Вкл/выкл: подключить trait + вызвать методы на страницах. Media (Spatie) не копируется.
 
 ### Form actions (Create + Edit)
 
-- Trait `App\Filament\Concerns\HasBetweenFormActions`:
+- Trait `App\Filament\Concerns\HasFormActionsBetween`:
   - `getFormActionsAlignment()` → `Alignment::Between`
   - порядок: Cancel слева, Create/Save справа
 
@@ -76,6 +76,7 @@ paths:
 
 ### Колонки
 
+- Первая колонка Equipment: trait `HasAppearanceColumn` → `AppearanceImageColumn` / `appearanceColumn()` (label `admin.labels.appearance` = «Вид»; `collection('image')`, circular, `imageSize(40)`; empty → `.fi-ta-appearance-placeholder` в `AdminPanelProvider` CSS: light `rgb(249 250 251)`, dark `#2e2e31` + camera icon; `sortable` по `exists` media collection `image`). Eager `with('media')`.
 - Длинный текст: `limit(...)` + `tooltip(fn (Model $record): string => ...)` + `placeholder('-')`.
 - Nullable / пустые: всегда `placeholder('-')`.
 - Числа / флаги / даты / enum-badge: `alignCenter()` где уместно.
@@ -116,10 +117,13 @@ paths:
 
 - Schema: `->columns(1)`.
 - Каждая `Section`: `->columnSpanFull()` + collapsible + `->icon(Heroicon::Outlined…)`. Первая ключевая (identity) — `->collapsible()` открыта; остальные — `->collapsed()`.
-- Identity: две `Group` в `->columns(2)` — слева id/название/тип+профиль+слот (ряд `columns(3)`)/ранг/флаги `in_shop`+`enabled`+`vip_only` (ряд `columns(3)`), справа art/description. В форме не показываем: `sort_order` (БД + defaultSort); `stars_price` / `admin_note` / `req_vitality` нет. Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`.
-- `item_type` → `live()`: фильтрует `slot` / `profile` через `forType`. Оружие: RIGHT_HAND/LEFT_HAND + LIGHT/CLEAVE/CRUSH; броня: HELMET/ARMOR/BOOTS/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING + FOCUS/CHARM/VITAL; зелье: POCKET/BELT + HEAL/STIM/GUARD. Слот и профиль disabled пока тип не выбран. Украшения в экипе/персонаже пока не надеваются (`armor_id`/`weapon_id` = null).
-- Характеристики (`equipment_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage`+MF; ARMOR → `armor`+`stat_bonus`+MF; JEWELRY → `stat_bonus`+MF; POTION → `effect_type`+`effect_value`. Слот набор полей не меняет. Профиль зелья HEAL → авто `effect_type=HEAL_HP`. При смене типа лишние статы обнуляются.
-- Экономика: только `currency`+`price`; `GOLD` → авто `vip_only=true`, `SILVER` → `vip_only=false`.
-- Прочность: `max_durability` / износ / `gem_slots` / `repair_tier` (`columns(4)`); `repairable` на следующей строке (`columnStart(1)`).
+- Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `in_shop`+`enabled` (ряд `columns(2)`), справа art/description. `item_id` — `Hidden`, автоген по profile на create (`Equipment::nextItemIdForProfile`); не в таблице и не в UI формы. В форме не показываем: `sort_order` (БД + defaultSort); нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier` (VIP-витрина = `currency=GOLD`; лечение = profile `HEAL` + `effect_value`; камни — любой type в `gem_slots`). Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`. Поиск по name в List также матчит `item_id`.
+- Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
+- `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот только `RIGHT_HAND` + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL; зелье: POCKET + `HEAL`. Слот и профиль disabled пока тип не выбран.
+- Зонная `armor` только HELMET/ARMOR/PANTS/BOOTS (GLOVES/SHIELD → 0, поле скрыто).
+- Характеристики (`equipment_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage_min`+`weapon_damage_max`+MF; ARMOR → `stat_bonus`+MF (+`armor` на зонных слотах); JEWELRY → `stat_bonus`+MF; POTION → `effect_value` (профиль HEAL). При смене типа лишние статы **сбрасываются в пусто** (`null`), не в `0`.
+- Create: **без** `->default(...)` на полях формы (пусто до ввода админа). NOT NULL инты при save → `0` в `Equipment::saving`.
+- Экономика: только `currency`+`price` (без default).
+- Прочность: `max_durability` / износ / `repair_tier`; `gem_slots` только WEAPON/ARMOR; `repairable` на следующей строке (без default).
 - Поля create/edit: `->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.*'))` — на view иконка скрыта (`operation === 'view'` → `null`).
 - В остальных секциях поля гридить `->columns(2)` (или явную сетку секции); сами секции всегда одна колонка, не side-by-side.

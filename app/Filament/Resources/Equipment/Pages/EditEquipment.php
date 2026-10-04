@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Equipment\Pages;
 
-use App\Filament\Concerns\HasBetweenFormActions;
+use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Models\Equipment;
 use Filament\Actions\DeleteAction;
@@ -15,7 +15,7 @@ use Filament\Support\Colors\Color;
 
 final class EditEquipment extends EditRecord
 {
-    use HasBetweenFormActions;
+    use HasFormActionsBetween;
 
     protected static string $resource = EquipmentResource::class;
 

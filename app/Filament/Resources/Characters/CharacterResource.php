@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 final class CharacterResource extends Resource
@@ -39,6 +40,11 @@ final class CharacterResource extends Resource
     public static function canEdit(Model $record): bool
     {
         return false;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['equippedInventories']);
     }
 
     public static function getModelLabel(): string

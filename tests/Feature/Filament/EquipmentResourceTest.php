@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Equipment\CurrencyEnum;
-use App\Enums\Equipment\EffectTypeEnum;
-use App\Enums\Equipment\EquipmentProfileEnum;
-use App\Enums\Equipment\RepairTierEnum;
+use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\ProfileEnum;
+use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Filament\Resources\Equipment\Pages\CreateEquipment;
@@ -30,7 +29,7 @@ beforeEach(function (): void {
 });
 
 it('lists and views equipment catalog', function (): void {
-    $item = Equipment::query()->findOrFail('train_knife');
+    $item = Equipment::query()->findOrFail('knife_0');
 
     livewire(ListEquipment::class)
         ->assertOk()
@@ -41,101 +40,99 @@ it('lists and views equipment catalog', function (): void {
     ])
         ->assertOk()
         ->assertSchemaStateSet([
-            'item_id' => 'train_knife',
+            'item_id' => 'knife_0',
             'name' => 'Учебный нож',
         ]);
 });
 
 it('creates weapon armor and potion via filament form', function (): void {
+    $knifeId = Equipment::nextItemIdForProfile(ProfileEnum::KNIFE);
+
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'custom_blade',
             'name' => 'Кастомный клинок',
             'description' => 'Тестовый меч из админки',
             'price' => 77,
-            'weapon_damage' => 6,
+            'weapon_damage_min' => 6,
+            'weapon_damage_max' => 6,
             'mf_dodge' => 1,
             'mf_crit' => 2,
-            'sort_order' => 99,
         ]))
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('custom_blade')->price)->toBe(77)
-        ->and(shopCatalog()->findItem('custom_blade')->weaponDamage)->toBe(6);
+    expect(Equipment::query()->findOrFail($knifeId)->price)->toBe(77)
+        ->and(shopCatalog()->findItem($knifeId)->weaponDamageMin)->toBe(6)
+        ->and(shopCatalog()->findItem($knifeId)->weaponDamageMax)->toBe(6);
+
+    $heavyId = Equipment::nextItemIdForProfile(ProfileEnum::HEAVY);
 
     livewire(CreateEquipment::class)
         ->fillForm(armorForm([
-            'item_id' => 'custom_mail',
             'name' => 'Кастомная броня',
             'description' => 'Тестовая броня',
             'stat_bonus' => 12,
             'armor' => 3,
-            'sort_order' => 100,
         ]))
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('custom_mail')->item_type)->toBe(TypeEnum::ARMOR)
-        ->and(shopCatalog()->findItem('custom_mail')->statBonus)->toBe(12);
+    expect(Equipment::query()->findOrFail($heavyId)->item_type)->toBe(TypeEnum::ARMOR)
+        ->and(shopCatalog()->findItem($heavyId)->statBonus)->toBe(12);
+
+    $healId = Equipment::nextItemIdForProfile(ProfileEnum::HEAL);
 
     livewire(CreateEquipment::class)
         ->fillForm(potionForm([
-            'item_id' => 'custom_potion',
             'name' => 'Кастомное зелье',
             'description' => 'Тестовое зелье',
             'price' => 25,
             'effect_value' => 33,
-            'sort_order' => 101,
         ]))
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('custom_potion')->item_type)->toBe(TypeEnum::POTION)
-        ->and(shopCatalog()->findItem('custom_potion')->effectValue)->toBe(33);
+    expect(Equipment::query()->findOrFail($healId)->item_type)->toBe(TypeEnum::POTION)
+        ->and(shopCatalog()->findItem($healId)->effectValue)->toBe(33);
 });
 
 it('uploads spatie media art on create', function (): void {
     Storage::fake('public');
 
     $file = UploadedFile::fake()->image('sword.png', 40, 40);
+    $knifeId = Equipment::nextItemIdForProfile(ProfileEnum::KNIFE);
 
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'art_blade',
             'name' => 'Клинок с артом',
             'description' => 'С картинкой',
             'image' => [$file],
-            'sort_order' => 110,
         ]))
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $created = Equipment::query()->findOrFail('art_blade');
+    $created = Equipment::query()->findOrFail($knifeId);
 
     expect($created->hasMedia('image'))->toBeTrue();
 });
 
-it('validates unique item_id and non-negative price and mf', function (): void {
+it('validates non-negative price and mf', function (): void {
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'train_knife',
             'name' => 'Дубль',
-            'description' => 'Уже есть',
+            'description' => 'Плохие числа',
             'price' => -1,
             'mf_dodge' => -2,
-            'sort_order' => 120,
         ]))
         ->call('create')
         ->assertHasFormErrors([
-            'item_id',
             'price',
             'mf_dodge',
         ]);
 });
 
 it('edits equipment name and exposes it in catalog', function (): void {
-    $item = Equipment::query()->findOrFail('mail_shirt');
+    $item = Equipment::query()->findOrFail('heavy_0');
 
     livewire(EditEquipment::class, [
         'record' => $item->getKey(),
@@ -181,9 +178,9 @@ it('deletes restores and force deletes via edit page actions', function (): void
 
 it('hides force delete when equipment is owned', function (): void {
     $character = characters()->createDraft(9105);
-    inventory()->addItem($character->tg_id, 'train_club');
+    inventory()->addItem($character->tg_id, 'club_0');
 
-    $item = Equipment::query()->findOrFail('train_club');
+    $item = Equipment::query()->findOrFail('club_0');
     $item->delete();
 
     livewire(EditEquipment::class, [
@@ -193,8 +190,8 @@ it('hides force delete when equipment is owned', function (): void {
 });
 
 it('filters equipment table by type', function (): void {
-    $weapon = Equipment::query()->findOrFail('train_knife');
-    $armor = Equipment::query()->findOrFail('mail_shirt');
+    $weapon = Equipment::query()->findOrFail('knife_0');
+    $armor = Equipment::query()->findOrFail('heavy_0');
 
     livewire(ListEquipment::class)
         ->filterTable('item_type', TypeEnum::WEAPON->value)
@@ -203,8 +200,8 @@ it('filters equipment table by type', function (): void {
 });
 
 it('filters equipment table by slot', function (): void {
-    $weapon = Equipment::query()->findOrFail('train_knife');
-    $armor = Equipment::query()->findOrFail('mail_shirt');
+    $weapon = Equipment::query()->findOrFail('knife_0');
+    $armor = Equipment::query()->findOrFail('heavy_0');
 
     livewire(ListEquipment::class)
         ->filterTable('slot', SlotEnum::ARMOR->value)
@@ -212,19 +209,9 @@ it('filters equipment table by slot', function (): void {
         ->assertCanNotSeeTableRecords([$weapon]);
 });
 
-it('filters equipment table by tier', function (): void {
-    $tierWeapon = Equipment::query()->findOrFail('knife_t1');
-    $novice = Equipment::query()->findOrFail('train_knife');
-
-    livewire(ListEquipment::class)
-        ->filterTable('tier', 1)
-        ->assertCanSeeTableRecords([$tierWeapon])
-        ->assertCanNotSeeTableRecords([$novice]);
-});
-
 it('filters equipment table by in_shop and enabled', function (): void {
-    $weapon = Equipment::query()->findOrFail('train_knife');
-    $armor = Equipment::query()->findOrFail('mail_shirt');
+    $weapon = Equipment::query()->findOrFail('knife_0');
+    $armor = Equipment::query()->findOrFail('heavy_0');
 
     livewire(ListEquipment::class)
         ->filterTable('in_shop', true)
@@ -246,7 +233,8 @@ it('rejects guests from equipment resource', function (): void {
 });
 
 it('clones equipment into create form without primary key', function (): void {
-    $source = Equipment::query()->findOrFail('train_knife');
+    $source = Equipment::query()->findOrFail('knife_0');
+    $nextId = Equipment::nextItemIdForProfile(ProfileEnum::KNIFE);
 
     livewire(ViewEquipment::class, [
         'record' => $source->getKey(),
@@ -257,10 +245,11 @@ it('clones equipment into create form without primary key', function (): void {
 
     livewire(CreateEquipment::class)
         ->assertSchemaStateSet([
-            'item_id' => null,
+            'item_id' => $nextId,
             'name' => $source->name,
             'description' => $source->description,
-            'weapon_damage' => $source->weapon_damage,
+            'weapon_damage_min' => $source->weapon_damage_min,
+            'weapon_damage_max' => $source->weapon_damage_max,
             'price' => $source->price,
             'slot' => $source->slot->value,
             'profile' => $source->profile->value,
@@ -268,170 +257,161 @@ it('clones equipment into create form without primary key', function (): void {
 });
 
 it('creates jewelry with stat bonus and mf without weapon damage', function (): void {
+    $focusId = Equipment::nextItemIdForProfile(ProfileEnum::FOCUS);
+
     livewire(CreateEquipment::class)
         ->fillForm(jewelryForm([
-            'item_id' => 'custom_amulet',
             'name' => 'Кастомный амулет',
             'description' => 'Тестовая бижутерия',
             'stat_bonus' => 4,
             'mf_crit' => 3,
-            'sort_order' => 130,
         ]))
         ->assertFormFieldVisible('stat_bonus')
         ->assertFormFieldVisible('mf_crit')
-        ->assertFormFieldHidden('weapon_damage')
+        ->assertFormFieldHidden('weapon_damage_min')
+        ->assertFormFieldHidden('weapon_damage_max')
         ->assertFormFieldHidden('armor')
-        ->assertFormFieldHidden('effect_type')
+        ->assertFormFieldHidden('effect_value')
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $created = Equipment::query()->findOrFail('custom_amulet');
+    $created = Equipment::query()->findOrFail($focusId);
 
     expect($created->item_type)->toBe(TypeEnum::JEWELRY)
         ->and($created->slot)->toBe(SlotEnum::AMULET)
         ->and($created->stat_bonus)->toBe(4)
         ->and($created->mf_crit)->toBe(3)
-        ->and($created->weapon_damage)->toBe(0)
-        ->and(shopCatalog()->findItem('custom_amulet')->statBonus)->toBe(4);
+        ->and($created->weapon_damage_min)->toBe(0)
+        ->and($created->weapon_damage_max)->toBe(0)
+        ->and(shopCatalog()->findItem($focusId)->statBonus)->toBe(4);
 });
 
-it('forces vip_only when currency is gold and clears it for silver', function (): void {
+it('saves gold currency without vip_only flag', function (): void {
+    $goldId = Equipment::nextItemIdForProfile(ProfileEnum::KNIFE);
+
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'gold_blade',
             'name' => 'Золотой клинок',
             'description' => 'За золото',
-            'sort_order' => 140,
-        ]))
-        ->fillForm([
             'currency' => CurrencyEnum::GOLD,
-        ])
-        ->assertSchemaStateSet([
-            'vip_only' => true,
-        ])
+            'price' => 3,
+        ]))
+        ->assertFormFieldDoesNotExist('vip_only')
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('gold_blade'))
-        ->currency->toBe(CurrencyEnum::GOLD)
-        ->vip_only->toBeTrue();
-
-    livewire(CreateEquipment::class)
-        ->fillForm(weaponForm([
-            'item_id' => 'silver_again',
-            'name' => 'Серебряный клинок',
-            'description' => 'Не VIP',
-            'sort_order' => 141,
-        ]))
-        ->fillForm([
-            'currency' => CurrencyEnum::GOLD,
-        ])
-        ->fillForm([
-            'currency' => CurrencyEnum::SILVER,
-        ])
-        ->assertSchemaStateSet([
-            'vip_only' => false,
-        ]);
+    expect(Equipment::query()->findOrFail($goldId)->currency)->toBe(CurrencyEnum::GOLD);
+    expect(Schema::hasColumn('equipment', 'vip_only'))->toBeFalse();
 });
 
 it('resets combat fields and toggles visibility when type changes to potion', function (): void {
+    $healId = Equipment::nextItemIdForProfile(ProfileEnum::HEAL);
+
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'type_switch_blade',
             'name' => 'Переключатель',
             'description' => 'Смена типа',
-            'weapon_damage' => 8,
+            'weapon_damage_min' => 8,
+            'weapon_damage_max' => 8,
             'mf_dodge' => 5,
-            'sort_order' => 150,
         ]))
-        ->assertFormFieldVisible('weapon_damage')
+        ->assertFormFieldVisible('weapon_damage_min')
+        ->assertFormFieldVisible('weapon_damage_max')
         ->assertFormFieldVisible('mf_dodge')
-        ->assertFormFieldHidden('effect_type')
+        ->assertFormFieldHidden('effect_value')
         ->fillForm([
             'item_type' => TypeEnum::POTION,
         ])
         ->assertSchemaStateSet([
-            'weapon_damage' => 0,
-            'stat_bonus' => 0,
-            'armor' => 0,
-            'mf_dodge' => 0,
-            'mf_anti_dodge' => 0,
-            'mf_crit' => 0,
-            'mf_anti_crit' => 0,
-            'slot' => SlotEnum::POCKET->value,
+            'weapon_damage_min' => null,
+            'weapon_damage_max' => null,
+            'stat_bonus' => null,
+            'armor' => null,
+            'mf_dodge' => null,
+            'mf_anti_dodge' => null,
+            'mf_crit' => null,
+            'mf_anti_crit' => null,
+            'slot' => null,
             'profile' => null,
+            'item_id' => null,
         ])
-        ->assertFormFieldHidden('weapon_damage')
+        ->assertFormFieldHidden('weapon_damage_min')
+        ->assertFormFieldHidden('weapon_damage_max')
         ->assertFormFieldHidden('mf_dodge')
-        ->assertFormFieldVisible('effect_type')
         ->assertFormFieldVisible('effect_value')
         ->fillForm([
-            'profile' => EquipmentProfileEnum::HEAL,
+            'slot' => SlotEnum::POCKET->value,
+            'profile' => ProfileEnum::HEAL,
             'effect_value' => 40,
             'name' => 'Зелье из оружия',
             'description' => 'После смены типа',
             'repairable' => false,
-            'tier' => null,
         ])
         ->assertSchemaStateSet([
-            'effect_type' => EffectTypeEnum::HEAL_HP,
+            'item_id' => $healId,
+            'profile' => ProfileEnum::HEAL->value,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('type_switch_blade')->item_type)->toBe(TypeEnum::POTION)
-        ->and(shopCatalog()->findItem('type_switch_blade')->effectValue)->toBe(40);
+    expect(Equipment::query()->findOrFail($healId)->item_type)->toBe(TypeEnum::POTION)
+        ->and(shopCatalog()->findItem($healId)->effectValue)->toBe(40)
+        ->and(shopCatalog()->findItem($healId)->profile)->toBe(ProfileEnum::HEAL);
 });
 
 it('shows armor fields for armor type and clears weapon damage', function (): void {
+    $heavyId = Equipment::nextItemIdForProfile(ProfileEnum::HEAVY);
+
     livewire(CreateEquipment::class)
         ->fillForm(weaponForm([
-            'item_id' => 'type_switch_mail',
             'name' => 'Из клинка в броню',
             'description' => 'Смена на броню',
-            'weapon_damage' => 7,
-            'sort_order' => 151,
+            'weapon_damage_min' => 7,
+            'weapon_damage_max' => 7,
         ]))
         ->fillForm([
             'item_type' => TypeEnum::ARMOR,
-            'profile' => EquipmentProfileEnum::HEAVY,
+            'profile' => ProfileEnum::HEAVY,
             'slot' => SlotEnum::ARMOR,
             'stat_bonus' => 11,
             'armor' => 4,
         ])
         ->assertSchemaStateSet([
-            'weapon_damage' => 0,
-            'effect_type' => null,
+            'weapon_damage_min' => null,
+            'weapon_damage_max' => null,
             'effect_value' => null,
         ])
-        ->assertFormFieldHidden('weapon_damage')
-        ->assertFormFieldHidden('effect_type')
+        ->assertFormFieldHidden('weapon_damage_min')
+        ->assertFormFieldHidden('weapon_damage_max')
+        ->assertFormFieldHidden('effect_value')
         ->assertFormFieldVisible('stat_bonus')
         ->assertFormFieldVisible('armor')
         ->assertFormFieldVisible('mf_dodge')
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Equipment::query()->findOrFail('type_switch_mail')->item_type)->toBe(TypeEnum::ARMOR)
-        ->and(Equipment::query()->findOrFail('type_switch_mail')->armor)->toBe(4);
+    expect(Equipment::query()->findOrFail($heavyId)->item_type)->toBe(TypeEnum::ARMOR)
+        ->and(Equipment::query()->findOrFail($heavyId)->armor)->toBe(4);
 });
 
 it('hides combat fields until item type is selected', function (): void {
     livewire(CreateEquipment::class)
-        ->assertFormFieldHidden('weapon_damage')
+        ->assertFormFieldHidden('weapon_damage_min')
+        ->assertFormFieldHidden('weapon_damage_max')
         ->assertFormFieldHidden('stat_bonus')
         ->assertFormFieldHidden('armor')
-        ->assertFormFieldHidden('effect_type')
+        ->assertFormFieldHidden('effect_value')
         ->assertFormFieldHidden('mf_dodge');
 });
 
 it('keeps view form fields disabled', function (): void {
     livewire(ViewEquipment::class, [
-        'record' => 'train_knife',
+        'record' => 'knife_0',
     ])
         ->assertFormFieldDisabled('name')
         ->assertFormFieldDisabled('price')
-        ->assertFormFieldDisabled('weapon_damage');
+        ->assertFormFieldDisabled('weapon_damage_min')
+        ->assertFormFieldDisabled('weapon_damage_max');
 });
 
 it('aligns create and edit form actions between cancel and submit', function (): void {
@@ -444,7 +424,7 @@ it('aligns create and edit form actions between cancel and submit', function ():
         ->assertActionExists(TestAction::make('create')->schemaComponent('form-actions', schema: 'content'));
 
     $edit = livewire(EditEquipment::class, [
-        'record' => 'train_knife',
+        'record' => 'knife_0',
     ]);
 
     expect($edit->instance()->getFormActionsAlignment())->toBe(Alignment::Between);
@@ -491,7 +471,7 @@ it('archives equipment from list table action', function (): void {
 });
 
 it('filters archived equipment via trashed filter', function (): void {
-    $active = Equipment::query()->findOrFail('train_knife');
+    $active = Equipment::query()->findOrFail('knife_0');
     $archived = Equipment::factory()->create([
         'item_id' => 'archived_blade',
         'name' => 'В архиве',
@@ -516,13 +496,62 @@ it('filters archived equipment via trashed filter', function (): void {
 it('does not expose dropped equipment columns in schema or form', function (): void {
     expect(Schema::hasColumn('equipment', 'stars_price'))->toBeFalse()
         ->and(Schema::hasColumn('equipment', 'admin_note'))->toBeFalse()
-        ->and(Schema::hasColumn('equipment', 'req_vitality'))->toBeFalse();
+        ->and(Schema::hasColumn('equipment', 'req_vitality'))->toBeTrue()
+        ->and(Schema::hasColumn('equipment', 'vip_only'))->toBeFalse()
+        ->and(Schema::hasColumn('equipment', 'effect_type'))->toBeFalse()
+        ->and(Schema::hasColumn('equipment', 'allowed_gem_types'))->toBeFalse();
 
     livewire(CreateEquipment::class)
         ->assertFormFieldDoesNotExist('stars_price')
         ->assertFormFieldDoesNotExist('admin_note')
-        ->assertFormFieldDoesNotExist('req_vitality')
-        ->assertFormFieldDoesNotExist('sort_order');
+        ->assertFormFieldDoesNotExist('vip_only')
+        ->assertFormFieldDoesNotExist('effect_type')
+        ->assertFormFieldDoesNotExist('allowed_gem_types')
+        ->assertFormFieldDoesNotExist('sort_order')
+        ->assertFormFieldExists('req_vitality');
+});
+
+it('saves gem slots on weapon', function (): void {
+    $knifeId = Equipment::nextItemIdForProfile(ProfileEnum::KNIFE);
+
+    livewire(CreateEquipment::class)
+        ->fillForm(weaponForm([
+            'name' => 'Админский нож',
+            'slot' => SlotEnum::RIGHT_HAND,
+            'profile' => ProfileEnum::KNIFE,
+            'weapon_damage_min' => 3,
+            'weapon_damage_max' => 4,
+            'gem_slots' => 2,
+        ]))
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $item = Equipment::query()->findOrFail($knifeId);
+
+    expect($item->slot)->toBe(SlotEnum::RIGHT_HAND)
+        ->and($item->profile)->toBe(ProfileEnum::KNIFE)
+        ->and($item->gem_slots)->toBe(2);
+});
+
+it('hides zone armor for gloves and clears it on save', function (): void {
+    $mobileId = Equipment::nextItemIdForProfile(ProfileEnum::MOBILE);
+
+    livewire(CreateEquipment::class)
+        ->fillForm(armorForm([
+            'name' => 'Админские перчатки',
+            'slot' => SlotEnum::GLOVES,
+            'profile' => ProfileEnum::MOBILE,
+            'armor' => 5,
+            'stat_bonus' => 2,
+        ]))
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Equipment::query()->findOrFail($mobileId)->armor)->toBe(0);
+});
+
+it('offers only HEAL potion profile in enum forType', function (): void {
+    expect(ProfileEnum::forType(TypeEnum::POTION))->toBe([ProfileEnum::HEAL]);
 });
 
 /**
@@ -534,8 +563,9 @@ function jewelryForm(array $overrides): array
     return array_merge(weaponForm([
         'item_type' => TypeEnum::JEWELRY,
         'slot' => SlotEnum::AMULET,
-        'profile' => EquipmentProfileEnum::FOCUS,
-        'weapon_damage' => 0,
+        'profile' => ProfileEnum::FOCUS,
+        'weapon_damage_min' => 0,
+        'weapon_damage_max' => 0,
         'stat_bonus' => 1,
         'in_shop' => false,
     ]), $overrides);
@@ -548,27 +578,24 @@ function jewelryForm(array $overrides): array
 function weaponForm(array $overrides): array
 {
     return array_merge([
-        'item_id' => 'form_weapon',
         'name' => 'Оружие',
         'description' => 'Описание',
         'item_type' => TypeEnum::WEAPON,
         'slot' => SlotEnum::RIGHT_HAND,
-        'profile' => EquipmentProfileEnum::LIGHT,
-        'tier' => 1,
+        'profile' => ProfileEnum::KNIFE,
         'in_shop' => true,
         'enabled' => true,
         'price' => 10,
         'currency' => CurrencyEnum::SILVER,
-        'vip_only' => false,
-        'repair_tier' => RepairTierEnum::NORMAL,
-        'weapon_damage' => 1,
+        'repair_tier' => RepairEnum::NORMAL,
+        'weapon_damage_min' => 1,
+        'weapon_damage_max' => 1,
         'stat_bonus' => 0,
         'armor' => 0,
         'mf_dodge' => 0,
         'mf_anti_dodge' => 0,
         'mf_crit' => 0,
         'mf_anti_crit' => 0,
-        'sort_order' => 0,
         'repairable' => true,
     ], $overrides);
 }
@@ -582,8 +609,9 @@ function armorForm(array $overrides): array
     return array_merge(weaponForm([
         'item_type' => TypeEnum::ARMOR,
         'slot' => SlotEnum::ARMOR,
-        'profile' => EquipmentProfileEnum::HEAVY,
-        'weapon_damage' => 0,
+        'profile' => ProfileEnum::HEAVY,
+        'weapon_damage_min' => 0,
+        'weapon_damage_max' => 0,
         'stat_bonus' => 10,
         'in_shop' => false,
     ]), $overrides);
@@ -598,10 +626,9 @@ function potionForm(array $overrides): array
     return array_merge(weaponForm([
         'item_type' => TypeEnum::POTION,
         'slot' => SlotEnum::POCKET,
-        'profile' => EquipmentProfileEnum::HEAL,
-        'tier' => null,
-        'weapon_damage' => 0,
-        'effect_type' => EffectTypeEnum::HEAL_HP,
+        'profile' => ProfileEnum::HEAL,
+        'weapon_damage_min' => 0,
+        'weapon_damage_max' => 0,
         'effect_value' => 40,
         'repairable' => false,
     ]), $overrides);

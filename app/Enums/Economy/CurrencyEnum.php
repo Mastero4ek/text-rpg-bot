@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Enums\Equipment;
+namespace App\Enums\Economy;
 
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Character;
 
-use App\Enums\Equipment\TypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
 use App\Services\Game\GameConfig;
-use App\Services\Shop\ShopCatalog;
+use App\Services\Inventory\LoadoutService;
 use App\Support\Game\ActionResult;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -19,7 +19,7 @@ final class CharacterService
 {
     public function __construct(
         private readonly GameConfig $config,
-        private readonly ShopCatalog $shop,
+        private readonly LoadoutService $loadout,
     ) {}
 
     public function clampHp(int $hp, int $maxHp): int
@@ -36,21 +36,7 @@ final class CharacterService
 
     public function armorBonus(Character $character): int
     {
-        if ($character->armor_id === null) {
-            return 0;
-        }
-
-        if (! $this->shop->hasItem($character->armor_id)) {
-            return 0;
-        }
-
-        $item = $this->shop->findItem($character->armor_id);
-
-        if ($item->itemType !== TypeEnum::ARMOR) {
-            return 0;
-        }
-
-        return $item->statBonus;
+        return $this->loadout->forCharacter($character)->statBonus;
     }
 
     public function maxHp(Character $character): int
@@ -97,15 +83,14 @@ final class CharacterService
             $character->vitality = $start['vitality'];
             $character->current_hp = $hp;
             $character->last_hp_update = now();
-            $character->weapon_id = null;
-            $character->armor_id = null;
             $character->stat_points = $start['statPoints'];
             $character->potions = $start['potions'];
+            $character->gem_insurance_charges = 0;
             $character->arena_points = 0;
             $character->premium_until = null;
             $character->save();
 
-            return $this->findByTgId($tgId);
+            return $character;
         });
     }
 
@@ -133,6 +118,15 @@ final class CharacterService
 
             return $character;
         });
+    }
+
+    public function hasActivePremium(Character $character): bool
+    {
+        if (! $character->premium_until instanceof CarbonInterface) {
+            return false;
+        }
+
+        return $character->premium_until->isFuture();
     }
 
     public function getFresh(int $tgId): Character
@@ -237,22 +231,6 @@ final class CharacterService
             $city = $character->location;
         }
 
-        if ($character->weapon_id === null) {
-            $weaponName = __('common.no_weapon');
-        } elseif ($this->shop->hasItem($character->weapon_id)) {
-            $weaponName = $this->shop->findItem($character->weapon_id)->itemName;
-        } else {
-            $weaponName = __('common.no_weapon');
-        }
-
-        if ($character->armor_id === null) {
-            $armorName = __('common.no_armor');
-        } elseif ($this->shop->hasItem($character->armor_id)) {
-            $armorName = $this->shop->findItem($character->armor_id)->itemName;
-        } else {
-            $armorName = __('common.no_armor');
-        }
-
         $lines = [
             __('profile.card', [
                 'name' => $name,
@@ -276,8 +254,8 @@ final class CharacterService
         }
 
         $lines[] = '';
-        $lines[] = __('profile.weapon_line', ['weapon' => $weaponName]);
-        $lines[] = __('profile.armor_line', ['armor' => $armorName]);
+        $lines[] = __('profile.gear_heading');
+        $lines[] = $this->loadout->gearText($this->loadout->forCharacter($character));
 
         return implode("\n", $lines);
     }

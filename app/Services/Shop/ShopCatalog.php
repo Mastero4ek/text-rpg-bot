@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Shop;
 
-use App\Enums\Equipment\EffectTypeEnum;
+use App\Enums\Equipment\ProfileEnum;
+use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Equipment;
 use App\Support\Game\EquipmentCatalogRow;
@@ -15,11 +16,13 @@ use RuntimeException;
 
 final class ShopCatalog
 {
-    private const string CACHE_KEY = 'equipment.catalog.v5';
+    private const string CACHE_KEY = 'equipment.catalog.v18';
 
-    private const string STARTER_ARMOR_ID = 'mail_shirt';
+    private const string STARTER_ARMOR_ID = 'heavy_0';
 
-    private const string TRAINER_WEAPON_ID = 'train_club';
+    private const string STARTER_KNUCKLES_ID = 'knuckles_0';
+
+    private const string TRAINER_WEAPON_ID = 'club_0';
 
     /**
      * Onboarding shop weapons — fixed set, not a DB flag.
@@ -27,9 +30,9 @@ final class ShopCatalog
      * @var list<string>
      */
     private const array NOVICE_WEAPON_IDS = [
-        'train_axe',
-        'train_club',
-        'train_knife',
+        'axe_0',
+        'club_0',
+        'knife_0',
     ];
 
     public function forgetCache(): void
@@ -72,12 +75,172 @@ final class ShopCatalog
         return false;
     }
 
+    public function isShopGear(string $itemId): bool
+    {
+        foreach ($this->cachedRows() as $row) {
+            if ($row->def->itemId !== $itemId) {
+                continue;
+            }
+
+            if (! $row->enabled) {
+                return false;
+            }
+
+            if (! $row->inShop) {
+                return false;
+            }
+
+            if ($row->def->itemType !== TypeEnum::ARMOR) {
+                return false;
+            }
+
+            if (! $row->def->slot instanceof SlotEnum) {
+                return false;
+            }
+
+            return in_array($row->def->slot, $this->shopArmorSlots(), true);
+        }
+
+        return false;
+    }
+
+    public function isShopJewelry(string $itemId): bool
+    {
+        foreach ($this->cachedRows() as $row) {
+            if ($row->def->itemId !== $itemId) {
+                continue;
+            }
+
+            if (! $row->enabled) {
+                return false;
+            }
+
+            if (! $row->inShop) {
+                return false;
+            }
+
+            if ($row->def->itemType !== TypeEnum::JEWELRY) {
+                return false;
+            }
+
+            if (! $row->def->slot instanceof SlotEnum) {
+                return false;
+            }
+
+            return $row->def->slot->isGameplayEquipSlot();
+        }
+
+        return false;
+    }
+
+    public function isShopMerchandise(string $itemId): bool
+    {
+        if ($this->isShopWeapon($itemId)) {
+            return true;
+        }
+
+        if ($this->isShopGear($itemId)) {
+            return true;
+        }
+
+        return $this->isShopJewelry($itemId);
+    }
+
+    public function isEquippable(string $itemId): bool
+    {
+        foreach ($this->cachedRows() as $row) {
+            if ($row->def->itemId !== $itemId) {
+                continue;
+            }
+
+            if (! $row->enabled) {
+                return false;
+            }
+
+            if (! $row->def->slot instanceof SlotEnum) {
+                return false;
+            }
+
+            return $row->def->slot->isGameplayEquipSlot();
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<EquipmentDef>
+     */
+    public function shopGear(): array
+    {
+        $items = [];
+
+        foreach ($this->cachedRows() as $row) {
+            if (! $row->enabled) {
+                continue;
+            }
+
+            if (! $row->inShop) {
+                continue;
+            }
+
+            if ($row->def->itemType !== TypeEnum::ARMOR) {
+                continue;
+            }
+
+            if (! $row->def->slot instanceof SlotEnum) {
+                continue;
+            }
+
+            if (! in_array($row->def->slot, $this->shopArmorSlots(), true)) {
+                continue;
+            }
+
+            $items[] = $row->def;
+        }
+
+        return $this->sortedDefs($items);
+    }
+
+    /**
+     * @return list<EquipmentDef>
+     */
+    public function shopJewelry(): array
+    {
+        $items = [];
+
+        foreach ($this->cachedRows() as $row) {
+            if (! $row->enabled) {
+                continue;
+            }
+
+            if (! $row->inShop) {
+                continue;
+            }
+
+            if ($row->def->itemType !== TypeEnum::JEWELRY) {
+                continue;
+            }
+
+            if (! $row->def->slot instanceof SlotEnum) {
+                continue;
+            }
+
+            if (! $row->def->slot->isGameplayEquipSlot()) {
+                continue;
+            }
+
+            $items[] = $row->def;
+        }
+
+        return $this->sortedDefs($items);
+    }
+
     public function potionHeal(): int
     {
         $potion = $this->shopPotion();
 
-        if ($potion->effectType !== EffectTypeEnum::HEAL_HP) {
-            throw new RuntimeException('Shop potion effect_type must be HEAL_HP.');
+        if ($potion->profile !== ProfileEnum::HEAL) {
+            throw new RuntimeException('Shop potion profile must be HEAL.');
         }
 
         if ($potion->effectValue === null) {
@@ -90,6 +253,11 @@ final class ShopCatalog
     public function mailShirtId(): string
     {
         return self::STARTER_ARMOR_ID;
+    }
+
+    public function starterKnucklesId(): string
+    {
+        return self::STARTER_KNUCKLES_ID;
     }
 
     public function freeTrainerItemId(): string
@@ -205,6 +373,23 @@ final class ShopCatalog
     private static function isNoviceWeaponId(string $itemId): bool
     {
         return in_array($itemId, self::NOVICE_WEAPON_IDS, true);
+    }
+
+    /**
+     * Armor slots sold in the gameplay shop (stage 1.1).
+     *
+     * @return list<SlotEnum>
+     */
+    private function shopArmorSlots(): array
+    {
+        return [
+            SlotEnum::HELMET,
+            SlotEnum::ARMOR,
+            SlotEnum::PANTS,
+            SlotEnum::BOOTS,
+            SlotEnum::GLOVES,
+            SlotEnum::SHIELD,
+        ];
     }
 
     private function shopPotion(): EquipmentDef

@@ -21,7 +21,7 @@ use RuntimeException;
  *
  * Что сделать: потратить все стартовые `stat_points`, затем сдать квест.
  *
- * Награда (`onboarding.rewards.statsQuest`): exp + кольчуга `mail_shirt` → `quest_equip`.
+ * Награда (`onboarding.rewards.statsQuest`): exp + кольчуга `heavy_0` → `quest_equip`.
  */
 final class StatsQuest
 {

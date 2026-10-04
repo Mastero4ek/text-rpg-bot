@@ -27,10 +27,10 @@ return new class extends Migration
             $table->integer('vitality')->default(3);
             $table->integer('current_hp');
             $table->timestamp('last_hp_update');
-            $table->string('weapon_id')->nullable();
-            $table->string('armor_id')->nullable();
             $table->integer('stat_points')->default(3);
             $table->unsignedInteger('potions')->default(0);
+            $table->json('gem_pouch')->nullable();
+            $table->unsignedInteger('gem_insurance_charges')->default(0);
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();
             $table->timestamps();

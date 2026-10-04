@@ -85,8 +85,11 @@ final class FightService
             $fight->step = FightStepEnum::STANCE;
             $fight->player_stance = null;
             $fight->player_attack = null;
+            $fight->player_attack_second = null;
             $fight->player_defend = null;
+            $fight->player_defend_second = null;
             $fight->use_potion = false;
+            $fight->pierce_count = 0;
             $fight->log = [];
             $fight->save();
 

@@ -38,8 +38,11 @@ it('lists and views characters', function (): void {
 
 it('lists and views inventory items', function (): void {
     $character = characters()->createDraft(9102);
-    inventory()->addItem($character->tg_id, 'train_knife');
-    $item = Inventory::query()->where('tg_id', $character->tg_id)->firstOrFail();
+    inventory()->addItem($character->tg_id, 'knife_0');
+    $item = Inventory::query()
+        ->where('tg_id', $character->tg_id)
+        ->where('item_id', 'knife_0')
+        ->firstOrFail();
 
     livewire(ListInventories::class)
         ->assertOk()
@@ -51,7 +54,7 @@ it('lists and views inventory items', function (): void {
         ->assertOk()
         ->assertSchemaStateSet([
             'tg_id' => 9102,
-            'item_id' => 'train_knife',
+            'item_id' => 'knife_0',
         ]);
 });
 

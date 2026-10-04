@@ -9,9 +9,12 @@ use App\Enums\FightStepEnum;
 use App\Enums\StanceEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
+use App\Models\Fight;
 use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
-use App\Services\Shop\ShopCatalog;
+use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\LoadoutService;
+use App\Support\Game\EquippedLoadout;
 use App\Support\Game\Fighter;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +24,8 @@ final class FightRoundService
         private readonly CharacterService $characters,
         private readonly CombatService $combat,
         private readonly FightService $fights,
-        private readonly ShopCatalog $shop,
+        private readonly InventoryService $inventory,
+        private readonly LoadoutService $loadout,
     ) {}
 
     public function resolve(Character $player): FightRoundOutcome
@@ -43,32 +47,7 @@ final class FightRoundService
 
             $enemyAtk = $this->combat->randomZone();
             $enemyDef = $this->combat->randomZone();
-            $atkFighter = $this->playerFighter($fresh);
-
-            if ($fight->player_stance === null) {
-                $atkFighter = new Fighter(
-                    $atkFighter->name,
-                    $atkFighter->strength,
-                    $atkFighter->agility,
-                    $atkFighter->instinct,
-                    $atkFighter->vitality,
-                    $atkFighter->weaponDamage,
-                    $atkFighter->weaponMf,
-                    StanceEnum::DEFEND,
-                );
-            } else {
-                $atkFighter = new Fighter(
-                    $atkFighter->name,
-                    $atkFighter->strength,
-                    $atkFighter->agility,
-                    $atkFighter->instinct,
-                    $atkFighter->vitality,
-                    $atkFighter->weaponDamage,
-                    $atkFighter->weaponMf,
-                    $fight->player_stance,
-                );
-            }
-
+            $loadout = $this->loadoutAfterDrop($fresh);
             $logs = [];
 
             if ($fight->use_potion) {
@@ -97,50 +76,77 @@ final class FightRoundService
                 $fight->player_attack !== null
                 && $fight->player_attack !== FightPlayerAttackEnum::POTION
             ) {
-                $hit = $this->combat->calculateHit(
-                    $atkFighter,
+                $mainHit = $this->combat->calculateHit(
+                    $this->playerFighterWithStance(
+                        $fresh,
+                        $fight,
+                        $loadout,
+                        $this->combat->rollWeaponDamage(
+                            $loadout->mainHandDamageMin,
+                            $loadout->mainHandDamageMax,
+                        ),
+                    ),
                     $enemy->toFighter(),
                     ZoneEnum::from($fight->player_attack->value),
-                    $enemyDef,
+                    [$enemyDef],
                 );
-                $enemy = $enemy->withCurrentHp(max(0, $enemy->currentHp - $hit->dmg));
-                $logs[] = $hit->logLine;
+                $enemy = $enemy->withCurrentHp(max(0, $enemy->currentHp - $mainHit->dmg));
+                $logs[] = $mainHit->logLine;
+
+                if ($mainHit->pierced) {
+                    $fight->pierce_count += 1;
+                }
+
+                if (
+                    $enemy->currentHp > 0
+                    && $fight->player_attack_second !== null
+                    && $fight->player_attack_second !== FightPlayerAttackEnum::POTION
+                ) {
+                    $offHit = $this->combat->calculateHit(
+                        $this->playerFighterWithStance(
+                            $fresh,
+                            $fight,
+                            $loadout,
+                            $this->combat->rollWeaponDamage(
+                                $loadout->offHandDamageMin,
+                                $loadout->offHandDamageMax,
+                            ),
+                        ),
+                        $enemy->toFighter(),
+                        ZoneEnum::from($fight->player_attack_second->value),
+                        [$enemyDef],
+                    );
+                    $enemy = $enemy->withCurrentHp(max(0, $enemy->currentHp - $offHit->dmg));
+                    $logs[] = $offHit->logLine;
+
+                    if ($offHit->pierced) {
+                        $fight->pierce_count += 1;
+                    }
+                }
             }
 
             if ($enemy->currentHp > 0 && $fight->player_defend !== null) {
-                $you = $this->playerFighter($fresh);
-
-                if ($fight->player_stance === null) {
-                    $stance = StanceEnum::DEFEND;
-                } else {
-                    $stance = $fight->player_stance;
-                }
-
-                if ($fresh->username === null) {
-                    $youName = __('common.you');
-                } else {
-                    $youName = $fresh->username;
-                }
-
-                $you = new Fighter(
-                    $youName,
-                    $you->strength,
-                    $you->agility,
-                    $you->instinct,
-                    $you->vitality,
-                    $you->weaponDamage,
-                    $you->weaponMf,
-                    $stance,
+                $you = $this->playerFighterWithStance(
+                    $fresh,
+                    $fight,
+                    $loadout,
+                    $this->combat->rollWeaponDamage(
+                        $loadout->weaponDamageMin,
+                        $loadout->weaponDamageMax,
+                    ),
                 );
-
                 $hitBack = $this->combat->calculateHit(
                     $enemy->toFighter(),
                     $you,
                     $enemyAtk,
-                    $fight->player_defend,
+                    $this->playerDefendZones($fight),
                 );
                 $fight->player_hp = max(0, $fight->player_hp - $hitBack->dmg);
                 $logs[] = $hitBack->logLine;
+
+                if ($hitBack->pierced) {
+                    $fight->pierce_count += 1;
+                }
             }
 
             $combined = $fight->log;
@@ -154,7 +160,9 @@ final class FightRoundService
             $fight->step = FightStepEnum::STANCE;
             $fight->player_stance = null;
             $fight->player_attack = null;
+            $fight->player_attack_second = null;
             $fight->player_defend = null;
+            $fight->player_defend_second = null;
             $fight->use_potion = false;
             $fresh->current_hp = $fight->player_hp;
             $fresh->last_hp_update = now();
@@ -173,14 +181,59 @@ final class FightRoundService
         });
     }
 
-    private function playerFighter(Character $character): Fighter
+    private function loadoutAfterDrop(Character $character): EquippedLoadout
     {
-        $weaponDef = null;
+        $character = $this->inventory->dropUnmetEquipped($character);
 
-        if ($character->weapon_id !== null && $this->shop->hasItem($character->weapon_id)) {
-            $weaponDef = $this->shop->findItem($character->weapon_id);
+        return $this->loadout->forCharacter($character);
+    }
+
+    /**
+     * @return list<ZoneEnum>
+     */
+    private function playerDefendZones(Fight $fight): array
+    {
+        $zones = [];
+
+        if ($fight->player_defend instanceof ZoneEnum) {
+            $zones[] = $fight->player_defend;
         }
 
-        return $this->combat->fighterFromPlayerDefaultName($character, $weaponDef);
+        if ($fight->player_defend_second instanceof ZoneEnum) {
+            $zones[] = $fight->player_defend_second;
+        }
+
+        return $zones;
+    }
+
+    private function playerFighterWithStance(
+        Character $character,
+        Fight $fight,
+        EquippedLoadout $loadout,
+        int $weaponDamage,
+    ): Fighter {
+        if ($fight->player_stance === null) {
+            $stance = StanceEnum::DEFEND;
+        } else {
+            $stance = $fight->player_stance;
+        }
+
+        if ($character->username === null) {
+            $name = __('common.you');
+        } else {
+            $name = $character->username;
+        }
+
+        return new Fighter(
+            $name,
+            $character->strength,
+            $character->agility,
+            $character->instinct,
+            $character->vitality,
+            $weaponDamage,
+            $loadout->mf,
+            $stance,
+            $loadout->armorByZone,
+        );
     }
 }

@@ -47,8 +47,16 @@ final class FightInfolist
                             ->label(__('admin.labels.player_attack'))
                             ->badge()
                             ->placeholder('-'),
+                        TextEntry::make('player_attack_second')
+                            ->label(__('admin.labels.player_attack_second'))
+                            ->badge()
+                            ->placeholder('-'),
                         TextEntry::make('player_defend')
                             ->label(__('admin.labels.player_defend'))
+                            ->badge()
+                            ->placeholder('-'),
+                        TextEntry::make('player_defend_second')
+                            ->label(__('admin.labels.player_defend_second'))
                             ->badge()
                             ->placeholder('-'),
                         IconEntry::make('use_potion')

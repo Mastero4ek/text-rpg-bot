@@ -21,10 +21,12 @@ return new class extends Migration
             $table->string('step');
             $table->string('player_stance')->nullable();
             $table->string('player_attack')->nullable();
+            $table->string('player_attack_second')->nullable();
             $table->string('player_defend')->nullable();
+            $table->string('player_defend_second')->nullable();
             $table->boolean('use_potion')->default(false);
+            $table->unsignedInteger('pierce_count')->default(0);
             $table->json('log');
-
             $table->foreign('tg_id')->references('tg_id')->on('characters');
         });
     }
