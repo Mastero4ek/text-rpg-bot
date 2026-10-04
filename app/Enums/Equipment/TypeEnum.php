@@ -21,15 +21,15 @@ enum TypeEnum: string implements HasColor, HasLabel
     }
 
     /**
-     * @return string | array<int|string, string>
+     * @return array<int|string, string>
      */
-    public function getColor(): string|array
+    public function getColor(): array
     {
         return match ($this) {
-            self::ARMOR => 'info',
+            self::ARMOR => Color::Sky,
             self::JEWELRY => Color::Purple,
-            self::POTION => 'success',
-            self::WEAPON => 'danger',
+            self::POTION => Color::Green,
+            self::WEAPON => Color::Red,
         };
     }
 }

@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Characters;
 
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
+use App\Filament\Resources\Characters\RelationManagers\InventoriesRelationManager;
 use App\Filament\Resources\Characters\Schemas\CharacterInfolist;
 use App\Filament\Resources\Characters\Tables\CharactersTable;
 use App\Models\Character;
@@ -68,6 +69,13 @@ final class CharacterResource extends Resource
     public static function getPluralModelLabel(): string
     {
         return __('admin.models.character.plural');
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            'inventories' => InventoriesRelationManager::class,
+        ];
     }
 
     public static function infolist(Schema $schema): Schema

@@ -10,5 +10,11 @@
   "wear": {
     "extraLossOnLose": 1,
     "extraLossPerPierce": 1
+  },
+  "gems": {
+    "breakChanceOnLose": 40,
+    "unsocketSilver": 5,
+    "wardGold": 2,
+    "premiumBreakChanceReduce": 15
   }
 }

@@ -85,7 +85,7 @@ final class CharacterService
             $character->last_hp_update = now();
             $character->stat_points = $start['statPoints'];
             $character->potions = $start['potions'];
-            $character->gem_insurance_charges = 0;
+            $character->gem_ward_charges = 0;
             $character->arena_points = 0;
             $character->premium_until = null;
             $character->save();

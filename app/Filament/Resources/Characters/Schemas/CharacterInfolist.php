@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Schemas;
 
+use App\Filament\Support\GemInstancesText;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -73,22 +74,10 @@ final class CharacterInfolist
                             ->numeric(),
                         TextEntry::make('gem_pouch')
                             ->label(__('admin.labels.gem_pouch'))
-                            ->formatStateUsing(function (mixed $state): string {
-                                if (! is_array($state) || $state === []) {
-                                    return '-';
-                                }
-
-                                $parts = [];
-
-                                foreach ($state as $gemId => $qty) {
-                                    $parts[] = $gemId . '×' . $qty;
-                                }
-
-                                return implode(', ', $parts);
-                            })
+                            ->formatStateUsing(fn (mixed $state): string => GemInstancesText::format($state))
                             ->placeholder('-'),
-                        TextEntry::make('gem_insurance_charges')
-                            ->label(__('admin.labels.gem_insurance_charges'))
+                        TextEntry::make('gem_ward_charges')
+                            ->label(__('admin.labels.gem_ward_charges'))
                             ->numeric(),
                         TextEntry::make('equippedInventories.item_name')
                             ->label(__('admin.labels.equipped'))

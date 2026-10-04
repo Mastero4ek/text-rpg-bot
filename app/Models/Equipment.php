@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Actions\Equipment\EquipmentSyncInventoryNamesAction;
+use App\Actions\Equipment\EquipmentSyncNamesAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\EquipmentDef;
+use App\Support\Equipment\EquipmentDef;
 use App\Support\Game\Mf;
 use Carbon\CarbonInterface;
 use Database\Factories\EquipmentFactory;
@@ -228,7 +228,7 @@ final class Equipment extends Model implements HasMedia
             app(ShopCatalog::class)->forgetCache();
 
             if ($equipment->wasChanged('name')) {
-                app(EquipmentSyncInventoryNamesAction::class)->handle($equipment);
+                app(EquipmentSyncNamesAction::class)->handle($equipment);
             }
         });
 

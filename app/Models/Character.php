@@ -28,8 +28,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property CarbonInterface $last_hp_update
  * @property int $stat_points
  * @property int $potions
- * @property array<string, int>|null $gem_pouch
- * @property int $gem_insurance_charges
+ * @property list<mixed>|null $gem_pouch
+ * @property int $gem_ward_charges
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $created_at
@@ -53,7 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'stat_points',
     'potions',
     'gem_pouch',
-    'gem_insurance_charges',
+    'gem_ward_charges',
     'arena_points',
     'premium_until',
 ])]
@@ -110,7 +110,7 @@ final class Character extends Model
             'stat_points' => 'integer',
             'potions' => 'integer',
             'gem_pouch' => 'array',
-            'gem_insurance_charges' => 'integer',
+            'gem_ward_charges' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
         ];

@@ -8,8 +8,8 @@ use App\Enums\Economy\CurrencyEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Inventory\InventoryService;
+use App\Support\Equipment\EquipmentDef;
 use App\Support\Game\ActionResult;
-use App\Support\Game\EquipmentDef;
 use Illuminate\Support\Facades\DB;
 
 final class ShopService

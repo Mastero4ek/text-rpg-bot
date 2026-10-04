@@ -3,6 +3,7 @@
 | Glob | Rule file | Status |
 |------|-----------|--------|
 | `app/Filament/**` | `filament.md` | active |
+| `app/Enums/**` | `filament.md` | active |
 | `app/Telegram/**` | `telegram.md` | active |
 | `tests/**` | `testing.md` | stub |
 

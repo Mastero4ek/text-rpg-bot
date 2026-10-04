@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\Equipment;
 
+use Filament\Support\Colors\Color;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
@@ -60,14 +61,17 @@ enum ProfileEnum: string implements HasColor, HasLabel
         return in_array($this, self::forType($type), true);
     }
 
-    public function getColor(): string
+    /**
+     * @return array<int|string, string>
+     */
+    public function getColor(): array
     {
         return match ($this) {
-            self::AXE, self::FOCUS => 'danger',
-            self::HAMMER, self::CLUB, self::HEAVY => 'warning',
-            self::WARD, self::CHARM => 'primary',
-            self::HEAL, self::VITAL => 'success',
-            self::KNIFE, self::KNUCKLES, self::MOBILE, self::SWORD => 'info',
+            self::AXE, self::FOCUS => Color::Red,
+            self::HAMMER, self::CLUB, self::HEAVY => Color::Amber,
+            self::WARD, self::CHARM => Color::Indigo,
+            self::HEAL, self::VITAL => Color::Green,
+            self::KNIFE, self::KNUCKLES, self::MOBILE, self::SWORD => Color::Sky,
         };
     }
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Gem\GemBreakOnLoseAction;
 use App\Actions\Inventory\InventoryApplyFightWearAction;
-use App\Actions\Inventory\InventoryBreakGemsOnLoseAction;
 use App\Enums\FightPlayerAttackEnum;
 use App\Enums\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
@@ -37,7 +37,7 @@ final class CombatHandler
         private readonly FightRoundService $rounds,
         private readonly InventoryService $inventory,
         private readonly InventoryApplyFightWearAction $fightWear,
-        private readonly InventoryBreakGemsOnLoseAction $breakGems,
+        private readonly GemBreakOnLoseAction $breakGems,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
         private readonly GameConfig $config,

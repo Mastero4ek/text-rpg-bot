@@ -99,22 +99,22 @@ enum SlotEnum: string implements HasColor, HasLabel
     }
 
     /**
-     * @return string | array<int|string, string>
+     * @return array<int|string, string>
      */
-    public function getColor(): string|array
+    public function getColor(): array
     {
         return match ($this) {
             self::AMULET => Color::Purple,
-            self::ARMOR => 'info',
-            self::BOOTS => 'gray',
-            self::GLOVES => 'gray',
-            self::HELMET => 'primary',
-            self::LEFT_HAND => 'warning',
-            self::PANTS => 'info',
-            self::POCKET => 'success',
-            self::RIGHT_HAND => 'danger',
+            self::ARMOR => Color::Sky,
+            self::BOOTS => Color::Gray,
+            self::GLOVES => Color::Gray,
+            self::HELMET => Color::Indigo,
+            self::LEFT_HAND => Color::Amber,
+            self::PANTS => Color::Sky,
+            self::POCKET => Color::Green,
+            self::RIGHT_HAND => Color::Red,
             self::RING_1, self::RING_2 => Color::Amber,
-            self::SHIELD => 'warning',
+            self::SHIELD => Color::Amber,
         };
     }
 }

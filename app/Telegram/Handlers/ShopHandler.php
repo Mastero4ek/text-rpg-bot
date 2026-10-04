@@ -63,7 +63,7 @@ final class ShopHandler
                 return;
             }
 
-            if (! $res->def instanceof \App\Support\Game\EquipmentDef) {
+            if (! $res->def instanceof \App\Support\Equipment\EquipmentDef) {
                 $responder->reply(__('common.error'), null);
 
                 return;
@@ -83,7 +83,7 @@ final class ShopHandler
                 return;
             }
 
-            if (! $res->def instanceof \App\Support\Game\EquipmentDef) {
+            if (! $res->def instanceof \App\Support\Equipment\EquipmentDef) {
                 $responder->reply(__('common.error'), null);
 
                 return;

@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
-use App\Actions\Inventory\InventoryBuyGemAction;
-use App\Actions\Inventory\InventoryBuyGemInsuranceAction;
+use App\Actions\Gem\GemBuyAction;
+use App\Actions\Gem\GemBuyWardAction;
+use App\Actions\Gem\GemSocketAction;
+use App\Actions\Gem\GemUnsocketAction;
 use App\Actions\Inventory\InventoryRepairAction;
 use App\Actions\Inventory\InventoryRepairAllAction;
 use App\Actions\Inventory\InventoryRepairVipAction;
-use App\Actions\Inventory\InventorySocketGemAction;
-use App\Actions\Inventory\InventoryUnsocketGemAction;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Inventory;
 use App\Services\Character\CharacterService;
-use App\Services\Inventory\GemService;
+use App\Services\Gem\GemCatalog;
+use App\Services\Gem\GemService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Inventory\LoadoutService;
 use App\Services\Onboarding\OnboardingService;
-use App\Services\Shop\GemCatalog;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -38,10 +38,10 @@ final class MenuHandler
         private readonly InventoryRepairAction $repair,
         private readonly InventoryRepairAllAction $repairAll,
         private readonly InventoryRepairVipAction $repairVip,
-        private readonly InventoryBuyGemAction $buyGem,
-        private readonly InventoryBuyGemInsuranceAction $buyGemInsurance,
-        private readonly InventorySocketGemAction $socketGem,
-        private readonly InventoryUnsocketGemAction $unsocketGem,
+        private readonly GemBuyAction $buyGem,
+        private readonly GemBuyWardAction $buyGemWard,
+        private readonly GemSocketAction $socketGem,
+        private readonly GemUnsocketAction $unsocketGem,
         private readonly ShopCatalog $shop,
     ) {}
 
@@ -103,8 +103,8 @@ final class MenuHandler
             return;
         }
 
-        if ($data === 'smith:gems:insurance') {
-            $this->smithBuyInsurance($responder, $player);
+        if ($data === 'smith:gems:ward') {
+            $this->smithBuyWard($responder, $player);
 
             return;
         }
@@ -133,8 +133,8 @@ final class MenuHandler
             return;
         }
 
-        if (preg_match('/^smith:gems:socket:(\d+):([a-z0-9_]+)$/', $data, $m) === 1) {
-            $this->smithSocket($responder, $player, (int) $m[1], $m[2]);
+        if (preg_match('/^smith:gems:socket:(\d+):(\d+)$/', $data, $m) === 1) {
+            $this->smithSocket($responder, $player, (int) $m[1], (int) $m[2]);
 
             return;
         }
@@ -467,14 +467,16 @@ final class MenuHandler
         $pouch = $this->gemService->pouch($player);
         $parts = [];
 
-        foreach ($pouch as $gemId => $qty) {
-            if (! $this->gemCatalog->has($gemId)) {
+        foreach ($pouch as $instance) {
+            if (! $this->gemCatalog->has($instance['gem_id'])) {
                 continue;
             }
 
+            $def = $this->gemCatalog->find($instance['gem_id']);
             $parts[] = __('smith.gems_pouch_row', [
-                'name' => $this->gemCatalog->find($gemId)->name,
-                'qty' => $qty,
+                'name' => $def->name,
+                'current' => $instance['durability'],
+                'max' => $def->maxDurability,
             ]);
         }
 
@@ -482,7 +484,7 @@ final class MenuHandler
             return __('smith.gems_pouch_empty');
         }
 
-        return implode(', ', $parts);
+        return implode('; ', $parts);
     }
 
     private function smithBuyGem(TelegramResponder $responder, Character $player, string $gemId): void
@@ -507,9 +509,9 @@ final class MenuHandler
         );
     }
 
-    private function smithBuyInsurance(TelegramResponder $responder, Character $player): void
+    private function smithBuyWard(TelegramResponder $responder, Character $player): void
     {
-        $res = $this->buyGemInsurance->handle($player);
+        $res = $this->buyGemWard->handle($player);
 
         if (! $res->ok || ! $res->character instanceof Character) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -518,8 +520,8 @@ final class MenuHandler
         }
 
         $responder->edit(
-            __('smith.bought_insurance', [
-                'charges' => $res->character->gem_insurance_charges,
+            __('smith.bought_ward', [
+                'charges' => $res->character->gem_ward_charges,
                 'gold' => $res->character->gold,
             ]),
             ['inline_keyboard' => [[
@@ -539,16 +541,17 @@ final class MenuHandler
                 'text' => __('smith.buy_gem_btn', [
                     'name' => $gem->name,
                     'price' => $gem->price,
+                    'mark' => $gem->currency->telegramMark(),
                 ]),
                 'callback_data' => 'smith:gems:buy:' . $gem->id,
             ]];
         }
 
         $buttons[] = [[
-            'text' => __('smith.buy_insurance_btn', [
-                'price' => $this->gemCatalog->insuranceGold(),
+            'text' => __('smith.buy_ward_btn', [
+                'price' => $this->gemCatalog->wardGold(),
             ]),
-            'callback_data' => 'smith:gems:insurance',
+            'callback_data' => 'smith:gems:ward',
         ]];
         $buttons[] = [[
             'text' => __('smith.socket_btn'),
@@ -567,7 +570,7 @@ final class MenuHandler
             __('smith.gems_title', [
                 'silver' => $player->silver,
                 'gold' => $player->gold,
-                'insurance' => $player->gem_insurance_charges,
+                'ward' => $player->gem_ward_charges,
                 'pouch' => $this->pouchText($player),
             ]),
             ['inline_keyboard' => $buttons],
@@ -759,9 +762,9 @@ final class MenuHandler
         $responder->edit($text, ['inline_keyboard' => $buttons]);
     }
 
-    private function smithSocket(TelegramResponder $responder, Character $player, int $rowId, string $gemId): void
+    private function smithSocket(TelegramResponder $responder, Character $player, int $rowId, int $pouchIndex): void
     {
-        $res = $this->socketGem->handle($player, $rowId, $gemId);
+        $res = $this->socketGem->handle($player, $rowId, $pouchIndex);
 
         if (! $res->ok || ! $res->character instanceof Character || ! $res->item instanceof Inventory) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -795,17 +798,24 @@ final class MenuHandler
         $pouch = $this->gemService->pouch($player);
         $buttons = [];
 
-        foreach ($pouch as $gemId => $qty) {
-            if (! $this->gemCatalog->has($gemId)) {
+        foreach ($pouch as $index => $instance) {
+            if (! $this->gemCatalog->inCatalog($instance['gem_id'])) {
+                continue;
+            }
+
+            $def = $this->gemCatalog->find($instance['gem_id']);
+
+            if (! $def->enabled) {
                 continue;
             }
 
             $buttons[] = [[
                 'text' => __('smith.socket_gem_btn', [
-                    'name' => $this->gemCatalog->find($gemId)->name,
-                    'qty' => $qty,
+                    'name' => $def->name,
+                    'current' => $instance['durability'],
+                    'max' => $def->maxDurability,
                 ]),
-                'callback_data' => 'smith:gems:socket:' . $row->id . ':' . $gemId,
+                'callback_data' => 'smith:gems:socket:' . $row->id . ':' . $index,
             ]];
         }
 
@@ -895,9 +905,9 @@ final class MenuHandler
         $buttons = [];
 
         foreach ($this->inventory->list($player->tg_id) as $row) {
-            $ids = $this->gemService->socketedGemIds($row);
+            $instances = $this->gemService->socketedInstances($row);
 
-            if ($ids === []) {
+            if ($instances === []) {
                 continue;
             }
 
@@ -947,18 +957,23 @@ final class MenuHandler
             return;
         }
 
-        $ids = $this->gemService->socketedGemIds($row);
+        $instances = $this->gemService->socketedInstances($row);
         $buttons = [];
 
-        foreach ($ids as $index => $gemId) {
-            if ($this->gemCatalog->has($gemId)) {
-                $name = $this->gemCatalog->find($gemId)->name;
+        foreach ($instances as $index => $instance) {
+            if ($this->gemCatalog->has($instance['gem_id'])) {
+                $def = $this->gemCatalog->find($instance['gem_id']);
+                $label = __('smith.gem_instance', [
+                    'name' => $def->name,
+                    'current' => $instance['durability'],
+                    'max' => $def->maxDurability,
+                ]);
             } else {
-                $name = $gemId;
+                $label = $instance['gem_id'];
             }
 
             $buttons[] = [[
-                'text' => __('smith.unsocket_slot_btn', ['name' => $name]),
+                'text' => __('smith.unsocket_slot_btn', ['name' => $label]),
                 'callback_data' => 'smith:gems:unsocket:' . $row->id . ':' . $index,
             ]];
         }

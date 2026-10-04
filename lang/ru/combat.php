@@ -33,7 +33,7 @@ return [
     'win' => "\n\nПобеда! +:exp опыта, +:silver🪙",
     'lose' => "\n\nПоражение. Жди реген или купи зелье.",
     'gear_broke' => "\n\nСломалось: :names. Кузнец починит.",
-    'gems_broke' => "\n\nКамни разбились: :names.",
+    'gems_broke' => "\n\nКамни разрушены: :names.",
     'btn_attack' => '⚔ Атака',
     'btn_defend' => '🛡 Защита',
     'btn_potion' => '🧪 Зелье (вместо удара)',

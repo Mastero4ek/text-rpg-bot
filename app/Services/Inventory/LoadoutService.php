@@ -10,9 +10,10 @@ use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Models\Inventory;
 use App\Services\Game\GameConfig;
+use App\Services\Gem\GemService;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\EquipmentDef;
-use App\Support\Game\EquippedLoadout;
+use App\Support\Equipment\EquipmentDef;
+use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\Mf;
 use RuntimeException;
 
