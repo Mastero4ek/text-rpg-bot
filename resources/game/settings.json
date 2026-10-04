@@ -16,5 +16,67 @@
     "unsocketSilver": 5,
     "wardGold": 2,
     "premiumBreakChanceReduce": 15
+  },
+  "combat": {
+    "aiDefendChance": 0.55,
+    "dualWieldMinLevel": 1,
+    "turnTimeoutSeconds": 180,
+    "mfPerStat": 3,
+    "stamina": {
+      "maxPerStrength": 6,
+      "drainDefend": 4,
+      "drainAttack": 7,
+      "drainExtraOnCrit": 3,
+      "drainExtraOnDodge": 3
+    },
+    "damage": {
+      "base": 8,
+      "statMultiplier": 2,
+      "varianceMin": 0.85,
+      "varianceRange": 0.3
+    },
+    "stances": {
+      "ATTACK": {
+        "damageMult": 1.15,
+        "dodge": -6,
+        "antiCrit": -4,
+        "crit": 4,
+        "antiDodge": 2
+      },
+      "DEFEND": {
+        "damageMult": 0.85,
+        "dodge": 8,
+        "antiCrit": 6,
+        "crit": -2,
+        "antiDodge": 0
+      }
+    },
+    "pierce": {
+      "chanceMin": 5,
+      "chanceMax": 55,
+      "chanceBase": 8,
+      "chanceScale": 0.5,
+      "multMin": 1.25,
+      "multRange": 0.75
+    },
+    "crit": {
+      "chanceMin": 5,
+      "chanceMax": 55,
+      "chanceBase": 8,
+      "chanceScale": 0.5,
+      "mult": 2
+    },
+    "dodge": {
+      "chanceMin": 5,
+      "chanceMax": 65,
+      "chanceBase": 8,
+      "chanceScale": 0.5
+    },
+    "pveRewards": {
+      "expBase": 20,
+      "expPerLevel": 5,
+      "silverMin": 10,
+      "silverMax": 20
+    }
   }
 }

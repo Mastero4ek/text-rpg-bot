@@ -12,9 +12,6 @@ final class GameConfig
     private array $character;
 
     /** @var array<string, mixed> */
-    private array $combat;
-
-    /** @var array<string, mixed> */
     private array $enemies;
 
     /** @var array<string, mixed> */
@@ -26,7 +23,6 @@ final class GameConfig
     public function __construct()
     {
         $this->character = $this->loadJson('character.json');
-        $this->combat = $this->loadJson('combat.json');
         $this->enemies = $this->loadJson('enemies.json');
         $this->onboarding = $this->loadJson('onboarding.json');
         $this->settings = $this->loadJson('settings.json');
@@ -45,7 +41,11 @@ final class GameConfig
      */
     public function combat(): array
     {
-        return $this->combat;
+        if (! array_key_exists('combat', $this->settings) || ! is_array($this->settings['combat'])) {
+            throw new RuntimeException('settings.combat missing.');
+        }
+
+        return $this->settings['combat'];
     }
 
     /**

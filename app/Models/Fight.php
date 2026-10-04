@@ -12,6 +12,7 @@ use App\Enums\ZoneEnum;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $tg_id
@@ -19,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $tutorial
  * @property int $player_hp
  * @property int $player_max_hp
+ * @property int $player_stamina
+ * @property int $player_max_stamina
  * @property array<string, mixed> $enemy
  * @property FightStepEnum $step
  * @property StanceEnum|null $player_stance
@@ -29,6 +32,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $use_potion
  * @property int $pierce_count
  * @property list<string> $log
+ * @property Carbon|null $turn_deadline_at
+ * @property int $turn_seq
+ * @property int|null $tg_chat_id
+ * @property int|null $tg_message_id
  */
 #[Fillable([
     'tg_id',
@@ -36,6 +43,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'tutorial',
     'player_hp',
     'player_max_hp',
+    'player_stamina',
+    'player_max_stamina',
     'enemy',
     'step',
     'player_stance',
@@ -46,6 +55,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'use_potion',
     'pierce_count',
     'log',
+    'turn_deadline_at',
+    'turn_seq',
+    'tg_chat_id',
+    'tg_message_id',
 ])]
 final class Fight extends Model
 {
@@ -76,6 +89,8 @@ final class Fight extends Model
             'tutorial' => 'boolean',
             'player_hp' => 'integer',
             'player_max_hp' => 'integer',
+            'player_stamina' => 'integer',
+            'player_max_stamina' => 'integer',
             'enemy' => 'array',
             'step' => FightStepEnum::class,
             'player_stance' => StanceEnum::class,
@@ -86,6 +101,10 @@ final class Fight extends Model
             'use_potion' => 'boolean',
             'pierce_count' => 'integer',
             'log' => 'array',
+            'turn_deadline_at' => 'datetime',
+            'turn_seq' => 'integer',
+            'tg_chat_id' => 'integer',
+            'tg_message_id' => 'integer',
         ];
     }
 }

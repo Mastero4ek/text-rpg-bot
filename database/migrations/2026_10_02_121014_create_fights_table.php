@@ -17,6 +17,8 @@ return new class extends Migration
             $table->boolean('tutorial');
             $table->integer('player_hp');
             $table->integer('player_max_hp');
+            $table->integer('player_stamina')->default(0);
+            $table->integer('player_max_stamina')->default(0);
             $table->json('enemy');
             $table->string('step');
             $table->string('player_stance')->nullable();
@@ -27,6 +29,10 @@ return new class extends Migration
             $table->boolean('use_potion')->default(false);
             $table->unsignedInteger('pierce_count')->default(0);
             $table->json('log');
+            $table->timestamp('turn_deadline_at')->nullable();
+            $table->unsignedInteger('turn_seq')->default(0);
+            $table->unsignedBigInteger('tg_chat_id')->nullable();
+            $table->unsignedBigInteger('tg_message_id')->nullable();
             $table->foreign('tg_id')->references('tg_id')->on('characters');
         });
     }

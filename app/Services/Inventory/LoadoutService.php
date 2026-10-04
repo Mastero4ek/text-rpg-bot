@@ -44,7 +44,9 @@ final class LoadoutService
         $offHandDamageMin = 0;
         $offHandDamageMax = 0;
         $statBonus = 0;
-        $mf = new Mf(0, 0, 0, 0);
+        $bodyMf = new Mf(0, 0, 0, 0);
+        $mainHandMf = new Mf(0, 0, 0, 0);
+        $offHandMf = new Mf(0, 0, 0, 0);
         $armorByZone = [
             ZoneEnum::HEAD->value => 0,
             ZoneEnum::CHEST->value => 0,
@@ -89,26 +91,27 @@ final class LoadoutService
                 continue;
             }
 
-            $mf = $mf->merge($def->mf);
-            $mf = $mf->merge($this->gems->mfFromSocketed($row));
+            $rowMf = $def->mf->merge($this->gems->mfFromSocketed($row));
             $statBonus += $def->statBonus;
 
             if ($row->slot === SlotEnum::RIGHT_HAND) {
+                $mainHandMf = $mainHandMf->merge($rowMf);
                 $mainHandDamageMin += $def->weaponDamageMin;
                 $mainHandDamageMax += $def->weaponDamageMax;
 
                 if ($def->profile instanceof ProfileEnum && $def->profile->allowsDualWield()) {
                     $mainHandDual = true;
                 }
-            }
-
-            if ($row->slot === SlotEnum::LEFT_HAND) {
+            } elseif ($row->slot === SlotEnum::LEFT_HAND) {
+                $offHandMf = $offHandMf->merge($rowMf);
                 $offHandDamageMin += $def->weaponDamageMin;
                 $offHandDamageMax += $def->weaponDamageMax;
 
                 if ($def->profile instanceof ProfileEnum && $def->profile->allowsDualWield()) {
                     $offHandDual = true;
                 }
+            } else {
+                $bodyMf = $bodyMf->merge($rowMf);
             }
 
             if ($row->slot === SlotEnum::HELMET) {
@@ -151,6 +154,8 @@ final class LoadoutService
             $attackSlots = 1;
         }
 
+        $mf = $bodyMf->merge($mainHandMf)->merge($offHandMf);
+
         return new EquippedLoadout(
             $rowsBySlot,
             $mainHandDamageMin + $offHandDamageMin,
@@ -162,6 +167,9 @@ final class LoadoutService
             $armor,
             $statBonus,
             $mf,
+            $bodyMf,
+            $mainHandMf,
+            $offHandMf,
             $armorByZone,
             $blockSlots,
             $attackSlots,
@@ -353,11 +361,11 @@ final class LoadoutService
         $combat = $this->config->combat();
 
         if (! array_key_exists('dualWieldMinLevel', $combat) || ! is_int($combat['dualWieldMinLevel'])) {
-            throw new RuntimeException('combat.dualWieldMinLevel missing.');
+            throw new RuntimeException('settings.combat.dualWieldMinLevel missing.');
         }
 
         if ($combat['dualWieldMinLevel'] < 0) {
-            throw new RuntimeException('combat.dualWieldMinLevel must be >= 0.');
+            throw new RuntimeException('settings.combat.dualWieldMinLevel must be >= 0.');
         }
 
         return $combat['dualWieldMinLevel'];

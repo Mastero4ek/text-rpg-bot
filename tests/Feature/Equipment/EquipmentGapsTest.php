@@ -57,7 +57,7 @@ it('renders gear text with damage range broken slot and totals', function (): vo
 
 it('builds item card with damage range durability and empty gem socket', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = characters()->createDraft(8702);
@@ -258,7 +258,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
 
 it('shows gear screen broken line through menu callback', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8708));

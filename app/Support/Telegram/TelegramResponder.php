@@ -32,9 +32,9 @@ final class TelegramResponder
     /**
      * @param  array<string, mixed>|null  $replyMarkup
      */
-    public function reply(string $text, ?array $replyMarkup): void
+    public function reply(string $text, ?array $replyMarkup): int
     {
-        $this->client->sendMessage($this->update->chatId(), $text, $replyMarkup);
+        return $this->client->sendMessage($this->update->chatId(), $text, $replyMarkup);
     }
 
     /**

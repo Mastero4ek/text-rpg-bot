@@ -10,6 +10,7 @@ final readonly class HitResult
         public int $dmg,
         public bool $blocked,
         public bool $pierced,
+        public bool $critical,
         public bool $dodged,
         public string $logLine,
     ) {}

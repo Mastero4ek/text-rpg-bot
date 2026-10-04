@@ -86,7 +86,7 @@ final class TelegramClient
     /**
      * @param  array<string, mixed>|null  $replyMarkup
      */
-    public function sendMessage(int|string $chatId, string $text, ?array $replyMarkup): void
+    public function sendMessage(int|string $chatId, string $text, ?array $replyMarkup): int
     {
         $params = [
             'chat_id' => $chatId,
@@ -97,7 +97,18 @@ final class TelegramClient
             $params['reply_markup'] = json_encode($replyMarkup, JSON_THROW_ON_ERROR);
         }
 
-        $this->post('sendMessage', $params);
+        $json = $this->post('sendMessage', $params);
+
+        if (
+            ! array_key_exists('result', $json)
+            || ! is_array($json['result'])
+            || ! array_key_exists('message_id', $json['result'])
+            || ! is_int($json['result']['message_id'])
+        ) {
+            throw new RuntimeException('Telegram sendMessage missing message_id.');
+        }
+
+        return $json['result']['message_id'];
     }
 
     public function setWebhook(string $url, string $secretToken): void
@@ -110,8 +121,9 @@ final class TelegramClient
 
     /**
      * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
      */
-    private function post(string $method, array $params): void
+    private function post(string $method, array $params): array
     {
         $response = $this->http()->asForm()->post($this->methodUrl($method), $params);
 
@@ -119,7 +131,7 @@ final class TelegramClient
             $json = $response->json();
 
             if (is_array($json) && array_key_exists('ok', $json) && $json['ok'] === true) {
-                return;
+                return $json;
             }
         }
 

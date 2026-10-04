@@ -14,7 +14,7 @@ use App\Support\Random\RandomSourceContract;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\CombatHandler;
+use App\Telegram\Handlers\FightHandler;
 use Illuminate\Support\Facades\Http;
 
 it('sets attackSlots to 2 only with dual weapons in both hands from dualWieldMinLevel', function (): void {
@@ -34,7 +34,7 @@ it('sets attackSlots to 2 only with dual weapons in both hands from dualWieldMin
 
 it('asks for second attack zone when dual-wield is active', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = characters()->createDraft(8502);
@@ -65,7 +65,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
         ],
     ]);
 
-    app(CombatHandler::class)->handleCallback(
+    app(FightHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -89,7 +89,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
         ],
     ]);
 
-    app(CombatHandler::class)->handleCallback(
+    app(FightHandler::class)->handleCallback(
         $update2,
         new TelegramResponder(app(TelegramClient::class), $update2),
     );
@@ -145,7 +145,7 @@ it('resolves two player hits with split hand damage', function (): void {
 
 it('keeps single attack step without left hand even at level 1', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = characters()->createDraft(8504);
@@ -173,7 +173,7 @@ it('keeps single attack step without left hand even at level 1', function (): vo
         ],
     ]);
 
-    app(CombatHandler::class)->handleCallback(
+    app(FightHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );

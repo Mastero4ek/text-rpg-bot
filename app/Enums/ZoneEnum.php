@@ -6,8 +6,8 @@ namespace App\Enums;
 
 enum ZoneEnum: string
 {
-    case BELLY = 'BELLY';
-    case CHEST = 'CHEST';
     case HEAD = 'HEAD';
+    case CHEST = 'CHEST';
+    case BELLY = 'BELLY';
     case LEGS = 'LEGS';
 }

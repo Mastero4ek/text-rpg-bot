@@ -28,7 +28,7 @@ use App\Telegram\Keyboards\TelegramKeyboards;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class CombatHandler
+final class FightHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
@@ -48,6 +48,13 @@ final class CombatHandler
     {
         $data = $update->callbackData();
         $responder->answerCallback();
+
+        if (
+            preg_match('/^fight:(stance|atk|def):/', $data) === 1
+            && $this->handleTimedOutTurn($update, $responder)
+        ) {
+            return;
+        }
 
         if (preg_match('/^fight:stance:(ATTACK|DEFEND)$/', $data, $m) === 1) {
             $this->stance($update, $responder, StanceEnum::from($m[1]));
@@ -76,6 +83,53 @@ final class CombatHandler
         if (preg_match('/^fight:start:(soldier|mob)$/', $data, $m) === 1) {
             $this->startFight($update, $responder, $m[1]);
         }
+    }
+
+    private function handleTimedOutTurn(TelegramUpdate $update, TelegramResponder $responder): bool
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || ! $this->fights->exists($player->tg_id)) {
+            return false;
+        }
+
+        $fight = $this->fights->findByTgId($player->tg_id);
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
+        $fight = $this->fights->findByTgId($player->tg_id);
+
+        if (! $this->fights->turnTimedOut($fight)) {
+            return false;
+        }
+
+        $outcome = $this->rounds->resolveSkip($player);
+
+        if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
+            return true;
+        }
+
+        if ($outcome->kind === 'win') {
+            $this->endFight($responder, $outcome->character, $outcome->fight, true);
+
+            return true;
+        }
+
+        if ($outcome->kind === 'lose') {
+            $this->endFight($responder, $outcome->character, $outcome->fight, false);
+
+            return true;
+        }
+
+        $responder->edit(
+            $this->fightStatus->format($outcome->fight, $outcome->character->username) . __('combat.pick_stance'),
+            TelegramKeyboards::stance(),
+        );
+
+        return true;
+    }
+
+    private function persistFightMessage(TelegramUpdate $update, Fight $fight): void
+    {
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
     }
 
     private function stance(TelegramUpdate $update, TelegramResponder $responder, StanceEnum $stance): void
@@ -116,6 +170,7 @@ final class CombatHandler
             $keyboard = TelegramKeyboards::attackWithoutPotion();
         }
 
+        $this->persistFightMessage($update, $fight);
         $responder->edit(
             $this->fightStatus->format($fight, $player->username) . __('combat.pick_attack'),
             $keyboard,
@@ -198,6 +253,7 @@ final class CombatHandler
         $fight = $saved['fight'];
 
         if ($saved['kind'] === 'second') {
+            $this->persistFightMessage($update, $fight);
             $responder->edit(
                 $this->fightStatus->format($fight, $player->username) . __('combat.pick_attack_second'),
                 TelegramKeyboards::attackWithoutPotion(),
@@ -212,6 +268,7 @@ final class CombatHandler
             $prompt = __('combat.pick_defend');
         }
 
+        $this->persistFightMessage($update, $fight);
         $responder->edit(
             $this->fightStatus->format($fight, $player->username) . $prompt,
             TelegramKeyboards::defend(),
@@ -278,6 +335,7 @@ final class CombatHandler
             /** @var ZoneEnum $first */
             $first = $saved['first'];
 
+            $this->persistFightMessage($update, $fight);
             $responder->edit(
                 $this->fightStatus->format($fight, $player->username) . __('combat.pick_defend_second'),
                 TelegramKeyboards::defendExcluding($first),
@@ -288,6 +346,7 @@ final class CombatHandler
 
         /** @var Character $player */
         $player = $saved['player'];
+        $this->persistFightMessage($update, $this->fights->findByTgId($player->tg_id));
         $outcome = $this->rounds->resolve($player);
 
         if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
@@ -350,10 +409,11 @@ final class CombatHandler
         }
 
         $fight = $this->fights->createTraining($player, $enemy);
-        $responder->reply(
+        $messageId = $responder->reply(
             $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
             TelegramKeyboards::stance(),
         );
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $messageId);
     }
 
     private function endFight(

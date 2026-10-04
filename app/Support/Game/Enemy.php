@@ -21,6 +21,8 @@ final readonly class Enemy
         public int $weaponDamage,
         public Mf $weaponMf,
         public StanceEnum $stance,
+        public int $maxStamina,
+        public int $stamina,
     ) {}
 
     /**
@@ -52,6 +54,8 @@ final readonly class Enemy
             self::intField($data, 'weaponDamage'),
             Mf::fromArray($data['weaponMf']),
             StanceEnum::from($data['stance']),
+            self::intField($data, 'maxStamina'),
+            self::intField($data, 'stamina'),
         );
     }
 
@@ -67,7 +71,9 @@ final readonly class Enemy
      *     current_hp: int,
      *     weaponDamage: int,
      *     weaponMf: array{dodge: int, antiDodge: int, crit: int, antiCrit: int},
-     *     stance: string
+     *     stance: string,
+     *     maxStamina: int,
+     *     stamina: int
      * }
      */
     public function toArray(): array
@@ -84,6 +90,8 @@ final readonly class Enemy
             'weaponDamage' => $this->weaponDamage,
             'weaponMf' => $this->weaponMf->toArray(),
             'stance' => $this->stance->value,
+            'maxStamina' => $this->maxStamina,
+            'stamina' => $this->stamina,
         ];
     }
 
@@ -104,6 +112,8 @@ final readonly class Enemy
                 'BELLY' => 0,
                 'LEGS' => 0,
             ],
+            $this->stamina,
+            $this->maxStamina,
         );
     }
 
@@ -121,6 +131,27 @@ final readonly class Enemy
             $this->weaponDamage,
             $this->weaponMf,
             $this->stance,
+            $this->maxStamina,
+            $this->stamina,
+        );
+    }
+
+    public function withStamina(int $stamina): self
+    {
+        return new self(
+            $this->name,
+            $this->level,
+            $this->strength,
+            $this->agility,
+            $this->instinct,
+            $this->vitality,
+            $this->maxHp,
+            $this->currentHp,
+            $this->weaponDamage,
+            $this->weaponMf,
+            $this->stance,
+            $this->maxStamina,
+            $stamina,
         );
     }
 
@@ -138,6 +169,8 @@ final readonly class Enemy
             $this->weaponDamage,
             $this->weaponMf,
             $stance,
+            $this->maxStamina,
+            $this->stamina,
         );
     }
 
