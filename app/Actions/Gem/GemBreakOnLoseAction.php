@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Gem;
 
 use App\Models\Character;
-use App\Services\Inventory\GemService;
+use App\Services\Gem\GemService;
 
-final class InventoryBreakGemsOnLoseAction
+final class GemBreakOnLoseAction
 {
     public function __construct(
         private readonly GemService $gems,

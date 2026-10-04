@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Gem;
 
 use App\Models\Character;
-use App\Services\Inventory\GemService;
+use App\Services\Gem\GemService;
 use App\Support\Game\ActionResult;
 
-final class InventoryBuyGemInsuranceAction
+final class GemBuyWardAction
 {
     public function __construct(
         private readonly GemService $gems,
@@ -16,6 +16,6 @@ final class InventoryBuyGemInsuranceAction
 
     public function handle(Character $character): ActionResult
     {
-        return $this->gems->buyInsurance($character);
+        return $this->gems->buyWard($character);
     }
 }

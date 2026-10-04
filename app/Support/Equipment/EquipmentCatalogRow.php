@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Game;
+namespace App\Support\Equipment;
 
 final readonly class EquipmentCatalogRow
 {

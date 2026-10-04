@@ -7,7 +7,7 @@ namespace App\Actions\Equipment;
 use App\Models\Equipment;
 use App\Models\Inventory;
 
-final class EquipmentSyncInventoryNamesAction
+final class EquipmentSyncNamesAction
 {
     public function handle(Equipment $equipment): void
     {

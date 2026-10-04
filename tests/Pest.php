@@ -11,6 +11,7 @@ pest()->extend(TestCase::class)
 
 pest()->beforeEach(function (): void {
     $this->seed(Database\Seeders\EquipmentSeeder::class);
+    $this->seed(Database\Seeders\GemSeeder::class);
 })->in('Feature');
 
 require_once __DIR__ . '/Helpers.php';

@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $durability
  * @property int|null $max_durability
  * @property bool $is_equipped
- * @property list<string>|null $socketed_gems
+ * @property list<mixed>|null $socketed_gems
  */
 #[Fillable([
     'tg_id',

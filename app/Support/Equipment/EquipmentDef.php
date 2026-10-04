@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Game;
+namespace App\Support\Equipment;
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Support\Game\Mf;
 
 final readonly class EquipmentDef
 {

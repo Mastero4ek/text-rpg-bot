@@ -1,6 +1,7 @@
 ---
 paths:
     - "app/Filament/**"
+    - "app/Enums/**"
 ---
 
 # Filament (admin)
@@ -8,7 +9,7 @@ paths:
 - Panel: `/admin`, single User from `AdminUserSeeder` (`.env` ADMIN\_\*).
 - MVP resources are **read-only**: `canCreate` / `canEdit` / `canDelete` → `false`. No Create/Edit pages.
 - Exception (roadmap **1.0**): full **CRUD каталога снаряжения** (`Equipment` resource) — Create / Edit / View / Archive / Delete, все поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
-- Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/`.
+- Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/` (page/table mixins), `app/Filament/Support/` (presentation helpers, не traits), `app/Filament/Tables/Columns/`.
 - Labels / actions / hints: `lang/ru/admin.php` (`labels.*`, `models.*`, `navigation.*`, `actions.*`, `hints.*`, `sections.*`). Не хардкодить RU-строки в Table/Form/Pages.
 - Глобальный CSS в `AdminPanelProvider` (`PanelsRenderHook::HEAD_END`): hint-icon `flex-grow:0`; текст всех `.fi-btn` → `#ffffff` (light/dark); `.fi-ta-appearance-placeholder` (empty appearance circle).
 - Tests: `tests/Feature/Filament/*` via `pest-plugin-livewire` (`livewire(...)`).
@@ -80,7 +81,7 @@ paths:
 - Длинный текст: `limit(...)` + `tooltip(fn (Model $record): string => ...)` + `placeholder('-')`.
 - Nullable / пустые: всегда `placeholder('-')`.
 - Числа / флаги / даты / enum-badge: `alignCenter()` где уместно.
-- Enum / статус: `->badge()`; цвета **не** через `->color()` в таблице — enum реализует `Filament\Support\Contracts\HasColor` (`getColor()` → `danger|warning|success|info|gray|primary` или `Color::*` palette).
+- Enum / статус: `->badge()`; цвета **не** через `->color()` в таблице — enum реализует `Filament\Support\Contracts\HasColor`.
 - Bool: `IconColumn::make(...)->boolean()` (+ `alignCenter()`, `sortable()`).
 - Даты в списке: `dateTime('d.m.Y')` + `sinceTooltip()` (не полный datetime в ячейке).
 - `searchable()` / `sortable()` — на колонках, по которым реально ищут/сортируют.
@@ -109,6 +110,8 @@ paths:
 ### Enums для UI
 
 - Badge/filter enums: `HasColor` + `HasLabel` (RU через `lang/ru/…`, не сырой `WEAPON`).
+- `HasColor::getColor()` — **только** `Filament\Support\Colors\Color::*` palette (`Color::Red`, `Color::Amber`, …). Строковые семантики (`danger` / `warning` / `success` / `info` / `gray` / `primary`) **запрещены**. Return type `array` + PHPDoc `@return array<int|string, string>` (интерфейс допускает `string|array|null`, но palette — всегда array).
+- Канон маппинга семантики → palette: `danger→Red`, `warning→Amber`, `success→Green`, `info→Sky`, `gray→Gray`, `primary→Indigo`.
 - Не дублировать color/label-map в Table — Filament подхватывает с enum при cast на модели.
 
 ## Form — канон
@@ -117,13 +120,14 @@ paths:
 
 - Schema: `->columns(1)`.
 - Каждая `Section`: `->columnSpanFull()` + collapsible + `->icon(Heroicon::Outlined…)`. Первая ключевая (identity) — `->collapsible()` открыта; остальные — `->collapsed()`.
-- Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `in_shop`+`enabled` (ряд `columns(2)`), справа art/description. `item_id` — `Hidden`, автоген по profile на create (`Equipment::nextItemIdForProfile`); не в таблице и не в UI формы. В форме не показываем: `sort_order` (БД + defaultSort); нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier` (VIP-витрина = `currency=GOLD`; лечение = profile `HEAL` + `effect_value`; камни — любой type в `gem_slots`). Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`. Поиск по name в List также матчит `item_id`.
+- Navigation sort (после Dashboard): Characters `1` → Equipment `2` → Gems `3` → Fights `4`. Inventory — не отдельный пункт меню: RelationManager на Character (`InventoriesRelationManager`), `InventoryResource::$shouldRegisterNavigation = false` (view по URL остаётся).
+- Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `enabled`+`in_shop` (ряд `columns(3)`), справа art/description. `GemForm`: слева name → ряд `columns(3)` = `type` + `max_durability` + MF (пока тип не выбран — disabled-плейсхолдер `gem_stat`; иначе одно MF-поле по типу) → флаги `columns(3)`; отдельных секций прочность/характеристики **нет**. `item_id` / `gem_id` — `Hidden`, автоген на create; не в таблице и не в UI формы. В форме не показываем: `sort_order` (БД + defaultSort); нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier` (VIP-витрина = `currency=GOLD`; лечение = profile `HEAL` + `effect_value`; камни — любой type в `gem_slots`). Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`. Поиск по name в List также матчит `item_id` / `gem_id`.
 - Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
 - `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот только `RIGHT_HAND` + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL; зелье: POCKET + `HEAL`. Слот и профиль disabled пока тип не выбран.
 - Зонная `armor` только HELMET/ARMOR/PANTS/BOOTS (GLOVES/SHIELD → 0, поле скрыто).
 - Характеристики (`equipment_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage_min`+`weapon_damage_max`+MF; ARMOR → `stat_bonus`+MF (+`armor` на зонных слотах); JEWELRY → `stat_bonus`+MF; POTION → `effect_value` (профиль HEAL). При смене типа лишние статы **сбрасываются в пусто** (`null`), не в `0`.
 - Create: **без** `->default(...)` на полях формы (пусто до ввода админа). NOT NULL инты при save → `0` в `Equipment::saving`.
-- Экономика: только `currency`+`price` (без default).
 - Прочность: `max_durability` / износ / `repair_tier`; `gem_slots` только WEAPON/ARMOR; `repairable` на следующей строке (без default).
+- Экономика — **последняя** секция формы (`currency`+`price`, без default). `GemForm`: identity → economy.
 - Поля create/edit: `->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.*'))` — на view иконка скрыта (`operation === 'view'` → `null`).
 - В остальных секциях поля гридить `->columns(2)` (или явную сетку секции); сами секции всегда одна колонка, не side-by-side.

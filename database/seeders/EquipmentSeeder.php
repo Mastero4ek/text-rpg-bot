@@ -752,6 +752,6 @@ final class EquipmentSeeder extends Seeder
         $equipment
             ->addMedia($path)
             ->preservingOriginal()
-            ->toMediaCollection('image', 'local');
+            ->toMediaCollection('image', 'public');
     }
 }

@@ -6,6 +6,7 @@ namespace App\Support\Game;
 
 use App\Models\Character;
 use App\Models\Inventory;
+use App\Support\Equipment\EquipmentDef;
 
 final readonly class ActionResult
 {

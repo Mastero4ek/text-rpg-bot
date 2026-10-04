@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\Equipment;
 
+use Filament\Support\Colors\Color;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
@@ -17,11 +18,14 @@ enum RepairEnum: string implements HasColor, HasLabel
         return __('equipment.repair_tiers.' . $this->value);
     }
 
-    public function getColor(): string
+    /**
+     * @return array<int|string, string>
+     */
+    public function getColor(): array
     {
         return match ($this) {
-            self::NORMAL => 'gray',
-            self::VIP => 'warning',
+            self::NORMAL => Color::Gray,
+            self::VIP => Color::Amber,
         };
     }
 }

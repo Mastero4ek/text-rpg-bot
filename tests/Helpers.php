@@ -104,6 +104,37 @@ function fakeRandom(array $values): void
 }
 
 /**
+ * @return list<array{gem_id: string, durability: int}>
+ */
+function gemPouch(string $gemId, int $durability = 10, int $qty = 1): array
+{
+    $rows = [];
+
+    for ($i = 0; $i < $qty; $i++) {
+        $rows[] = [
+            'gem_id' => $gemId,
+            'durability' => $durability,
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * @param  list<array{gem_id: string, durability: int}>  $pouch
+ */
+function pouchHasGem(array $pouch, string $gemId): bool
+{
+    foreach ($pouch as $instance) {
+        if ($instance['gem_id'] === $gemId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * @param  array<string, mixed>  $overrides
  */
 function fighter(array $overrides = []): Fighter

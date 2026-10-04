@@ -88,7 +88,7 @@ final class EquipmentForm
                                 Toggle::make('in_shop')
                                     ->label(__('admin.labels.in_shop')),
                             ])
-                                ->columns(2),
+                                ->columns(3),
                         ]),
                         Group::make([
                             SpatieMediaLibraryFileUpload::make('image')

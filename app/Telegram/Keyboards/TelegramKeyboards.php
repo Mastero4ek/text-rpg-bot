@@ -9,7 +9,7 @@ use App\Enums\StatKeyEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\EquipmentDef;
+use App\Support\Equipment\EquipmentDef;
 
 final class TelegramKeyboards
 {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Gem;
 
 use App\Models\Character;
-use App\Services\Inventory\GemService;
+use App\Services\Gem\GemService;
 use App\Support\Game\ActionResult;
 
-final class InventoryBuyGemAction
+final class GemBuyAction
 {
     public function __construct(
         private readonly GemService $gems,

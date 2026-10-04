@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Inventories\Schemas;
 
+use App\Filament\Support\GemInstancesText;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -43,6 +44,10 @@ final class InventoryInfolist
                         TextEntry::make('max_durability')
                             ->label(__('admin.labels.max_durability'))
                             ->numeric()
+                            ->placeholder('-'),
+                        TextEntry::make('socketed_gems')
+                            ->label(__('admin.labels.socketed_gems'))
+                            ->formatStateUsing(fn (mixed $state): string => GemInstancesText::format($state))
                             ->placeholder('-'),
                         IconEntry::make('is_equipped')
                             ->label(__('admin.labels.is_equipped'))

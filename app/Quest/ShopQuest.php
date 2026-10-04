@@ -8,12 +8,12 @@ use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\GemService;
+use App\Services\Gem\GemService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
+use App\Support\Equipment\EquipmentDef;
 use App\Support\Game\ActionResult;
-use App\Support\Game\EquipmentDef;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 

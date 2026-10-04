@@ -14,7 +14,7 @@ use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Inventory\LoadoutService;
-use App\Support\Game\EquippedLoadout;
+use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\Fighter;
 use Illuminate\Support\Facades\DB;
 

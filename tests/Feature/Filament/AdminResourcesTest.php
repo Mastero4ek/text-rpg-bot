@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
+use App\Filament\Resources\Characters\RelationManagers\InventoriesRelationManager;
 use App\Filament\Resources\Fights\Pages\ListFights;
 use App\Filament\Resources\Fights\Pages\ViewFight;
-use App\Filament\Resources\Inventories\Pages\ListInventories;
 use App\Filament\Resources\Inventories\Pages\ViewInventory;
 use App\Models\Inventory;
 use App\Models\User;
@@ -36,7 +36,7 @@ it('lists and views characters', function (): void {
         ]);
 });
 
-it('lists and views inventory items', function (): void {
+it('shows inventory on character view and opens item view', function (): void {
     $character = characters()->createDraft(9102);
     inventory()->addItem($character->tg_id, 'knife_0');
     $item = Inventory::query()
@@ -44,7 +44,16 @@ it('lists and views inventory items', function (): void {
         ->where('item_id', 'knife_0')
         ->firstOrFail();
 
-    livewire(ListInventories::class)
+    livewire(ViewCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->assertOk()
+        ->assertSeeLivewire(InventoriesRelationManager::class);
+
+    livewire(InventoriesRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => ViewCharacter::class,
+    ])
         ->assertOk()
         ->assertCanSeeTableRecords([$item]);
 
