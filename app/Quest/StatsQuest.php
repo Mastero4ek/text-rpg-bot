@@ -21,7 +21,7 @@ use RuntimeException;
  *
  * Что сделать: потратить все стартовые `stat_points`, затем сдать квест.
  *
- * Награда (`onboarding.rewards.statsQuest`): exp + кольчуга `mail_shirt` → `quest_equip`.
+ * Награда (`onboarding.rewards.statsQuest`): exp + кольчуга `heavy_0` → `quest_equip`.
  */
 final class StatsQuest
 {
@@ -56,7 +56,7 @@ final class StatsQuest
             }
 
             $reward = $this->reward();
-            $this->characters->addExpGold($character, $reward['exp'], $reward['gold']);
+            $this->characters->addExpSilver($character, $reward['exp'], $reward['silver']);
             $character->onboarding_step = OnboardingStepEnum::QUEST_EQUIP;
             $character->save();
 
@@ -65,7 +65,7 @@ final class StatsQuest
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function reward(): array
     {
@@ -85,13 +85,13 @@ final class StatsQuest
             throw new RuntimeException('statsQuest.exp missing.');
         }
 
-        if (! array_key_exists('gold', $row) || ! is_int($row['gold'])) {
-            throw new RuntimeException('statsQuest.gold missing.');
+        if (! array_key_exists('silver', $row) || ! is_int($row['silver'])) {
+            throw new RuntimeException('statsQuest.silver missing.');
         }
 
         return [
             'exp' => $row['exp'],
-            'gold' => $row['gold'],
+            'silver' => $row['silver'],
         ];
     }
 }

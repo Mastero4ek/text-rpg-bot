@@ -1,8 +1,8 @@
 {
   "zones": ["HEAD", "CHEST", "BELLY", "LEGS"],
   "aiDefendChance": 0.55,
+  "dualWieldMinLevel": 1,
   "mfPerStat": 3,
-  "potionHeal": 40,
   "damage": {
     "base": 8,
     "statMultiplier": 2,
@@ -42,7 +42,7 @@
   "pveRewards": {
     "expBase": 20,
     "expPerLevel": 5,
-    "goldMin": 10,
-    "goldMax": 20
+    "silverMin": 10,
+    "silverMax": 20
   }
 }

@@ -59,7 +59,7 @@ it('tutorial fight persists and win lose', function (): void {
 
     $p = onboarding()->onTutorialWin($p);
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_STATS)
-        ->and($p->gold)->toBe($ob['start']['gold'] + $ob['rewards']['tutorialWin']['gold']);
+        ->and($p->silver)->toBe($ob['start']['silver'] + $ob['rewards']['tutorialWin']['silver']);
 });
 
 it('stats equip shop free club full path', function (): void {
@@ -83,15 +83,19 @@ it('stats equip shop free club full path', function (): void {
     $res = onboarding()->finishEquipQuest($p);
     expect($res->ok)->toBeTrue();
     $p = $res->character;
-    expect($p->armor_id)->toBe(shopCatalog()->mailShirtId())
+    $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
+    expect($mail->is_equipped)->toBeTrue()
+        ->and($mail->slot)->toBe(App\Enums\Equipment\SlotEnum::ARMOR)
         ->and($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_SHOP);
 
     $res = onboarding()->finishShopQuestClaim($p, shopCatalog()->freeTrainerItemId());
     expect($res->ok)->toBeTrue();
     $p = $res->character;
+    $weapon = inventory()->findOwned($p->tg_id, shopCatalog()->freeTrainerItemId());
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::DONE)
         ->and($p->level)->toBe($ob['graduateLevel'])
-        ->and($p->weapon_id)->toBe(shopCatalog()->freeTrainerItemId());
+        ->and($weapon->is_equipped)->toBeTrue()
+        ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 });
 
 it('stepHint covers known steps', function (): void {
@@ -112,5 +116,5 @@ it('finishShopQuestClaim rejects non trainer weapon', function (): void {
     $p = onboarding()->finishStatsQuest($p)->character;
     $p = onboarding()->finishEquipQuest($p)->character;
 
-    expect(onboarding()->finishShopQuestClaim($p, 'train_knife')->ok)->toBeFalse();
+    expect(onboarding()->finishShopQuestClaim($p, 'knife_0')->ok)->toBeFalse();
 });

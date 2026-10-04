@@ -184,7 +184,7 @@ final class OnboardingHandler
 
         if ($player->onboarding_step === OnboardingStepEnum::QUEST_SHOP) {
             $responder->reply(
-                __('onboarding.shop_prompt', ['gold' => $player->gold]),
+                __('onboarding.shop_prompt', ['silver' => $player->silver]),
                 TelegramKeyboards::noviceShop($this->shop),
             );
 
@@ -312,8 +312,8 @@ final class OnboardingHandler
         $responder->edit(
             __('onboarding.mail_equipped', [
                 'exp' => $reward['exp'],
-                'goldReward' => $reward['gold'],
-                'gold' => $res->character->gold,
+                'silverReward' => $reward['silver'],
+                'silver' => $res->character->silver,
             ]),
             TelegramKeyboards::noviceShop($this->shop),
         );
@@ -388,7 +388,7 @@ final class OnboardingHandler
         $responder->edit(
             __('onboarding.potion_bought', [
                 'potions' => $res->character->potions,
-                'gold' => $res->character->gold,
+                'silver' => $res->character->silver,
             ]),
             TelegramKeyboards::noviceShop($this->shop),
         );
@@ -415,7 +415,7 @@ final class OnboardingHandler
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function equipReward(): array
     {
@@ -427,11 +427,11 @@ final class OnboardingHandler
 
         $row = $onboarding['rewards']['equipQuest'] ?? null;
 
-        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['gold'])) {
+        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
             throw new RuntimeException('equipQuest reward missing.');
         }
 
-        return ['exp' => $row['exp'], 'gold' => $row['gold']];
+        return ['exp' => $row['exp'], 'silver' => $row['silver']];
     }
 
     private function graduateLevel(): int

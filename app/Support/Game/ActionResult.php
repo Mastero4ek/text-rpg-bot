@@ -14,7 +14,7 @@ final readonly class ActionResult
         public ?string $error,
         public ?Character $character,
         public ?Inventory $item,
-        public ?ItemDef $def,
+        public ?EquipmentDef $def,
     ) {}
 
     public static function fail(string $error): self
@@ -27,7 +27,7 @@ final readonly class ActionResult
         return new self(true, null, $character, null, null);
     }
 
-    public static function okWithDef(Character $character, ItemDef $def): self
+    public static function okWithDef(Character $character, EquipmentDef $def): self
     {
         return new self(true, null, $character, null, $def);
     }

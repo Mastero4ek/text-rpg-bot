@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Support\Game;
 
 use App\Enums\StanceEnum;
+use App\Enums\ZoneEnum;
 
 final readonly class Fighter
 {
+    /**
+     * @param  array{HEAD: int, CHEST: int, BELLY: int, LEGS: int}  $armorByZone
+     */
     public function __construct(
         public string $name,
         public int $strength,
@@ -17,5 +21,11 @@ final readonly class Fighter
         public int $weaponDamage,
         public Mf $weaponMf,
         public StanceEnum $stance,
+        public array $armorByZone,
     ) {}
+
+    public function armorForZone(ZoneEnum $zone): int
+    {
+        return $this->armorByZone[$zone->value];
+    }
 }

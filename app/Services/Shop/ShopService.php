@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Shop;
 
-use App\Enums\ItemTypeEnum;
+use App\Enums\Economy\CurrencyEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Inventory\InventoryService;
 use App\Support\Game\ActionResult;
+use App\Support\Game\EquipmentDef;
 use Illuminate\Support\Facades\DB;
 
 final class ShopService
@@ -21,6 +22,28 @@ final class ShopService
 
     public function buyWeapon(int $tgId, string $itemId): ActionResult
     {
+        if (! $this->catalog->isShopWeapon($itemId)) {
+            return ActionResult::fail(__('errors.pick_train_weapon'));
+        }
+
+        return $this->buyCatalogItem($tgId, $itemId);
+    }
+
+    public function buyGear(int $tgId, string $itemId): ActionResult
+    {
+        if ($this->catalog->isShopWeapon($itemId)) {
+            return ActionResult::fail(__('errors.item_not_in_shop'));
+        }
+
+        if (! $this->catalog->isShopMerchandise($itemId)) {
+            return ActionResult::fail(__('errors.item_not_in_shop'));
+        }
+
+        return $this->buyCatalogItem($tgId, $itemId);
+    }
+
+    public function buyCatalogItem(int $tgId, string $itemId): ActionResult
+    {
         return DB::transaction(function () use ($tgId, $itemId): ActionResult {
             $character = Character::query()->find($tgId);
 
@@ -28,27 +51,18 @@ final class ShopService
                 return ActionResult::fail(__('common.press_start'));
             }
 
-            if (! $this->catalog->hasItem($itemId)) {
-                return ActionResult::fail(__('errors.pick_train_weapon'));
+            if (! $this->catalog->isShopMerchandise($itemId)) {
+                return ActionResult::fail(__('errors.item_not_in_shop'));
             }
 
             $def = $this->catalog->findItem($itemId);
-
-            if ($def->itemType !== ItemTypeEnum::WEAPON) {
-                return ActionResult::fail(__('errors.pick_train_weapon'));
-            }
 
             if ($this->inventory->owns($tgId, $itemId)) {
                 return ActionResult::fail(__('errors.already_owned'));
             }
 
-            $updated = Character::query()
-                ->where('tg_id', $tgId)
-                ->where('gold', '>=', $def->price)
-                ->decrement('gold', $def->price);
-
-            if ($updated === 0) {
-                return ActionResult::fail(__('errors.not_enough_gold'));
+            if (! $this->debitPrice($tgId, $def)) {
+                return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
 
             $this->inventory->addItem($tgId, $itemId);
@@ -63,23 +77,51 @@ final class ShopService
     public function buyPotion(int $tgId): ActionResult
     {
         return DB::transaction(function () use ($tgId): ActionResult {
-            $price = $this->catalog->potionPrice();
+            $def = $this->catalog->findItem($this->catalog->shopPotionId());
 
             $character = Character::query()->find($tgId);
 
             if ($character === null) {
-                return ActionResult::fail(__('errors.not_enough_gold'));
+                return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
 
-            if ($character->gold < $price) {
-                return ActionResult::fail(__('errors.not_enough_gold'));
+            if (! $this->debitPrice($tgId, $def)) {
+                return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
 
-            $character->gold -= $price;
+            $character = $this->characters->findByTgId($tgId);
             $character->potions += 1;
             $character->save();
 
             return ActionResult::ok($character);
         });
+    }
+
+    private function debitPrice(int $tgId, EquipmentDef $def): bool
+    {
+        if ($def->currency === CurrencyEnum::GOLD) {
+            $updated = Character::query()
+                ->where('tg_id', $tgId)
+                ->where('gold', '>=', $def->price)
+                ->decrement('gold', $def->price);
+
+            return $updated > 0;
+        }
+
+        $updated = Character::query()
+            ->where('tg_id', $tgId)
+            ->where('silver', '>=', $def->price)
+            ->decrement('silver', $def->price);
+
+        return $updated > 0;
+    }
+
+    private function notEnoughMessage(CurrencyEnum $currency): string
+    {
+        if ($currency === CurrencyEnum::GOLD) {
+            return __('errors.not_enough_gold');
+        }
+
+        return __('errors.not_enough_silver');
     }
 }

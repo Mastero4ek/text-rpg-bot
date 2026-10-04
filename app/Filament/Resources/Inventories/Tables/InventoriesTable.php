@@ -44,15 +44,6 @@ final class InventoriesTable
                     ->badge()
                     ->placeholder('-')
                     ->sortable(),
-                TextColumn::make('stat_bonus')
-                    ->label(__('admin.labels.stat_bonus'))
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('weapon_class')
-                    ->label(__('admin.labels.weapon_class'))
-                    ->badge()
-                    ->placeholder('-')
-                    ->toggleable(),
                 TextColumn::make('durability')
                     ->label(__('admin.labels.durability'))
                     ->numeric()

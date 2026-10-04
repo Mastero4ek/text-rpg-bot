@@ -33,8 +33,8 @@ it('pveRewards in configured range', function (): void {
     for ($i = 0; $i < 20; $i++) {
         $reward = combat()->pveRewards(2);
         expect($reward['exp'])->toBe($r['expBase'] + 2 * $r['expPerLevel'])
-            ->and($reward['gold'])->toBeGreaterThanOrEqual($r['goldMin'])
-            ->and($reward['gold'])->toBeLessThanOrEqual($r['goldMax']);
+            ->and($reward['silver'])->toBeGreaterThanOrEqual($r['silverMin'])
+            ->and($reward['silver'])->toBeLessThanOrEqual($r['silverMax']);
     }
 });
 
@@ -44,7 +44,7 @@ it('block without pierce deals zero', function (): void {
         fighter(['name' => 'Atk', 'stance' => StanceEnum::ATTACK]),
         fighter(['name' => 'Def', 'stance' => StanceEnum::DEFEND]),
         ZoneEnum::HEAD,
-        ZoneEnum::HEAD,
+        [ZoneEnum::HEAD],
     );
 
     expect($hit->blocked)->toBeTrue()
@@ -63,7 +63,7 @@ it('block with pierce deals damage', function (): void {
         ]),
         fighter(['name' => 'Def', 'stance' => StanceEnum::DEFEND, 'instinct' => 1]),
         ZoneEnum::CHEST,
-        ZoneEnum::CHEST,
+        [ZoneEnum::CHEST],
     );
 
     expect($hit->pierced)->toBeTrue()
@@ -81,7 +81,7 @@ it('dodge when not blocked', function (): void {
             'weaponMf' => new Mf(40, 0, 0, 0),
         ]),
         ZoneEnum::HEAD,
-        ZoneEnum::LEGS,
+        [ZoneEnum::LEGS],
     );
 
     expect($hit->dodged)->toBeTrue()
@@ -94,10 +94,53 @@ it('clean hit deals damage', function (): void {
         fighter(['name' => 'Atk', 'strength' => 10, 'stance' => StanceEnum::ATTACK]),
         fighter(['name' => 'Def', 'agility' => 0, 'stance' => StanceEnum::ATTACK]),
         ZoneEnum::BELLY,
-        ZoneEnum::HEAD,
+        [ZoneEnum::HEAD],
     );
 
     expect($hit->dodged)->toBeFalse()
         ->and($hit->blocked)->toBeFalse()
         ->and($hit->dmg)->toBeGreaterThan(0);
+});
+
+it('blocks when attack hits any of two shield zones', function (): void {
+    fakeRandom([0.99]);
+    $hit = combat()->calculateHit(
+        fighter(['name' => 'Atk', 'stance' => StanceEnum::ATTACK]),
+        fighter(['name' => 'Def', 'stance' => StanceEnum::DEFEND]),
+        ZoneEnum::LEGS,
+        [ZoneEnum::HEAD, ZoneEnum::LEGS],
+    );
+
+    expect($hit->blocked)->toBeTrue()
+        ->and($hit->dmg)->toBe(0);
+});
+
+it('subtracts zone armor from hit damage', function (): void {
+    fakeRandom([0.99, 0.5]);
+    $without = combat()->calculateHit(
+        fighter(['name' => 'Atk', 'strength' => 10, 'stance' => StanceEnum::ATTACK]),
+        fighter(['name' => 'Def', 'agility' => 0, 'stance' => StanceEnum::ATTACK]),
+        ZoneEnum::HEAD,
+        [ZoneEnum::LEGS],
+    );
+
+    fakeRandom([0.99, 0.5]);
+    $withArmor = combat()->calculateHit(
+        fighter(['name' => 'Atk', 'strength' => 10, 'stance' => StanceEnum::ATTACK]),
+        fighter([
+            'name' => 'Def',
+            'agility' => 0,
+            'stance' => StanceEnum::ATTACK,
+            'armorByZone' => [
+                'HEAD' => 3,
+                'CHEST' => 0,
+                'BELLY' => 0,
+                'LEGS' => 0,
+            ],
+        ]),
+        ZoneEnum::HEAD,
+        [ZoneEnum::LEGS],
+    );
+
+    expect($withArmor->dmg)->toBe(max(1, $without->dmg - 3));
 });

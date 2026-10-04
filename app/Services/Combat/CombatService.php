@@ -8,10 +8,11 @@ use App\Enums\StanceEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Game\GameConfig;
+use App\Services\Shop\ShopCatalog;
 use App\Support\Game\Enemy;
+use App\Support\Game\EquippedLoadout;
 use App\Support\Game\Fighter;
 use App\Support\Game\HitResult;
-use App\Support\Game\ItemDef;
 use App\Support\Game\Mf;
 use App\Support\Random\RandomSourceContract;
 use RuntimeException;
@@ -21,6 +22,7 @@ final class CombatService
     public function __construct(
         private readonly GameConfig $config,
         private readonly RandomSourceContract $random,
+        private readonly ShopCatalog $shop,
     ) {}
 
     /**
@@ -90,11 +92,14 @@ final class CombatService
         return StanceEnum::ATTACK;
     }
 
+    /**
+     * @param  list<ZoneEnum>  $defendZones
+     */
     public function calculateHit(
         Fighter $attacker,
         Fighter $defender,
         ZoneEnum $atkZone,
-        ZoneEnum $defZone,
+        array $defendZones,
     ): HitResult {
         $atkMf = $this->applyStanceToMf(
             $this->baseMf($attacker)->merge($attacker->weaponMf),
@@ -105,7 +110,7 @@ final class CombatService
             $defender->stance,
         );
 
-        $blocked = $atkZone === $defZone;
+        $blocked = in_array($atkZone, $defendZones, true);
         $zone = $this->zoneRu($atkZone);
         $pierce = $this->pierceConfig();
         $dodge = $this->dodgeConfig();
@@ -121,7 +126,8 @@ final class CombatService
             if ($this->random->float() * 100 < $pierceChance) {
                 $base = $this->calcBaseDamage($attacker, $atkMf['damageMult']);
                 $mult = $pierce['multMin'] + $this->random->float() * $pierce['multRange'];
-                $dmg = max(1, (int) floor($base * $mult));
+                $raw = max(1, (int) floor($base * $mult));
+                $dmg = $this->applyZoneArmor($raw, $defender, $atkZone);
 
                 return new HitResult(
                     $dmg,
@@ -168,12 +174,13 @@ final class CombatService
         }
 
         $base = $this->calcBaseDamage($attacker, $atkMf['damageMult']);
-        $dmg = max(
+        $raw = max(
             1,
             (int) floor(
                 $base * ($dmgCfg['varianceMin'] + $this->random->float() * $dmgCfg['varianceRange'])
             ),
         );
+        $dmg = $this->applyZoneArmor($raw, $defender, $atkZone);
 
         return new HitResult(
             $dmg,
@@ -260,48 +267,56 @@ final class CombatService
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     public function pveRewards(int $enemyLevel): array
     {
         $lvl = max(0, $enemyLevel);
         $r = $this->pveRewardsConfig();
-        $goldSpan = $r['goldMax'] - $r['goldMin'] + 1;
+        $silverSpan = $r['silverMax'] - $r['silverMin'] + 1;
 
         return [
             'exp' => $r['expBase'] + $lvl * $r['expPerLevel'],
-            'gold' => $r['goldMin'] + (int) floor($this->random->float() * $goldSpan),
+            'silver' => $r['silverMin'] + (int) floor($this->random->float() * $silverSpan),
         ];
     }
 
     public function potionHeal(): int
     {
-        return $this->intField($this->config->combat(), 'potionHeal');
+        return $this->shop->potionHeal();
     }
 
-    public function fighterFromPlayer(Character $character, ?ItemDef $weaponDef, string $name): Fighter
+    public function fighterFromPlayer(Character $character, EquippedLoadout $loadout, string $name): Fighter
     {
-        if (! $weaponDef instanceof ItemDef) {
-            $weaponDamage = 0;
-            $weaponMf = new Mf(0, 0, 0, 0);
-        } else {
-            $weaponDamage = $weaponDef->weaponDamage;
-            $weaponMf = $weaponDef->mf;
-        }
-
         return new Fighter(
             $name,
             $character->strength,
             $character->agility,
             $character->instinct,
             $character->vitality,
-            $weaponDamage,
-            $weaponMf,
+            $this->rollWeaponDamage($loadout->weaponDamageMin, $loadout->weaponDamageMax),
+            $loadout->mf,
             StanceEnum::DEFEND,
+            $loadout->armorByZone,
         );
     }
 
-    public function fighterFromPlayerDefaultName(Character $character, ?ItemDef $weaponDef): Fighter
+    public function rollWeaponDamage(int $min, int $max): int
+    {
+        if ($max < $min) {
+            throw new RuntimeException('weapon damage max must be >= min.');
+        }
+
+        if ($min === $max) {
+            return $min;
+        }
+
+        $span = $max - $min + 1;
+
+        return $min + (int) floor($this->random->float() * $span);
+    }
+
+    public function fighterFromPlayerDefaultName(Character $character, EquippedLoadout $loadout): Fighter
     {
         if ($character->username === null) {
             $name = __('common.you');
@@ -309,7 +324,7 @@ final class CombatService
             $name = $character->username;
         }
 
-        return $this->fighterFromPlayer($character, $weaponDef, $name);
+        return $this->fighterFromPlayer($character, $loadout, $name);
     }
 
     private function baseMf(Fighter $fighter): Mf
@@ -338,6 +353,11 @@ final class CombatService
             'antiCrit' => $mf->antiCrit + $s['antiCrit'],
             'damageMult' => $s['damageMult'],
         ];
+    }
+
+    private function applyZoneArmor(int $rawDamage, Fighter $defender, ZoneEnum $atkZone): int
+    {
+        return max(1, $rawDamage - $defender->armorForZone($atkZone));
     }
 
     private function calcBaseDamage(Fighter $attacker, float $damageMult): float
@@ -447,7 +467,7 @@ final class CombatService
     }
 
     /**
-     * @return array{expBase: int, expPerLevel: int, goldMin: int, goldMax: int}
+     * @return array{expBase: int, expPerLevel: int, silverMin: int, silverMax: int}
      */
     private function pveRewardsConfig(): array
     {
@@ -462,8 +482,8 @@ final class CombatService
         return [
             'expBase' => $this->intField($r, 'expBase'),
             'expPerLevel' => $this->intField($r, 'expPerLevel'),
-            'goldMin' => $this->intField($r, 'goldMin'),
-            'goldMax' => $this->intField($r, 'goldMax'),
+            'silverMin' => $this->intField($r, 'silverMin'),
+            'silverMax' => $this->intField($r, 'silverMax'),
         ];
     }
 

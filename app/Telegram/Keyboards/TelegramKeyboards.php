@@ -9,7 +9,7 @@ use App\Enums\StatKeyEnum;
 use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\ItemDef;
+use App\Support\Game\EquipmentDef;
 
 final class TelegramKeyboards
 {
@@ -20,8 +20,10 @@ final class TelegramKeyboards
     {
         return self::inline([
             [self::cb(__('menu.profile'), 'menu:profile')],
+            [self::cb(__('menu.gear'), 'menu:gear')],
             [self::cb(__('menu.inventory'), 'menu:inv')],
             [self::cb(__('menu.shop'), 'menu:shop')],
+            [self::cb(__('menu.smith'), 'menu:smith')],
             [self::cb(__('menu.fight'), 'menu:fight')],
             [self::cb(__('menu.stats'), 'menu:stats')],
         ]);
@@ -121,15 +123,20 @@ final class TelegramKeyboards
     }
 
     /**
-     * @param  list<ItemDef>  $weapons
+     * @param  list<EquipmentDef>  $weapons
+     * @param  list<EquipmentDef>  $gear
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function fullShop(array $weapons, int $potionPrice): array
+    public static function fullShop(array $weapons, array $gear, int $potionPrice): array
     {
         $rows = [];
 
         foreach ($weapons as $weapon) {
             $rows[] = [self::weaponButton($weapon, 'shop:w:' . $weapon->itemId)];
+        }
+
+        foreach ($gear as $item) {
+            $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
         }
 
         $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'shop:potion')];
@@ -184,16 +191,58 @@ final class TelegramKeyboards
      */
     public static function defend(): array
     {
-        return self::inline([
-            [
-                self::cb(__('combat.zone_label.' . ZoneEnum::HEAD->value), 'fight:def:' . ZoneEnum::HEAD->value),
-                self::cb(__('combat.zone_label.' . ZoneEnum::CHEST->value), 'fight:def:' . ZoneEnum::CHEST->value),
-            ],
-            [
-                self::cb(__('combat.zone_label.' . ZoneEnum::BELLY->value), 'fight:def:' . ZoneEnum::BELLY->value),
-                self::cb(__('combat.zone_label.' . ZoneEnum::LEGS->value), 'fight:def:' . ZoneEnum::LEGS->value),
-            ],
-        ]);
+        return self::defendButtons(null);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function defendExcluding(ZoneEnum $excluded): array
+    {
+        return self::defendButtons($excluded);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    private static function defendButtons(?ZoneEnum $excluded): array
+    {
+        $zones = [
+            ZoneEnum::HEAD,
+            ZoneEnum::CHEST,
+            ZoneEnum::BELLY,
+            ZoneEnum::LEGS,
+        ];
+        $buttons = [];
+
+        foreach ($zones as $zone) {
+            if ($excluded instanceof ZoneEnum && $zone === $excluded) {
+                continue;
+            }
+
+            $buttons[] = self::cb(
+                __('combat.zone_label.' . $zone->value),
+                'fight:def:' . $zone->value,
+            );
+        }
+
+        $rows = [];
+        $row = [];
+
+        foreach ($buttons as $button) {
+            $row[] = $button;
+
+            if (count($row) === 2) {
+                $rows[] = $row;
+                $row = [];
+            }
+        }
+
+        if ($row !== []) {
+            $rows[] = $row;
+        }
+
+        return self::inline($rows);
     }
 
     /**
@@ -242,7 +291,7 @@ final class TelegramKeyboards
     /**
      * @return array{text: string, callback_data: string}
      */
-    private static function weaponButton(ItemDef $weapon, string $data): array
+    private static function weaponButton(EquipmentDef $weapon, string $data): array
     {
         return self::cb(
             __('shop.weapon_btn', [

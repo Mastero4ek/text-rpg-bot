@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property OnboardingStepEnum $onboarding_step
  * @property int $level
  * @property int $exp
+ * @property int $silver
  * @property int $gold
  * @property int $strength
  * @property int $agility
@@ -25,10 +26,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $vitality
  * @property int $current_hp
  * @property CarbonInterface $last_hp_update
- * @property string|null $weapon_id
- * @property string|null $armor_id
  * @property int $stat_points
  * @property int $potions
+ * @property array<string, int>|null $gem_pouch
+ * @property int $gem_insurance_charges
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $created_at
@@ -41,6 +42,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'onboarding_step',
     'level',
     'exp',
+    'silver',
     'gold',
     'strength',
     'agility',
@@ -48,10 +50,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'vitality',
     'current_hp',
     'last_hp_update',
-    'weapon_id',
-    'armor_id',
     'stat_points',
     'potions',
+    'gem_pouch',
+    'gem_insurance_charges',
     'arena_points',
     'premium_until',
 ])]
@@ -80,6 +82,14 @@ final class Character extends Model
     }
 
     /**
+     * @return HasMany<Inventory, $this>
+     */
+    public function equippedInventories(): HasMany
+    {
+        return $this->inventories()->where('is_equipped', true);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -89,6 +99,7 @@ final class Character extends Model
             'onboarding_step' => OnboardingStepEnum::class,
             'level' => 'integer',
             'exp' => 'integer',
+            'silver' => 'integer',
             'gold' => 'integer',
             'strength' => 'integer',
             'agility' => 'integer',
@@ -98,6 +109,8 @@ final class Character extends Model
             'last_hp_update' => 'datetime',
             'stat_points' => 'integer',
             'potions' => 'integer',
+            'gem_pouch' => 'array',
+            'gem_insurance_charges' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
         ];

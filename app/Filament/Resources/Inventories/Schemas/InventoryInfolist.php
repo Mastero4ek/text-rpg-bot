@@ -36,13 +36,6 @@ final class InventoryInfolist
                             ->label(__('admin.labels.slot'))
                             ->badge()
                             ->placeholder('-'),
-                        TextEntry::make('stat_bonus')
-                            ->label(__('admin.labels.stat_bonus'))
-                            ->numeric(),
-                        TextEntry::make('weapon_class')
-                            ->label(__('admin.labels.weapon_class'))
-                            ->badge()
-                            ->placeholder('-'),
                         TextEntry::make('durability')
                             ->label(__('admin.labels.durability'))
                             ->numeric()

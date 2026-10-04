@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Inventory\InventoryApplyFightWearAction;
+use App\Actions\Inventory\InventoryBreakGemsOnLoseAction;
 use App\Enums\FightPlayerAttackEnum;
 use App\Enums\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
@@ -16,6 +18,8 @@ use App\Services\Combat\CombatService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
+use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\LoadoutService;
 use App\Services\Onboarding\OnboardingService;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
@@ -31,6 +35,10 @@ final class CombatHandler
         private readonly CombatService $combat,
         private readonly FightService $fights,
         private readonly FightRoundService $rounds,
+        private readonly InventoryService $inventory,
+        private readonly InventoryApplyFightWearAction $fightWear,
+        private readonly InventoryBreakGemsOnLoseAction $breakGems,
+        private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
@@ -125,6 +133,18 @@ final class CombatHandler
 
             $fight = $this->fights->findByTgId($player->tg_id);
 
+            if ($fight->step === FightStepEnum::ATTACK_SECOND) {
+                if ($choice === 'POTION') {
+                    return null;
+                }
+
+                $fight->player_attack_second = FightPlayerAttackEnum::from($choice);
+                $fight->step = FightStepEnum::DEFEND;
+                $this->fights->save($fight);
+
+                return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
+            }
+
             if ($fight->step !== FightStepEnum::ATTACK) {
                 return null;
             }
@@ -136,15 +156,30 @@ final class CombatHandler
 
                 $fight->use_potion = true;
                 $fight->player_attack = FightPlayerAttackEnum::POTION;
-            } else {
-                $fight->use_potion = false;
-                $fight->player_attack = FightPlayerAttackEnum::from($choice);
+                $fight->player_attack_second = null;
+                $fight->step = FightStepEnum::DEFEND;
+                $this->fights->save($fight);
+
+                return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
+            }
+
+            $fight->use_potion = false;
+            $fight->player_attack = FightPlayerAttackEnum::from($choice);
+            $fight->player_attack_second = null;
+
+            $loadout = $this->loadout->forCharacter($player);
+
+            if ($loadout->attackSlots >= 2) {
+                $fight->step = FightStepEnum::ATTACK_SECOND;
+                $this->fights->save($fight);
+
+                return ['kind' => 'second', 'player' => $player, 'fight' => $fight];
             }
 
             $fight->step = FightStepEnum::DEFEND;
             $this->fights->save($fight);
 
-            return ['kind' => 'ok', 'player' => $player, 'fight' => $fight];
+            return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
         });
 
         if ($saved === null) {
@@ -162,6 +197,15 @@ final class CombatHandler
         /** @var Fight $fight */
         $fight = $saved['fight'];
 
+        if ($saved['kind'] === 'second') {
+            $responder->edit(
+                $this->fightStatus->format($fight, $player->username) . __('combat.pick_attack_second'),
+                TelegramKeyboards::attackWithoutPotion(),
+            );
+
+            return;
+        }
+
         if ($fight->use_potion) {
             $prompt = __('combat.potion_then_defend');
         } else {
@@ -176,7 +220,7 @@ final class CombatHandler
 
     private function defend(TelegramUpdate $update, TelegramResponder $responder, ZoneEnum $zone): void
     {
-        $player = DB::transaction(function () use ($update, $zone): ?Character {
+        $saved = DB::transaction(function () use ($update, $zone): ?array {
             $player = Character::query()->find($update->userId());
 
             if ($player === null || ! $this->fights->exists($player->tg_id)) {
@@ -185,20 +229,65 @@ final class CombatHandler
 
             $fight = $this->fights->findByTgId($player->tg_id);
 
-            if ($fight->step !== FightStepEnum::DEFEND) {
+            if ($fight->step === FightStepEnum::DEFEND) {
+                $fight->player_defend = $zone;
+                $fight->player_defend_second = null;
+
+                $loadout = $this->loadout->forCharacter($player);
+
+                if ($loadout->blockSlots >= 2) {
+                    $fight->step = FightStepEnum::DEFEND_SECOND;
+                    $this->fights->save($fight);
+
+                    return [
+                        'kind' => 'second',
+                        'player' => $player,
+                        'fight' => $fight,
+                        'first' => $zone,
+                    ];
+                }
+
+                $this->fights->save($fight);
+
+                return ['kind' => 'resolve', 'player' => $player];
+            }
+
+            if ($fight->step !== FightStepEnum::DEFEND_SECOND) {
                 return null;
             }
 
-            $fight->player_defend = $zone;
+            if ($fight->player_defend === $zone) {
+                return null;
+            }
+
+            $fight->player_defend_second = $zone;
             $this->fights->save($fight);
 
-            return $player;
+            return ['kind' => 'resolve', 'player' => $player];
         });
 
-        if ($player === null) {
+        if ($saved === null) {
             return;
         }
 
+        if ($saved['kind'] === 'second') {
+            /** @var Character $player */
+            $player = $saved['player'];
+            /** @var Fight $fight */
+            $fight = $saved['fight'];
+            /** @var ZoneEnum $first */
+            $first = $saved['first'];
+
+            $responder->edit(
+                $this->fightStatus->format($fight, $player->username) . __('combat.pick_defend_second'),
+                TelegramKeyboards::defendExcluding($first),
+            );
+
+            return;
+        }
+
+        /** @var Character $player */
+        $player = $saved['player'];
         $outcome = $this->rounds->resolve($player);
 
         if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
@@ -283,7 +372,7 @@ final class CombatHandler
                 $responder->edit(
                     $text . __('onboarding.tutorial_win', [
                         'exp' => $reward['exp'],
-                        'gold' => $reward['gold'],
+                        'silver' => $reward['silver'],
                     ]),
                     null,
                 );
@@ -305,29 +394,63 @@ final class CombatHandler
             return;
         }
 
+        $pierceCount = $fight->pierce_count;
+
         if ($won) {
+            $broken = $this->fightWear->handleAfterWin($player, $pierceCount);
+            $player = $this->characters->findByTgId($player->tg_id);
+            $brokeSuffix = $this->brokenGearSuffix($broken);
             $enemy = $this->fights->enemy($fight);
             $reward = $this->combat->pveRewards($enemy->level);
-            $this->characters->addExpGold($player, $reward['exp'], $reward['gold']);
-            $player->current_hp = max(1, $fight->player_hp);
+            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
+            $player = $this->characters->findByTgId($player->tg_id);
+            $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
             $player->save();
             $this->fights->clear($player->tg_id);
             $responder->edit(
                 $text . __('combat.win', [
                     'exp' => $reward['exp'],
-                    'gold' => $reward['gold'],
-                ]),
+                    'silver' => $reward['silver'],
+                ]) . $brokeSuffix,
                 TelegramKeyboards::mainMenu(),
             );
 
             return;
         }
 
+        $broken = $this->fightWear->handleAfterLose($player, $pierceCount);
+        $gemBroken = $this->breakGems->handle($player);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $brokeSuffix = $this->brokenGearSuffix($broken) . $this->brokenGemsSuffix($gemBroken);
         $player->current_hp = 0;
         $player->last_hp_update = now();
         $player->save();
         $this->fights->clear($player->tg_id);
-        $responder->edit($text . __('combat.lose'), TelegramKeyboards::mainMenu());
+        $responder->edit($text . __('combat.lose') . $brokeSuffix, TelegramKeyboards::mainMenu());
+    }
+
+    /**
+     * @param  list<string>  $broken
+     */
+    private function brokenGearSuffix(array $broken): string
+    {
+        if ($broken === []) {
+            return '';
+        }
+
+        return __('combat.gear_broke', ['names' => implode(', ', $broken)]);
+    }
+
+    /**
+     * @param  list<string>  $broken
+     */
+    private function brokenGemsSuffix(array $broken): string
+    {
+        if ($broken === []) {
+            return '';
+        }
+
+        return __('combat.gems_broke', ['names' => implode(', ', $broken)]);
     }
 
     private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
@@ -345,6 +468,7 @@ final class CombatHandler
         }
 
         $player = $this->characters->applyRegen($player);
+        $player = $this->inventory->dropUnmetEquipped($player);
 
         if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
             $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
@@ -356,7 +480,7 @@ final class CombatHandler
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function tutorialReward(): array
     {
@@ -368,10 +492,10 @@ final class CombatHandler
 
         $row = $onboarding['rewards']['tutorialWin'] ?? null;
 
-        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['gold'])) {
+        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
             throw new RuntimeException('tutorialWin reward missing.');
         }
 
-        return ['exp' => $row['exp'], 'gold' => $row['gold']];
+        return ['exp' => $row['exp'], 'silver' => $row['silver']];
     }
 }

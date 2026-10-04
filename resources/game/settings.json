@@ -1,0 +1,14 @@
+{
+  "repair": {
+    "silverPerMissingPoint": 2,
+    "goldRepairAllDivisor": 15
+  },
+  "vipRepair": {
+    "silverMultiplier": 2,
+    "goldPass": 1
+  },
+  "wear": {
+    "extraLossOnLose": 1,
+    "extraLossPerPierce": 1
+  }
+}

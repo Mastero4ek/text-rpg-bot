@@ -36,7 +36,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 |------|-------|
 | Telegram handlers / keyboards | `app/Telegram/` |
 | Services | `app/Services/{Domain}/{Entity}Service.php` |
-| Actions | `app/Actions/{Entity}/{Verb}/{Entity}{Verb}Action.php` |
+| Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quest/` |
 | Enums | `app/Enums/{Entity}Enum.php` or `app/Enums/{Domain}/` |
@@ -74,4 +74,4 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 ## Out of scope
 
-Roadmap stages 1–6 (PvP, doll, Stars, clans, mass fights, …). Do not extend the schema for them.
+Roadmap stages 1–6 (equipment slots, gold/VIP, PvP, clans, mass fights, world, …). Do not extend the schema for them.

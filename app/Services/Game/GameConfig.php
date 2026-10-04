@@ -21,7 +21,7 @@ final class GameConfig
     private array $onboarding;
 
     /** @var array<string, mixed> */
-    private array $shop;
+    private array $settings;
 
     public function __construct()
     {
@@ -29,7 +29,7 @@ final class GameConfig
         $this->combat = $this->loadJson('combat.json');
         $this->enemies = $this->loadJson('enemies.json');
         $this->onboarding = $this->loadJson('onboarding.json');
-        $this->shop = $this->loadJson('shop.json');
+        $this->settings = $this->loadJson('settings.json');
     }
 
     /**
@@ -67,9 +67,9 @@ final class GameConfig
     /**
      * @return array<string, mixed>
      */
-    public function shop(): array
+    public function settings(): array
     {
-        return $this->shop;
+        return $this->settings;
     }
 
     /**

@@ -23,8 +23,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property FightStepEnum $step
  * @property StanceEnum|null $player_stance
  * @property FightPlayerAttackEnum|null $player_attack
+ * @property FightPlayerAttackEnum|null $player_attack_second
  * @property ZoneEnum|null $player_defend
+ * @property ZoneEnum|null $player_defend_second
  * @property bool $use_potion
+ * @property int $pierce_count
  * @property list<string> $log
  */
 #[Fillable([
@@ -37,8 +40,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'step',
     'player_stance',
     'player_attack',
+    'player_attack_second',
     'player_defend',
+    'player_defend_second',
     'use_potion',
+    'pierce_count',
     'log',
 ])]
 final class Fight extends Model
@@ -74,8 +80,11 @@ final class Fight extends Model
             'step' => FightStepEnum::class,
             'player_stance' => StanceEnum::class,
             'player_attack' => FightPlayerAttackEnum::class,
+            'player_attack_second' => FightPlayerAttackEnum::class,
             'player_defend' => ZoneEnum::class,
+            'player_defend_second' => ZoneEnum::class,
             'use_potion' => 'boolean',
+            'pierce_count' => 'integer',
             'log' => 'array',
         ];
     }

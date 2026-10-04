@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Equipment\SlotEnum;
 use App\Enums\StanceEnum;
+use App\Models\Character;
+use App\Models\Inventory;
 use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
 use App\Services\Fight\FightService;
@@ -54,6 +57,42 @@ function onboarding(): OnboardingService
 function combat(): CombatService
 {
     return app(CombatService::class);
+}
+
+function giveStarterKnuckles(int $tgId): Inventory
+{
+    $itemId = shopCatalog()->starterKnucklesId();
+    inventory()->addItem($tgId, $itemId);
+
+    return inventory()->findOwned($tgId, $itemId);
+}
+
+function giveAndEquipStarterKnuckles(Character $character): Character
+{
+    $row = giveStarterKnuckles($character->tg_id);
+    $equip = inventory()->equip($character, $row->id);
+
+    if (! $equip->ok || ! $equip->character instanceof Character) {
+        throw new RuntimeException('Failed to equip starter knuckles in test.');
+    }
+
+    return $equip->character;
+}
+
+function equipItemToSlot(Character $character, string $itemId, SlotEnum $slot): Character
+{
+    if (! inventory()->owns($character->tg_id, $itemId)) {
+        inventory()->addItem($character->tg_id, $itemId);
+    }
+
+    $row = inventory()->findOwned($character->tg_id, $itemId);
+    $equip = inventory()->equipToSlot($character, $row->id, $slot);
+
+    if (! $equip->ok || ! $equip->character instanceof Character) {
+        throw new RuntimeException("Failed to equip {$itemId} to {$slot->value} in test.");
+    }
+
+    return $equip->character;
 }
 
 /**
@@ -109,6 +148,16 @@ function fighter(array $overrides = []): Fighter
         $stance = $overrides['stance'];
     }
 
+    $armorByZone = [
+        'HEAD' => 0,
+        'CHEST' => 0,
+        'BELLY' => 0,
+        'LEGS' => 0,
+    ];
+    if (array_key_exists('armorByZone', $overrides) && is_array($overrides['armorByZone'])) {
+        $armorByZone = $overrides['armorByZone'];
+    }
+
     return new Fighter(
         $name,
         $strength,
@@ -118,5 +167,6 @@ function fighter(array $overrides = []): Fighter
         $weaponDamage,
         $weaponMf,
         $stance,
+        $armorByZone,
     );
 }

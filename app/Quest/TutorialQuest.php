@@ -23,7 +23,7 @@ use RuntimeException;
  * Что сделать: победить солдата (стойка → удар → блок). Зелье в туториале
  * недоступно. Поражение: full heal (шаг остаётся / откат на intro в хендлере).
  *
- * Награда (`onboarding.rewards.tutorialWin`): exp + gold → `quest_stats`.
+ * Награда (`onboarding.rewards.tutorialWin`): exp + silver → `quest_stats`.
  */
 final class TutorialQuest
 {
@@ -55,7 +55,7 @@ final class TutorialQuest
     {
         return DB::transaction(function () use ($character): Character {
             $reward = $this->reward('tutorialWin');
-            $this->characters->addExpGold($character, $reward['exp'], $reward['gold']);
+            $this->characters->addExpSilver($character, $reward['exp'], $reward['silver']);
             $character->onboarding_step = OnboardingStepEnum::QUEST_STATS;
             $character->save();
 
@@ -75,7 +75,7 @@ final class TutorialQuest
     }
 
     /**
-     * @return array{exp: int, gold: int}
+     * @return array{exp: int, silver: int}
      */
     private function reward(string $key): array
     {
@@ -95,13 +95,13 @@ final class TutorialQuest
             throw new RuntimeException("reward {$key}.exp missing.");
         }
 
-        if (! array_key_exists('gold', $row) || ! is_int($row['gold'])) {
-            throw new RuntimeException("reward {$key}.gold missing.");
+        if (! array_key_exists('silver', $row) || ! is_int($row['silver'])) {
+            throw new RuntimeException("reward {$key}.silver missing.");
         }
 
         return [
             'exp' => $row['exp'],
-            'gold' => $row['gold'],
+            'silver' => $row['silver'],
         ];
     }
 }

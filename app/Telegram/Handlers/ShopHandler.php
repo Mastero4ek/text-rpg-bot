@@ -7,6 +7,7 @@ namespace App\Telegram\Handlers;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
+use App\Services\Inventory\InventoryService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
@@ -18,6 +19,7 @@ final class ShopHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly InventoryService $inventory,
         private readonly OnboardingService $onboarding,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
@@ -34,10 +36,17 @@ final class ShopHandler
         }
 
         if ($data === 'menu:shop') {
+            $wearables = $this->shop->shopGear();
+
+            foreach ($this->shop->shopJewelry() as $jewelry) {
+                $wearables[] = $jewelry;
+            }
+
             $responder->edit(
-                __('shop.balance', ['gold' => $player->gold]),
+                __('shop.balance', ['silver' => $player->silver]),
                 TelegramKeyboards::fullShop(
                     $this->shop->weaponsForMode('full'),
+                    $wearables,
                     $this->shop->potionPrice(),
                 ),
             );
@@ -54,13 +63,33 @@ final class ShopHandler
                 return;
             }
 
-            if (! $res->def instanceof \App\Support\Game\ItemDef) {
+            if (! $res->def instanceof \App\Support\Game\EquipmentDef) {
                 $responder->reply(__('common.error'), null);
 
                 return;
             }
 
             $responder->reply(__('shop.bought_weapon', ['name' => $res->def->itemName]), null);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'shop:g:')) {
+            $res = $this->shopService->buyGear($player->tg_id, mb_substr($data, 7));
+
+            if (! $res->ok) {
+                $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+                return;
+            }
+
+            if (! $res->def instanceof \App\Support\Game\EquipmentDef) {
+                $responder->reply(__('common.error'), null);
+
+                return;
+            }
+
+            $responder->reply(__('shop.bought_gear', ['name' => $res->def->itemName]), null);
 
             return;
         }
@@ -96,6 +125,7 @@ final class ShopHandler
         }
 
         $player = $this->characters->applyRegen($player);
+        $player = $this->inventory->dropUnmetEquipped($player);
 
         if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
             $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
