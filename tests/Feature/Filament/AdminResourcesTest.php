@@ -5,8 +5,6 @@ declare(strict_types=1);
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Filament\Resources\Characters\RelationManagers\InventoriesRelationManager;
-use App\Filament\Resources\Fights\Pages\ListFights;
-use App\Filament\Resources\Fights\Pages\ViewFight;
 use App\Filament\Resources\Inventories\Pages\ViewInventory;
 use App\Models\Inventory;
 use App\Models\User;
@@ -64,26 +62,6 @@ it('shows inventory on character view and opens item view', function (): void {
         ->assertSchemaStateSet([
             'tg_id' => 9102,
             'item_id' => 'knife_0',
-        ]);
-});
-
-it('lists and views fights', function (): void {
-    $character = characters()->createDraft(9103);
-    $character->username = 'Fighter';
-    $character->save();
-    $fight = fights()->createTutorial($character, combat()->makeWoodenSoldier());
-
-    livewire(ListFights::class)
-        ->assertOk()
-        ->assertCanSeeTableRecords([$fight]);
-
-    livewire(ViewFight::class, [
-        'record' => $fight->getKey(),
-    ])
-        ->assertOk()
-        ->assertSchemaStateSet([
-            'tg_id' => 9103,
-            'tutorial' => true,
         ]);
 });
 

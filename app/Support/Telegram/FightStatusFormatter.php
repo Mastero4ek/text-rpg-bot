@@ -27,9 +27,13 @@ final class FightStatusFormatter
             'player' => $name,
             'hp' => $fight->player_hp,
             'maxHp' => $fight->player_max_hp,
+            'stamina' => $fight->player_stamina,
+            'maxStamina' => $fight->player_max_stamina,
             'enemy' => $enemy->name,
             'ehp' => $enemy->currentHp,
             'emax' => $enemy->maxHp,
+            'estamina' => $enemy->stamina,
+            'emaxStamina' => $enemy->maxStamina,
         ]);
 
         $log = $fight->log;

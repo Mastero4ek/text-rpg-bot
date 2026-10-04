@@ -1,4 +1,4 @@
-> Баланс игры. JSON в этой папке читает `App\Services\Game\GameConfig` (character/combat/enemies/onboarding/settings). Каталог экипа — таблица `equipment` (`ShopCatalog`); initial seed — `EquipmentSeeder`. Каталог камней — таблица `gems` (`GemCatalog`); initial seed — `GemSeeder`. Глобалки камней — `settings.json` → `gems`.
+> Баланс игры. JSON в этой папке читает `App\Services\Game\GameConfig` (character/enemies/onboarding/settings). Каталог экипа — таблица `equipment` (`ShopCatalog`); initial seed — `EquipmentSeeder`. Каталог камней — таблица `gems` (`GemCatalog`); initial seed — `GemSeeder`. Глобалки: `settings.json` → `gems` / `combat` / `repair` / `wear` / `vipRepair` (см. `docs/COMBAT.md`, `docs/GEMS.md`).
 
 ## Каталог снаряжения (этап 1.0)
 

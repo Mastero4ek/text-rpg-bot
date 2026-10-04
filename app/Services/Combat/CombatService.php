@@ -30,23 +30,7 @@ final class CombatService
      */
     public function zones(): array
     {
-        $combat = $this->config->combat();
-
-        if (! array_key_exists('zones', $combat) || ! is_array($combat['zones'])) {
-            throw new RuntimeException('combat.zones missing.');
-        }
-
-        $zones = [];
-
-        foreach ($combat['zones'] as $zone) {
-            if (! is_string($zone)) {
-                throw new RuntimeException('Invalid combat zone.');
-            }
-
-            $zones[] = ZoneEnum::from($zone);
-        }
-
-        return $zones;
+        return ZoneEnum::cases();
     }
 
     public function clamp(int $min, int $max, int $value): int
@@ -101,13 +85,21 @@ final class CombatService
         ZoneEnum $atkZone,
         array $defendZones,
     ): HitResult {
-        $atkMf = $this->applyStanceToMf(
-            $this->baseMf($attacker)->merge($attacker->weaponMf),
-            $attacker->stance,
+        $atkMf = $this->scaleMfByStamina(
+            $this->applyStanceToMf(
+                $this->baseMf($attacker)->merge($attacker->weaponMf),
+                $attacker->stance,
+            ),
+            $attacker->stamina,
+            $attacker->maxStamina,
         );
-        $defMf = $this->applyStanceToMf(
-            $this->baseMf($defender)->merge($defender->weaponMf),
-            $defender->stance,
+        $defMf = $this->scaleMfByStamina(
+            $this->applyStanceToMf(
+                $this->baseMf($defender)->merge($defender->weaponMf),
+                $defender->stance,
+            ),
+            $defender->stamina,
+            $defender->maxStamina,
         );
 
         $blocked = in_array($atkZone, $defendZones, true);
@@ -134,6 +126,7 @@ final class CombatService
                     true,
                     true,
                     false,
+                    false,
                     __('combat.pierce', [
                         'attacker' => $attacker->name,
                         'zone' => $zone,
@@ -145,6 +138,7 @@ final class CombatService
             return new HitResult(
                 0,
                 true,
+                false,
                 false,
                 false,
                 __('combat.block', [
@@ -165,6 +159,7 @@ final class CombatService
                 0,
                 false,
                 false,
+                false,
                 true,
                 __('combat.dodge', [
                     'defender' => $defender->name,
@@ -173,7 +168,32 @@ final class CombatService
             );
         }
 
+        $crit = $this->critConfig();
+        $critChance = $this->clampFloat(
+            (float) $crit['chanceMin'],
+            (float) $crit['chanceMax'],
+            $crit['chanceBase'] + ($atkMf['crit'] - $defMf['antiCrit']) * $crit['chanceScale'],
+        );
         $base = $this->calcBaseDamage($attacker, $atkMf['damageMult']);
+
+        if ($this->random->float() * 100 < $critChance) {
+            $raw = max(1, (int) floor($base * $crit['mult']));
+            $dmg = $this->applyZoneArmor($raw, $defender, $atkZone);
+
+            return new HitResult(
+                $dmg,
+                false,
+                false,
+                true,
+                false,
+                __('combat.crit', [
+                    'attacker' => $attacker->name,
+                    'zone' => $zone,
+                    'dmg' => $dmg,
+                ]),
+            );
+        }
+
         $raw = max(
             1,
             (int) floor(
@@ -184,6 +204,7 @@ final class CombatService
 
         return new HitResult(
             $dmg,
+            false,
             false,
             false,
             false,
@@ -214,11 +235,13 @@ final class CombatService
         }
 
         $maxHp = $this->intField($e, 'maxHp');
+        $strength = $this->intField($e, 'strength');
+        $maxStamina = $this->maxStamina($strength);
 
         return new Enemy(
             __('combat.enemy_soldier'),
             $this->intField($e, 'level'),
-            $this->intField($e, 'strength'),
+            $strength,
             $this->intField($e, 'agility'),
             $this->intField($e, 'instinct'),
             $this->intField($e, 'vitality'),
@@ -227,6 +250,8 @@ final class CombatService
             $this->intField($e, 'weaponDamage'),
             Mf::fromArray($e['weaponMf']),
             StanceEnum::from($e['stance']),
+            $maxStamina,
+            $maxStamina,
         );
     }
 
@@ -250,6 +275,7 @@ final class CombatService
 
         $s = $this->intField($w, 'statBase') + $level * $this->intField($w, 'statPerLevel');
         $maxHp = $this->intField($w, 'hpBase') + $s * $this->intField($w, 'hpPerStat');
+        $maxStamina = $this->maxStamina($s);
 
         return new Enemy(
             __('combat.enemy_wanderer', ['level' => $level]),
@@ -263,7 +289,50 @@ final class CombatService
             $level * $this->intField($w, 'weaponDamagePerLevel'),
             Mf::fromArray($w['weaponMf']),
             StanceEnum::from($w['stance']),
+            $maxStamina,
+            $maxStamina,
         );
+    }
+
+    public function maxStamina(int $strength): int
+    {
+        $cfg = $this->staminaConfig();
+
+        return max(0, $strength * $cfg['maxPerStrength']);
+    }
+
+    public function clampStamina(int $current, int $max): int
+    {
+        return max(0, min($max, $current));
+    }
+
+    public function staminaDrainForAttacker(StanceEnum $stance, bool $critical, bool $pierced): int
+    {
+        $cfg = $this->staminaConfig();
+
+        if ($stance === StanceEnum::ATTACK) {
+            $drain = $cfg['drainAttack'];
+        } else {
+            $drain = $cfg['drainDefend'];
+        }
+
+        if ($critical || $pierced) {
+            $drain += $cfg['drainExtraOnCrit'];
+        }
+
+        return $drain;
+    }
+
+    public function staminaDrainForDefender(bool $dodged): int
+    {
+        $cfg = $this->staminaConfig();
+        $drain = $cfg['drainDefend'];
+
+        if ($dodged) {
+            $drain += $cfg['drainExtraOnDodge'];
+        }
+
+        return $drain;
     }
 
     /**
@@ -288,16 +357,20 @@ final class CombatService
 
     public function fighterFromPlayer(Character $character, EquippedLoadout $loadout, string $name): Fighter
     {
+        $maxStamina = $this->maxStamina($character->strength);
+
         return new Fighter(
             $name,
             $character->strength,
             $character->agility,
             $character->instinct,
             $character->vitality,
-            $this->rollWeaponDamage($loadout->weaponDamageMin, $loadout->weaponDamageMax),
-            $loadout->mf,
+            $this->rollWeaponDamage($loadout->mainHandDamageMin, $loadout->mainHandDamageMax),
+            $loadout->mfForMainHandAttack(),
             StanceEnum::DEFEND,
             $loadout->armorByZone,
+            $maxStamina,
+            $maxStamina,
         );
     }
 
@@ -355,6 +428,55 @@ final class CombatService
         ];
     }
 
+    /**
+     * @param  array{dodge: int, antiDodge: int, crit: int, antiCrit: int, damageMult: float}  $mf
+     * @return array{dodge: int, antiDodge: int, crit: int, antiCrit: int, damageMult: float}
+     */
+    private function scaleMfByStamina(array $mf, int $stamina, int $maxStamina): array
+    {
+        if ($maxStamina <= 0) {
+            $scale = 0.0;
+        } else {
+            $scale = $stamina / $maxStamina;
+        }
+
+        return [
+            'dodge' => (int) floor($mf['dodge'] * $scale),
+            'antiDodge' => (int) floor($mf['antiDodge'] * $scale),
+            'crit' => (int) floor($mf['crit'] * $scale),
+            'antiCrit' => (int) floor($mf['antiCrit'] * $scale),
+            'damageMult' => $mf['damageMult'],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     maxPerStrength: int,
+     *     drainDefend: int,
+     *     drainAttack: int,
+     *     drainExtraOnCrit: int,
+     *     drainExtraOnDodge: int
+     * }
+     */
+    private function staminaConfig(): array
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('stamina', $combat) || ! is_array($combat['stamina'])) {
+            throw new RuntimeException('settings.combat.stamina missing.');
+        }
+
+        $s = $combat['stamina'];
+
+        return [
+            'maxPerStrength' => $this->intField($s, 'maxPerStrength'),
+            'drainDefend' => $this->intField($s, 'drainDefend'),
+            'drainAttack' => $this->intField($s, 'drainAttack'),
+            'drainExtraOnCrit' => $this->intField($s, 'drainExtraOnCrit'),
+            'drainExtraOnDodge' => $this->intField($s, 'drainExtraOnDodge'),
+        ];
+    }
+
     private function applyZoneArmor(int $rawDamage, Fighter $defender, ZoneEnum $atkZone): int
     {
         return max(1, $rawDamage - $defender->armorForZone($atkZone));
@@ -376,7 +498,7 @@ final class CombatService
         $combat = $this->config->combat();
 
         if (! array_key_exists('stances', $combat) || ! is_array($combat['stances'])) {
-            throw new RuntimeException('combat.stances missing.');
+            throw new RuntimeException('settings.combat.stances missing.');
         }
 
         if (! array_key_exists($stance->value, $combat['stances']) || ! is_array($combat['stances'][$stance->value])) {
@@ -395,6 +517,49 @@ final class CombatService
     }
 
     /**
+     * @return array{chanceMin: int, chanceMax: int, chanceBase: int, chanceScale: float, mult: float}
+     */
+    private function critConfig(): array
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('crit', $combat) || ! is_array($combat['crit'])) {
+            throw new RuntimeException('settings.combat.crit missing.');
+        }
+
+        $c = $combat['crit'];
+
+        return [
+            'chanceMin' => $this->intField($c, 'chanceMin'),
+            'chanceMax' => $this->intField($c, 'chanceMax'),
+            'chanceBase' => $this->intField($c, 'chanceBase'),
+            'chanceScale' => $this->floatField($c, 'chanceScale'),
+            'mult' => $this->floatField($c, 'mult'),
+        ];
+    }
+
+    /**
+     * @return array{chanceMin: int, chanceMax: int, chanceBase: int, chanceScale: float}
+     */
+    private function dodgeConfig(): array
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('dodge', $combat) || ! is_array($combat['dodge'])) {
+            throw new RuntimeException('settings.combat.dodge missing.');
+        }
+
+        $d = $combat['dodge'];
+
+        return [
+            'chanceMin' => $this->intField($d, 'chanceMin'),
+            'chanceMax' => $this->intField($d, 'chanceMax'),
+            'chanceBase' => $this->intField($d, 'chanceBase'),
+            'chanceScale' => $this->floatField($d, 'chanceScale'),
+        ];
+    }
+
+    /**
      * @return array{
      *     chanceMin: int,
      *     chanceMax: int,
@@ -409,7 +574,7 @@ final class CombatService
         $combat = $this->config->combat();
 
         if (! array_key_exists('pierce', $combat) || ! is_array($combat['pierce'])) {
-            throw new RuntimeException('combat.pierce missing.');
+            throw new RuntimeException('settings.combat.pierce missing.');
         }
 
         $p = $combat['pierce'];
@@ -425,27 +590,6 @@ final class CombatService
     }
 
     /**
-     * @return array{chanceMin: int, chanceMax: int, chanceBase: int, chanceScale: float}
-     */
-    private function dodgeConfig(): array
-    {
-        $combat = $this->config->combat();
-
-        if (! array_key_exists('dodge', $combat) || ! is_array($combat['dodge'])) {
-            throw new RuntimeException('combat.dodge missing.');
-        }
-
-        $d = $combat['dodge'];
-
-        return [
-            'chanceMin' => $this->intField($d, 'chanceMin'),
-            'chanceMax' => $this->intField($d, 'chanceMax'),
-            'chanceBase' => $this->intField($d, 'chanceBase'),
-            'chanceScale' => $this->floatField($d, 'chanceScale'),
-        ];
-    }
-
-    /**
      * @return array{base: int, statMultiplier: int, varianceMin: float, varianceRange: float}
      */
     private function damageConfig(): array
@@ -453,7 +597,7 @@ final class CombatService
         $combat = $this->config->combat();
 
         if (! array_key_exists('damage', $combat) || ! is_array($combat['damage'])) {
-            throw new RuntimeException('combat.damage missing.');
+            throw new RuntimeException('settings.combat.damage missing.');
         }
 
         $d = $combat['damage'];
@@ -474,7 +618,7 @@ final class CombatService
         $combat = $this->config->combat();
 
         if (! array_key_exists('pveRewards', $combat) || ! is_array($combat['pveRewards'])) {
-            throw new RuntimeException('combat.pveRewards missing.');
+            throw new RuntimeException('settings.combat.pveRewards missing.');
         }
 
         $r = $combat['pveRewards'];

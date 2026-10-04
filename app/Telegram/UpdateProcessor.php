@@ -7,7 +7,7 @@ namespace App\Telegram;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\CombatHandler;
+use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
 use App\Telegram\Handlers\ShopHandler;
@@ -21,7 +21,7 @@ final class UpdateProcessor
         private readonly OnboardingHandler $onboarding,
         private readonly MenuHandler $menu,
         private readonly ShopHandler $shop,
-        private readonly CombatHandler $combat,
+        private readonly FightHandler $fight,
     ) {}
 
     /**
@@ -85,7 +85,7 @@ final class UpdateProcessor
             }
 
             if ($data === 'menu:fight') {
-                $this->combat->handleCallback($update, $responder);
+                $this->fight->handleCallback($update, $responder);
 
                 return;
             }
@@ -102,7 +102,7 @@ final class UpdateProcessor
         }
 
         if (str_starts_with($data, 'fight:')) {
-            $this->combat->handleCallback($update, $responder);
+            $this->fight->handleCallback($update, $responder);
         }
     }
 }

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 });
 

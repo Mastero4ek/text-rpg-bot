@@ -6,17 +6,23 @@ namespace App\Services\Fight;
 
 use App\Enums\FightKindEnum;
 use App\Enums\FightStepEnum;
+use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Character\CharacterService;
+use App\Services\Combat\CombatService;
+use App\Services\Game\GameConfig;
 use App\Support\Game\Enemy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 final class FightService
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly CombatService $combat,
+        private readonly GameConfig $config,
     ) {}
 
     public function createTutorial(Character $character, Enemy $enemy): Fight
@@ -70,10 +76,42 @@ final class FightService
         return $fight->log;
     }
 
+    public function rememberTelegramMessage(Fight $fight, int $chatId, int $messageId): Fight
+    {
+        $fight->tg_chat_id = $chatId;
+        $fight->tg_message_id = $messageId;
+
+        return $this->save($fight);
+    }
+
+    public function scheduleTurn(Fight $fight): Fight
+    {
+        $seconds = $this->turnTimeoutSeconds();
+        $fight->turn_seq += 1;
+        $fight->turn_deadline_at = now()->addSeconds($seconds);
+        $this->save($fight);
+
+        dispatch(new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq))
+            ->delay($fight->turn_deadline_at);
+
+        return $fight;
+    }
+
+    public function turnTimedOut(Fight $fight): bool
+    {
+        if ($fight->turn_deadline_at === null) {
+            return false;
+        }
+
+        return ! $fight->turn_deadline_at->isFuture();
+    }
+
     private function createFight(Character $character, Enemy $enemy, bool $tutorial): Fight
     {
         return DB::transaction(function () use ($character, $enemy, $tutorial): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
+
+            $maxStamina = $this->combat->maxStamina($character->strength);
 
             $fight = new Fight;
             $fight->tg_id = $character->tg_id;
@@ -81,6 +119,8 @@ final class FightService
             $fight->tutorial = $tutorial;
             $fight->player_hp = $character->current_hp;
             $fight->player_max_hp = $this->characters->maxHp($character);
+            $fight->player_stamina = $maxStamina;
+            $fight->player_max_stamina = $maxStamina;
             $fight->enemy = $enemy->toArray();
             $fight->step = FightStepEnum::STANCE;
             $fight->player_stance = null;
@@ -91,9 +131,28 @@ final class FightService
             $fight->use_potion = false;
             $fight->pierce_count = 0;
             $fight->log = [];
+            $fight->turn_seq = 0;
+            $fight->turn_deadline_at = null;
+            $fight->tg_chat_id = null;
+            $fight->tg_message_id = null;
             $fight->save();
 
-            return $this->findByTgId($character->tg_id);
+            return $this->scheduleTurn($this->findByTgId($character->tg_id));
         });
+    }
+
+    private function turnTimeoutSeconds(): int
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('turnTimeoutSeconds', $combat) || ! is_int($combat['turnTimeoutSeconds'])) {
+            throw new RuntimeException('settings.combat.turnTimeoutSeconds missing.');
+        }
+
+        if ($combat['turnTimeoutSeconds'] < 1) {
+            throw new RuntimeException('settings.combat.turnTimeoutSeconds must be >= 1.');
+        }
+
+        return $combat['turnTimeoutSeconds'];
     }
 }

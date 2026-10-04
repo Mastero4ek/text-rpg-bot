@@ -47,7 +47,7 @@ paths:
 
 - Та же Form, что create/edit (`ViewRecord` сам `->disabled()`). **Не** определять `infolist()` у write-ресурсов.
 - Header: `Клонировать` (gray) → `EditAction`. Клон через trait `HasCloneToCreate` (`getCloneAction()`).
-- Отдельный Infolist — только у read-only ресурсов (Characters / Fights / Inventories).
+- Отдельный Infolist — только у read-only ресурсов (Characters / Inventories).
 
 ### Clone → Create
 
@@ -66,7 +66,7 @@ paths:
 ## Tables — канон
 
 Эталон: `app/Filament/Resources/Equipment/Tables/EquipmentTable.php`.
-Новые/правки List-таблиц копируют этот паттерн (не Characters/Fights/Inventories, пока их не подтянут).
+Новые/правки List-таблиц копируют этот паттерн (не Characters/Inventories, пока их не подтянут).
 
 ### Каркас
 
@@ -120,7 +120,7 @@ paths:
 
 - Schema: `->columns(1)`.
 - Каждая `Section`: `->columnSpanFull()` + collapsible + `->icon(Heroicon::Outlined…)`. Первая ключевая (identity) — `->collapsible()` открыта; остальные — `->collapsed()`.
-- Navigation sort (после Dashboard): Characters `1` → Equipment `2` → Gems `3` → Fights `4`. Inventory — не отдельный пункт меню: RelationManager на Character (`InventoriesRelationManager`), `InventoryResource::$shouldRegisterNavigation = false` (view по URL остаётся).
+- Navigation sort (после Dashboard): Characters `1` → Equipment `2` → Gems `3`. Inventory — не отдельный пункт меню: RelationManager на Character (`InventoriesRelationManager`), `InventoryResource::$shouldRegisterNavigation = false` (view по URL остаётся). FightResource в админке нет (бои — runtime `fights`, не каталог).
 - Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `enabled`+`in_shop` (ряд `columns(3)`), справа art/description. `GemForm`: слева name → ряд `columns(3)` = `type` + `max_durability` + MF (пока тип не выбран — disabled-плейсхолдер `gem_stat`; иначе одно MF-поле по типу) → флаги `columns(3)`; отдельных секций прочность/характеристики **нет**. `item_id` / `gem_id` — `Hidden`, автоген на create; не в таблице и не в UI формы. В форме не показываем: `sort_order` (БД + defaultSort); нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier` (VIP-витрина = `currency=GOLD`; лечение = profile `HEAL` + `effect_value`; камни — любой type в `gem_slots`). Novice/стартовая броня/оружие тренера — хардкод в `ShopCatalog`. Поиск по name в List также матчит `item_id` / `gem_id`.
 - Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
 - `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот только `RIGHT_HAND` + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL; зелье: POCKET + `HEAL`. Слот и профиль disabled пока тип не выбран.

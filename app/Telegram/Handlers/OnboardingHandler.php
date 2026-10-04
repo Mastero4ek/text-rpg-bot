@@ -7,6 +7,7 @@ namespace App\Telegram\Handlers;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
+use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
@@ -24,6 +25,7 @@ final class OnboardingHandler
         private readonly ShopCatalog $shop,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
+        private readonly FightService $fights,
     ) {}
 
     public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
@@ -238,6 +240,7 @@ final class OnboardingHandler
         $player->current_hp = $this->characters->maxHp($player);
         $player->save();
         $fight = $this->onboarding->startTutorialFight($player);
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
 
         $responder->edit(
             $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),

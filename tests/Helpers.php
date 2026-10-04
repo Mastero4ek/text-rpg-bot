@@ -189,6 +189,16 @@ function fighter(array $overrides = []): Fighter
         $armorByZone = $overrides['armorByZone'];
     }
 
+    $maxStamina = $strength * 6;
+    if (array_key_exists('maxStamina', $overrides) && is_int($overrides['maxStamina'])) {
+        $maxStamina = $overrides['maxStamina'];
+    }
+
+    $stamina = $maxStamina;
+    if (array_key_exists('stamina', $overrides) && is_int($overrides['stamina'])) {
+        $stamina = $overrides['stamina'];
+    }
+
     return new Fighter(
         $name,
         $strength,
@@ -199,5 +209,7 @@ function fighter(array $overrides = []): Fighter
         $weaponMf,
         $stance,
         $armorByZone,
+        $stamina,
+        $maxStamina,
     );
 }

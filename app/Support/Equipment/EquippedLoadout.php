@@ -26,6 +26,9 @@ final readonly class EquippedLoadout
         public int $armor,
         public int $statBonus,
         public Mf $mf,
+        public Mf $bodyMf,
+        public Mf $mainHandMf,
+        public Mf $offHandMf,
         public array $armorByZone,
         public int $blockSlots,
         public int $attackSlots,
@@ -34,6 +37,16 @@ final readonly class EquippedLoadout
     public function armorForZone(ZoneEnum $zone): int
     {
         return $this->armorByZone[$zone->value];
+    }
+
+    public function mfForMainHandAttack(): Mf
+    {
+        return $this->bodyMf->merge($this->mainHandMf);
+    }
+
+    public function mfForOffHandAttack(): Mf
+    {
+        return $this->bodyMf->merge($this->offHandMf);
     }
 
     public function row(SlotEnum $slot): ?Inventory

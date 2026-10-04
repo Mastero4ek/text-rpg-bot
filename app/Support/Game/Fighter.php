@@ -22,6 +22,8 @@ final readonly class Fighter
         public Mf $weaponMf,
         public StanceEnum $stance,
         public array $armorByZone,
+        public int $stamina,
+        public int $maxStamina,
     ) {}
 
     public function armorForZone(ZoneEnum $zone): int

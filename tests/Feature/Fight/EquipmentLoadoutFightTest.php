@@ -12,7 +12,7 @@ use App\Services\Inventory\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\CombatHandler;
+use App\Telegram\Handlers\FightHandler;
 use Illuminate\Support\Facades\Http;
 
 it('maps armor by zone and sets two block slots with shield', function (): void {
@@ -124,7 +124,7 @@ it('sells new doll wearables from shop', function (): void {
 
 it('asks for second defend zone when shield is equipped', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = characters()->createDraft(8105);
@@ -160,7 +160,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
 
     $responder = new TelegramResponder(app(TelegramClient::class), $update);
 
-    app(CombatHandler::class)->handleCallback($update, $responder);
+    app(FightHandler::class)->handleCallback($update, $responder);
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::DEFEND_SECOND)
@@ -183,7 +183,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
 
     $responder2 = new TelegramResponder(app(TelegramClient::class), $update2);
 
-    app(CombatHandler::class)->handleCallback($update2, $responder2);
+    app(FightHandler::class)->handleCallback($update2, $responder2);
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::STANCE)
@@ -193,7 +193,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
 
 it('resolves after one defend zone without shield', function (): void {
     Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
 
     $p = characters()->createDraft(8106);
@@ -223,7 +223,7 @@ it('resolves after one defend zone without shield', function (): void {
 
     $responder = new TelegramResponder(app(TelegramClient::class), $update);
 
-    app(CombatHandler::class)->handleCallback($update, $responder);
+    app(FightHandler::class)->handleCallback($update, $responder);
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::STANCE)
