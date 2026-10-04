@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
@@ -162,9 +164,7 @@ final class OnboardingHandler
         }
 
         if ($player->onboarding_step === OnboardingStepEnum::TUTORIAL_FIGHT) {
-            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
-            $player->onboarding_step = OnboardingStepEnum::INTRO;
-            $player->save();
+            $this->resumeTutorialFight($responder, $player);
 
             return;
         }
@@ -194,6 +194,55 @@ final class OnboardingHandler
         }
 
         $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+    }
+
+    private function resumeTutorialFight(TelegramResponder $responder, Character $player): void
+    {
+        if (! $this->fights->exists($player->tg_id)) {
+            $player->onboarding_step = OnboardingStepEnum::INTRO;
+            $player->save();
+            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+
+            return;
+        }
+
+        $fight = $this->fights->findByTgId($player->tg_id);
+        $base = $this->fightStatus->format($fight, $player->username);
+
+        if ($fight->step === FightStepEnum::STANCE) {
+            $responder->reply($base . __('combat.pick_stance'), TelegramKeyboards::stance());
+
+            return;
+        }
+
+        if ($fight->step === FightStepEnum::ATTACK_SECOND) {
+            $responder->reply($base . __('combat.pick_attack_second'), TelegramKeyboards::attackWithoutPotion());
+
+            return;
+        }
+
+        if ($fight->step === FightStepEnum::ATTACK) {
+            $responder->reply($base . __('combat.pick_attack'), TelegramKeyboards::attackWithoutPotion());
+
+            return;
+        }
+
+        if ($fight->step === FightStepEnum::DEFEND_SECOND && $fight->player_defend instanceof ZoneEnum) {
+            $responder->reply(
+                $base . __('combat.pick_defend_second'),
+                TelegramKeyboards::defendExcluding($fight->player_defend),
+            );
+
+            return;
+        }
+
+        if ($fight->use_potion) {
+            $prompt = __('combat.potion_then_defend');
+        } else {
+            $prompt = __('combat.pick_defend');
+        }
+
+        $responder->reply($base . $prompt, TelegramKeyboards::defend());
     }
 
     private function city(TelegramUpdate $update, TelegramResponder $responder, string $cityName): void

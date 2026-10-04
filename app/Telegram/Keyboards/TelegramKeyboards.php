@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Telegram\Keyboards;
 
-use App\Enums\FightPlayerAttackEnum;
+use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
-use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
@@ -262,7 +262,7 @@ final class TelegramKeyboards
         ];
 
         if ($canPotion) {
-            $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . FightPlayerAttackEnum::POTION->value)];
+            $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . PlayerAttackEnum::POTION->value)];
         }
 
         return self::inline($rows);

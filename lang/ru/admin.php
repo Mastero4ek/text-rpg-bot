@@ -17,7 +17,11 @@ return [
         'durability_loss_per_fight' => 'Износ за бой',
         'effect_value' => 'Значение эффекта',
         'enabled' => 'Активен',
+        'enemy' => 'Противник',
         'exp' => 'Опыт',
+        'fight_kind' => 'Вид',
+        'fight_log' => 'Лог',
+        'fight_step' => 'Шаг',
         'gem_slots' => 'Слоты камней',
         'gem_stat' => 'Характеристика',
         'gem_pouch' => 'Сумка камней',
@@ -44,6 +48,10 @@ return [
         'mf_dodge' => 'Уворот',
         'name' => 'Название',
         'onboarding_step' => 'Онбординг',
+        'player_hp' => 'HP',
+        'player_max_hp' => 'Макс. HP',
+        'player_max_stamina' => 'Макс. выносливость',
+        'player_stamina' => 'Выносливость',
         'potions' => 'Зелья',
         'premium_until' => 'Премиум до',
         'price' => 'Цена',
@@ -59,8 +67,9 @@ return [
         'stat_points' => 'Очки статов',
         'strength' => 'Сила',
         'tg_id' => 'Telegram ID',
+        'turn_deadline_at' => 'Дедлайн хода',
         'updated_at' => 'Обновлён',
-        'username' => 'Ник',
+        'username' => 'Инициатор',
         'vitality' => 'Живучесть',
         'profile' => 'Профиль',
         'weapon_damage_min' => 'Урон мин.',
@@ -75,6 +84,10 @@ return [
             'plural' => 'Снаряжение',
             'singular' => 'Предмет снаряжения',
         ],
+        'fight' => [
+            'plural' => 'Бои',
+            'singular' => 'Бой',
+        ],
         'gem' => [
             'plural' => 'Камни',
             'singular' => 'Камень',
@@ -87,8 +100,14 @@ return [
     'navigation' => [
         'characters' => 'Персонажи',
         'equipment' => 'Снаряжение',
+        'fights' => 'Бои',
         'gems' => 'Камни',
         'inventories' => 'Инвентарь',
+    ],
+    'pages' => [
+        'fight' => [
+            'view' => 'Просмотр Боя',
+        ],
     ],
     'actions' => [
         'view' => [
@@ -124,6 +143,12 @@ return [
             'modal_submit' => 'Удалить',
             'notification' => 'Удалено',
         ],
+        'delete_bulk' => [
+            'label' => 'Удалить выбранные',
+            'modal_heading' => 'Удалить выбранные',
+            'modal_submit' => 'Удалить',
+            'notification' => 'Удалено',
+        ],
         'restore' => [
             'label' => 'Восстановить',
             'modal_heading' => 'Восстановить :label',
@@ -137,6 +162,8 @@ return [
         'equipment_economy' => 'Экономика',
         'equipment_identity' => 'Идентичность',
         'equipment_requirements' => 'Требования',
+        'fight_log' => 'Лог',
+        'fight_session' => 'Сессия',
         'gem_combat' => 'Характеристики',
         'gem_durability' => 'Прочность',
         'gem_economy' => 'Экономика',

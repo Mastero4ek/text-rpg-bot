@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
 use App\Services\Inventory\LoadoutService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
@@ -72,7 +72,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::ATTACK_SECOND)
-        ->and($fight->player_attack)->toBe(FightPlayerAttackEnum::HEAD)
+        ->and($fight->player_attack)->toBe(PlayerAttackEnum::HEAD)
         ->and($fight->player_attack_second)->toBeNull();
 
     $update2 = new TelegramUpdate([
@@ -96,7 +96,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::DEFEND)
-        ->and($fight->player_attack_second)->toBe(FightPlayerAttackEnum::CHEST);
+        ->and($fight->player_attack_second)->toBe(PlayerAttackEnum::CHEST);
 });
 
 it('resolves two player hits with split hand damage', function (): void {
@@ -125,14 +125,14 @@ it('resolves two player hits with split hand damage', function (): void {
     $enemy['maxHp'] = 500;
     $fight->enemy = $enemy;
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
-    $fight->player_attack_second = FightPlayerAttackEnum::LEGS;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
+    $fight->player_attack_second = PlayerAttackEnum::LEGS;
     $fight->player_defend = ZoneEnum::CHEST;
     $fight->step = FightStepEnum::DEFEND;
     $fight->save();
 
     $enemyHpBefore = (int) $fight->enemy['current_hp'];
-    expect($fight->player_attack_second)->toBe(FightPlayerAttackEnum::LEGS);
+    expect($fight->player_attack_second)->toBe(PlayerAttackEnum::LEGS);
 
     $outcome = app(App\Services\Fight\FightRoundService::class)->resolve($p);
 
@@ -180,7 +180,7 @@ it('keeps single attack step without left hand even at level 1', function (): vo
 
     $fight->refresh();
     expect($fight->step)->toBe(FightStepEnum::DEFEND)
-        ->and($fight->player_attack)->toBe(FightPlayerAttackEnum::BELLY)
+        ->and($fight->player_attack)->toBe(PlayerAttackEnum::BELLY)
         ->and($fight->player_attack_second)->toBeNull();
 });
 

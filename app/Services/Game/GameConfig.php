@@ -77,7 +77,7 @@ final class GameConfig
      */
     private function loadJson(string $filename): array
     {
-        $path = resource_path('game/' . $filename);
+        $path = resource_path('configs/' . $filename);
 
         if (! is_file($path)) {
             throw new RuntimeException("Missing game config: {$filename}");

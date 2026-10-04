@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Fight;
 
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Character\CharacterService;
@@ -93,6 +93,12 @@ final class FightRoundService
 
         if ($skip) {
             $logs[] = __('combat.turn_timeout');
+            $fight->player_stance = null;
+            $fight->player_attack = null;
+            $fight->player_attack_second = null;
+            $fight->player_defend = null;
+            $fight->player_defend_second = null;
+            $fight->use_potion = false;
         } elseif ($fight->use_potion) {
             if ($fresh->potions <= 0) {
                 $logs[] = __('combat.no_potion_turn');
@@ -117,7 +123,7 @@ final class FightRoundService
             }
         } elseif (
             $fight->player_attack !== null
-            && $fight->player_attack !== FightPlayerAttackEnum::POTION
+            && $fight->player_attack !== PlayerAttackEnum::POTION
         ) {
             $mainHit = $this->combat->calculateHit(
                 $this->playerFighterWithStance(
@@ -145,7 +151,7 @@ final class FightRoundService
             if (
                 $enemy->currentHp > 0
                 && $fight->player_attack_second !== null
-                && $fight->player_attack_second !== FightPlayerAttackEnum::POTION
+                && $fight->player_attack_second !== PlayerAttackEnum::POTION
             ) {
                 $offHit = $this->combat->calculateHit(
                     $this->playerFighterWithStance(

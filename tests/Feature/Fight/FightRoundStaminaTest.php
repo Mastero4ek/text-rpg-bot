@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Services\Fight\FightRoundService;
 use App\Services\Inventory\LoadoutService;
 use Illuminate\Support\Facades\Bus;
@@ -58,7 +58,7 @@ it('drains attacker and defender stamina on a clean exchange', function (): void
     $fight->player_stamina = 60;
     $fight->player_max_stamina = 60;
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
     $fight->player_defend = ZoneEnum::CHEST;
     $fight->step = FightStepEnum::DEFEND;
     $fight->save();
@@ -97,7 +97,7 @@ it('adds attacker extra drain on pierce and defender extra on dodge', function (
     $fight->player_stamina = 60;
     $fight->player_max_stamina = 60;
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
     $fight->player_defend = ZoneEnum::CHEST;
     $fight->step = FightStepEnum::DEFEND;
     $fight->save();
@@ -114,7 +114,7 @@ it('adds attacker extra drain on pierce and defender extra on dodge', function (
         ->and($fight->pierce_count)->toBe(1);
 
     $fight->player_stance = StanceEnum::ATTACK;
-    $fight->player_attack = FightPlayerAttackEnum::HEAD;
+    $fight->player_attack = PlayerAttackEnum::HEAD;
     $fight->player_defend = ZoneEnum::CHEST;
     $fight->player_stamina = 60;
     $fight->step = FightStepEnum::DEFEND;

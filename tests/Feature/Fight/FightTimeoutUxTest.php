@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\FightStepEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Enums\StanceEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Fight;
 use App\Support\Telegram\TelegramClient;
@@ -33,18 +33,7 @@ it('timeout job edits fight message and continues after skip', function (): void
 
     fakeRandom([0.99, 0.0, 0.0, 0.0, 0.99, 0.99, 0.5]);
 
-    (new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq))->handle(
-        app(App\Services\Fight\FightRoundService::class),
-        app(App\Services\Fight\FightService::class),
-        app(App\Support\Telegram\FightStatusFormatter::class),
-        app(TelegramClient::class),
-        app(App\Services\Character\CharacterService::class),
-        app(App\Services\Combat\CombatService::class),
-        app(App\Actions\Inventory\InventoryApplyFightWearAction::class),
-        app(App\Actions\Gem\GemBreakOnLoseAction::class),
-        app(App\Services\Onboarding\OnboardingService::class),
-        app(App\Services\Game\GameConfig::class),
-    );
+    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
 
     $fight->refresh();
 
@@ -85,18 +74,7 @@ it('timeout job finishes win when enemy is already down on skip', function (): v
 
     fakeRandom([0.99, 0.0, 0.0]);
 
-    (new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq))->handle(
-        app(App\Services\Fight\FightRoundService::class),
-        app(App\Services\Fight\FightService::class),
-        app(App\Support\Telegram\FightStatusFormatter::class),
-        app(TelegramClient::class),
-        app(App\Services\Character\CharacterService::class),
-        app(App\Services\Combat\CombatService::class),
-        app(App\Actions\Inventory\InventoryApplyFightWearAction::class),
-        app(App\Actions\Gem\GemBreakOnLoseAction::class),
-        app(App\Services\Onboarding\OnboardingService::class),
-        app(App\Services\Game\GameConfig::class),
-    );
+    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
 
     expect(Fight::query()->whereKey($p->tg_id)->exists())->toBeFalse();
 
@@ -132,18 +110,7 @@ it('timeout job finishes lose when skip hit drops player hp to zero', function (
 
     $beforeSeq = $fight->turn_seq;
 
-    (new ResolveFightTurnTimeoutJob($fight->tg_id, $beforeSeq))->handle(
-        app(App\Services\Fight\FightRoundService::class),
-        app(App\Services\Fight\FightService::class),
-        app(App\Support\Telegram\FightStatusFormatter::class),
-        app(TelegramClient::class),
-        app(App\Services\Character\CharacterService::class),
-        app(App\Services\Combat\CombatService::class),
-        app(App\Actions\Inventory\InventoryApplyFightWearAction::class),
-        app(App\Actions\Gem\GemBreakOnLoseAction::class),
-        app(App\Services\Onboarding\OnboardingService::class),
-        app(App\Services\Game\GameConfig::class),
-    );
+    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $beforeSeq), 'handle']);
 
     expect(Fight::query()->whereKey($p->tg_id)->exists())->toBeFalse();
 

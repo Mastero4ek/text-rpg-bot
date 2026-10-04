@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\FightKindEnum;
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightKindEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,8 +25,8 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed> $enemy
  * @property FightStepEnum $step
  * @property StanceEnum|null $player_stance
- * @property FightPlayerAttackEnum|null $player_attack
- * @property FightPlayerAttackEnum|null $player_attack_second
+ * @property PlayerAttackEnum|null $player_attack
+ * @property PlayerAttackEnum|null $player_attack_second
  * @property ZoneEnum|null $player_defend
  * @property ZoneEnum|null $player_defend_second
  * @property bool $use_potion
@@ -94,8 +94,8 @@ final class Fight extends Model
             'enemy' => 'array',
             'step' => FightStepEnum::class,
             'player_stance' => StanceEnum::class,
-            'player_attack' => FightPlayerAttackEnum::class,
-            'player_attack_second' => FightPlayerAttackEnum::class,
+            'player_attack' => PlayerAttackEnum::class,
+            'player_attack_second' => PlayerAttackEnum::class,
             'player_defend' => ZoneEnum::class,
             'player_defend_second' => ZoneEnum::class,
             'use_potion' => 'boolean',

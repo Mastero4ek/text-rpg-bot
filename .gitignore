@@ -14,6 +14,7 @@
 /.zed
 /auth.json
 /docs
+/public/css/app
 /public/css/filament
 /public/fonts-manifest.dev.json
 /public/fonts/filament

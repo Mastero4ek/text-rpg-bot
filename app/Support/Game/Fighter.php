@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Game;
 
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
 
 final readonly class Fighter
 {

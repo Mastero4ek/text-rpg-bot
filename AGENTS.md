@@ -9,7 +9,7 @@
   - Dev bot: long polling (`php artisan telegram:poll`) when `TELEGRAM_WEBHOOK_URL` is empty.
   - Prod bot: webhook `POST /telegram/webhook` when `TELEGRAM_WEBHOOK_URL` is set. `telegram:poll` must refuse to start. Secret token + Telegram IP allowlist.
   - `TELEGRAM_ASYNC=true` only in production (Redis queue → `ProcessTelegramUpdateJob`). Local: sync.
-- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin, **view-only** characters/inventory; CRUD каталогов equipment/gems. Бои (`fights`) в админке не показываем. `/` redirects to `/admin`.
+- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin, **view-only** characters/inventory; CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
 - No public landing, no Mini App in MVP, no platform widget API.
 
 ## Layer structure
@@ -24,7 +24,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Models** (`app/Models/`) — Eloquent relationships only, no domain logic.
 - **Enums** (`app/Enums/`) — onboarding steps, stats, combat zones, etc.
 - **Quests** (`app/Quest/`) — one class per quest.
-- **Game balance** — JSON in `resources/game/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
+- **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
 
 ## Actions
 
@@ -42,10 +42,10 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quest/` |
-| Enums | `app/Enums/{Entity}Enum.php` or `app/Enums/{Domain}/` |
+| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Equipment/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
 | Support / SDK glue | `app/Support/Telegram/` |
-| Game config JSON | `resources/game/` |
+| Game config JSON | `resources/configs/` |
 | UI translations | `lang/ru/` |
 
 ## Data
@@ -158,7 +158,7 @@ These apply to project code in `app/` (Services, Actions, Controllers, Models), 
 
 - Always use PHP Enums where possible instead of hardcoded string values, if Enum class exists: in DB migrations, Pest tests and elsewhere.
 - Never chain multiple migration-creating commands (e.g., `make:model -m`, `make:migration`) with `&&` or `;` - they may get identical timestamps. Run each command separately and wait for completion before running the next.
-- Game balance lives in `resources/game/*.json`; UI copy in `lang/ru/`. Do not hardcode player-facing Russian strings in Services/Actions.
+- Game balance lives in `resources/configs/*.json`; UI copy in `lang/ru/`. Do not hardcode player-facing Russian strings in Services/Actions.
 - Players are `characters` (PK `tg_id`). Filament operators are `users`.
 - Fight state lives in the `fights` table (session columns + JSON enemy/log), not in HTTP session and not as a single `data` blob.
 - Expected game-rule failures return an `ActionResult` DTO; do not throw for those.

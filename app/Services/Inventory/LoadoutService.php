@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Inventory;
 
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Models\Inventory;
 use App\Services\Game\GameConfig;

@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Fight\FightClearAction;
 use App\Actions\Gem\GemBreakOnLoseAction;
 use App\Actions\Inventory\InventoryApplyFightWearAction;
-use App\Enums\FightPlayerAttackEnum;
-use App\Enums\FightStepEnum;
+use App\Enums\Combat\StanceEnum;
+use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightStepEnum;
+use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Enums\StanceEnum;
-use App\Enums\ZoneEnum;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Character\CharacterService;
@@ -33,6 +34,7 @@ final class FightHandler
     public function __construct(
         private readonly CharacterService $characters,
         private readonly CombatService $combat,
+        private readonly FightClearAction $clearFight,
         private readonly FightService $fights,
         private readonly FightRoundService $rounds,
         private readonly InventoryService $inventory,
@@ -193,7 +195,7 @@ final class FightHandler
                     return null;
                 }
 
-                $fight->player_attack_second = FightPlayerAttackEnum::from($choice);
+                $fight->player_attack_second = PlayerAttackEnum::from($choice);
                 $fight->step = FightStepEnum::DEFEND;
                 $this->fights->save($fight);
 
@@ -210,7 +212,7 @@ final class FightHandler
                 }
 
                 $fight->use_potion = true;
-                $fight->player_attack = FightPlayerAttackEnum::POTION;
+                $fight->player_attack = PlayerAttackEnum::POTION;
                 $fight->player_attack_second = null;
                 $fight->step = FightStepEnum::DEFEND;
                 $this->fights->save($fight);
@@ -219,7 +221,7 @@ final class FightHandler
             }
 
             $fight->use_potion = false;
-            $fight->player_attack = FightPlayerAttackEnum::from($choice);
+            $fight->player_attack = PlayerAttackEnum::from($choice);
             $fight->player_attack_second = null;
 
             $loadout = $this->loadout->forCharacter($player);
@@ -427,7 +429,7 @@ final class FightHandler
         if ($fight->tutorial) {
             if ($won) {
                 $player = $this->onboarding->onTutorialWin($player);
-                $this->fights->clear($player->tg_id);
+                $this->clearFight->handle($player->tg_id);
                 $reward = $this->tutorialReward();
                 $responder->edit(
                     $text . __('onboarding.tutorial_win', [
@@ -445,7 +447,7 @@ final class FightHandler
             }
 
             $player = $this->onboarding->onTutorialLose($player);
-            $this->fights->clear($player->tg_id);
+            $this->clearFight->handle($player->tg_id);
             $responder->edit($text . __('onboarding.tutorial_lose'), null);
             $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
             $player->onboarding_step = OnboardingStepEnum::INTRO;
@@ -466,7 +468,7 @@ final class FightHandler
             $player = $this->characters->findByTgId($player->tg_id);
             $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
             $player->save();
-            $this->fights->clear($player->tg_id);
+            $this->clearFight->handle($player->tg_id);
             $responder->edit(
                 $text . __('combat.win', [
                     'exp' => $reward['exp'],
@@ -485,7 +487,7 @@ final class FightHandler
         $player->current_hp = 0;
         $player->last_hp_update = now();
         $player->save();
-        $this->fights->clear($player->tg_id);
+        $this->clearFight->handle($player->tg_id);
         $responder->edit($text . __('combat.lose') . $brokeSuffix, TelegramKeyboards::mainMenu());
     }
 

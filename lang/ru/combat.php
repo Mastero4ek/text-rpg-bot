@@ -3,6 +3,24 @@
 declare(strict_types=1);
 
 return [
+    'attack_choice' => [
+        'POTION' => 'Зелье',
+    ],
+    'kinds' => [
+        'PVE' => 'PvE',
+        'TUTORIAL' => 'Обучение',
+    ],
+    'stances' => [
+        'ATTACK' => 'Атака',
+        'DEFEND' => 'Защита',
+    ],
+    'steps' => [
+        'ATTACK' => 'Первый удар',
+        'ATTACK_SECOND' => 'Второй удар',
+        'DEFEND' => 'Первый блок',
+        'DEFEND_SECOND' => 'Второй блок',
+        'STANCE' => 'Стойка',
+    ],
     'zone_acc' => [
         'HEAD' => 'голову',
         'CHEST' => 'грудь',
