@@ -12,7 +12,7 @@ it('seeds gem catalog into the database', function (): void {
     $catalog = app(GemCatalog::class);
 
     expect(Gem::query()->count())->toBe(4)
-        ->and($catalog->find('ruby_0')->name)->toBe('Рубин новичка')
+        ->and($catalog->find('ruby_0')->name)->toBe('Рубин ученика')
         ->and($catalog->find('ruby_0')->type)->toBe(GemTypeEnum::RUBY)
         ->and($catalog->find('ruby_0')->mf->crit)->toBe(4)
         ->and($catalog->find('ruby_0')->maxDurability)->toBe(10)
@@ -53,7 +53,7 @@ it('finds trashed gems for already owned lookup', function (): void {
     $def = app(GemCatalog::class)->find('emerald_0');
 
     expect($def->id)->toBe('emerald_0')
-        ->and($def->name)->toBe('Изумруд новичка')
+        ->and($def->name)->toBe('Изумруд ученика')
         ->and(app(GemCatalog::class)->has('emerald_0'))->toBeTrue();
 });
 
@@ -61,7 +61,7 @@ it('invalidates catalog cache on save', function (): void {
     Cache::flush();
 
     $catalog = app(GemCatalog::class);
-    expect($catalog->find('ruby_0')->name)->toBe('Рубин новичка');
+    expect($catalog->find('ruby_0')->name)->toBe('Рубин ученика');
 
     $gem = Gem::query()->findOrFail('ruby_0');
     $gem->name = 'Рубин героя';

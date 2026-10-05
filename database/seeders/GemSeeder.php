@@ -34,7 +34,7 @@ final class GemSeeder extends Seeder
         return [
             [
                 'gem_id' => 'ruby_0',
-                'name' => 'Рубин новичка',
+                'name' => 'Рубин ученика',
                 'description' => null,
                 'type' => GemTypeEnum::RUBY,
                 'in_shop' => true,
@@ -49,7 +49,7 @@ final class GemSeeder extends Seeder
             ],
             [
                 'gem_id' => 'emerald_0',
-                'name' => 'Изумруд новичка',
+                'name' => 'Изумруд ученика',
                 'description' => null,
                 'type' => GemTypeEnum::EMERALD,
                 'in_shop' => true,
@@ -64,7 +64,7 @@ final class GemSeeder extends Seeder
             ],
             [
                 'gem_id' => 'sapphire_0',
-                'name' => 'Сапфир новичка',
+                'name' => 'Сапфир ученика',
                 'description' => null,
                 'type' => GemTypeEnum::SAPPHIRE,
                 'in_shop' => true,
@@ -79,7 +79,7 @@ final class GemSeeder extends Seeder
             ],
             [
                 'gem_id' => 'diamond_0',
-                'name' => 'Алмаз новичка',
+                'name' => 'Алмаз ученика',
                 'description' => null,
                 'type' => GemTypeEnum::DIAMOND,
                 'in_shop' => false,

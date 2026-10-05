@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Character\CharacterSetLocationAction;
+use App\Actions\Character\CharacterSetNickAction;
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
+use App\Services\Inventory\InventoryService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\FightStatusFormatter;
@@ -24,6 +28,9 @@ final class OnboardingHandler
     public function __construct(
         private readonly CharacterService $characters,
         private readonly OnboardingService $onboarding,
+        private readonly CharacterSetNickAction $setNick,
+        private readonly CharacterSetLocationAction $setLocation,
+        private readonly InventoryService $inventory,
         private readonly ShopCatalog $shop,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
@@ -61,7 +68,7 @@ final class OnboardingHandler
         }
 
         if ($player->onboarding_step === OnboardingStepEnum::NICK) {
-            $res = $this->onboarding->setNick($player, $update->text());
+            $res = $this->setNick->handle($player, $update->text());
 
             if (! $res->ok || ! $res->character instanceof Character) {
                 $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -253,7 +260,7 @@ final class OnboardingHandler
             return;
         }
 
-        $res = $this->onboarding->setLocation($player, $cityName);
+        $res = $this->setLocation->handle($player, $cityName);
 
         if (! $res->ok) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -439,7 +446,10 @@ final class OnboardingHandler
 
         $responder->edit(
             __('onboarding.potion_bought', [
-                'potions' => $res->character->potions,
+                'potions' => $this->inventory->potionCountByProfile(
+                    $res->character->tg_id,
+                    ProfileEnum::HEAL,
+                ),
                 'silver' => $res->character->silver,
             ]),
             TelegramKeyboards::noviceShop($this->shop),

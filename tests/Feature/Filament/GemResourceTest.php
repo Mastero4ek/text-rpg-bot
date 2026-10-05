@@ -36,7 +36,7 @@ it('lists and views gem catalog', function (): void {
         ->assertOk()
         ->assertSchemaStateSet([
             'gem_id' => 'ruby_0',
-            'name' => 'Рубин новичка',
+            'name' => 'Рубин ученика',
         ]);
 });
 

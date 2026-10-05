@@ -32,6 +32,41 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
+    public static function statsScreen(int $statPoints, int $resetGoldCost): array
+    {
+        $rows = [];
+
+        if ($statPoints > 0) {
+            $rows[] = [
+                self::cb(__('profile.btn_str'), 'stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'stat:' . StatKeyEnum::AGILITY->value),
+            ];
+            $rows[] = [
+                self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
+            ];
+        }
+
+        $rows[] = [self::cb(__('profile.btn_reset', ['gold' => $resetGoldCost]), 'stat:reset')];
+        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function statsResetConfirm(): array
+    {
+        return self::inline([
+            [self::cb(__('profile.btn_reset_confirm'), 'stat:reset_yes')],
+            [self::cb(__('menu.back'), 'menu:stats')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
     public static function statsUpgrade(): array
     {
         return self::inline([
@@ -127,8 +162,12 @@ final class TelegramKeyboards
      * @param  list<EquipmentDef>  $gear
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function fullShop(array $weapons, array $gear, int $potionPrice): array
-    {
+    public static function fullShop(
+        array $weapons,
+        array $gear,
+        int $healPotionPrice,
+        int $staminaPotionPrice,
+    ): array {
         $rows = [];
 
         foreach ($weapons as $weapon) {
@@ -139,7 +178,8 @@ final class TelegramKeyboards
             $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
         }
 
-        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'shop:potion')];
+        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')];
+        $rows[] = [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')];
         $rows[] = [self::cb(__('menu.back'), 'menu:home')];
 
         return self::inline($rows);
@@ -171,11 +211,12 @@ final class TelegramKeyboards
     }
 
     /**
+     * @param  list<PlayerAttackEnum>  $potionAttacks
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function attackWithPotion(): array
+    public static function attack(array $potionAttacks): array
     {
-        return self::attackRows(true);
+        return self::attackRows($potionAttacks);
     }
 
     /**
@@ -183,7 +224,7 @@ final class TelegramKeyboards
      */
     public static function attackWithoutPotion(): array
     {
-        return self::attackRows(false);
+        return self::attackRows([]);
     }
 
     /**
@@ -246,9 +287,10 @@ final class TelegramKeyboards
     }
 
     /**
+     * @param  list<PlayerAttackEnum>  $potionAttacks
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    private static function attackRows(bool $canPotion): array
+    private static function attackRows(array $potionAttacks): array
     {
         $rows = [
             [
@@ -261,8 +303,16 @@ final class TelegramKeyboards
             ],
         ];
 
-        if ($canPotion) {
-            $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . PlayerAttackEnum::POTION->value)];
+        foreach ($potionAttacks as $attack) {
+            if ($attack === PlayerAttackEnum::POTION) {
+                $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . $attack->value)];
+
+                continue;
+            }
+
+            if ($attack === PlayerAttackEnum::STAMINA_POTION) {
+                $rows[] = [self::cb(__('combat.btn_stamina_potion'), 'fight:atk:' . $attack->value)];
+            }
         }
 
         return self::inline($rows);

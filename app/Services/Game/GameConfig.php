@@ -9,9 +9,6 @@ use RuntimeException;
 final class GameConfig
 {
     /** @var array<string, mixed> */
-    private array $character;
-
-    /** @var array<string, mixed> */
     private array $enemies;
 
     /** @var array<string, mixed> */
@@ -22,7 +19,6 @@ final class GameConfig
 
     public function __construct()
     {
-        $this->character = $this->loadJson('character.json');
         $this->enemies = $this->loadJson('enemies.json');
         $this->onboarding = $this->loadJson('onboarding.json');
         $this->settings = $this->loadJson('settings.json');
@@ -33,7 +29,11 @@ final class GameConfig
      */
     public function character(): array
     {
-        return $this->character;
+        if (! array_key_exists('character', $this->settings) || ! is_array($this->settings['character'])) {
+            throw new RuntimeException('settings.character missing.');
+        }
+
+        return $this->settings['character'];
     }
 
     /**

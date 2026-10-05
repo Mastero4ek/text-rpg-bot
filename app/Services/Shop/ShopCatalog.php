@@ -16,7 +16,7 @@ use RuntimeException;
 
 final class ShopCatalog
 {
-    private const string CACHE_KEY = 'equipment.catalog.v18';
+    private const string CACHE_KEY = 'equipment.catalog.v19';
 
     private const string STARTER_ARMOR_ID = 'heavy_0';
 
@@ -42,12 +42,22 @@ final class ShopCatalog
 
     public function potionPrice(): int
     {
-        return $this->shopPotion()->price;
+        return $this->shopPotion(ProfileEnum::HEAL)->price;
     }
 
     public function shopPotionId(): string
     {
-        return $this->shopPotion()->itemId;
+        return $this->shopPotion(ProfileEnum::HEAL)->itemId;
+    }
+
+    public function staminaPotionPrice(): int
+    {
+        return $this->shopPotion(ProfileEnum::STAMINA)->price;
+    }
+
+    public function shopStaminaPotionId(): string
+    {
+        return $this->shopPotion(ProfileEnum::STAMINA)->itemId;
     }
 
     public function isShopWeapon(string $itemId): bool
@@ -237,14 +247,21 @@ final class ShopCatalog
 
     public function potionHeal(): int
     {
-        $potion = $this->shopPotion();
-
-        if ($potion->profile !== ProfileEnum::HEAL) {
-            throw new RuntimeException('Shop potion profile must be HEAL.');
-        }
+        $potion = $this->shopPotion(ProfileEnum::HEAL);
 
         if ($potion->effectValue === null) {
-            throw new RuntimeException('Shop potion effect_value missing.');
+            throw new RuntimeException('Shop heal potion effect_value missing.');
+        }
+
+        return $potion->effectValue;
+    }
+
+    public function potionStaminaHeal(): int
+    {
+        $potion = $this->shopPotion(ProfileEnum::STAMINA);
+
+        if ($potion->effectValue === null) {
+            throw new RuntimeException('Shop stamina potion effect_value missing.');
         }
 
         return $potion->effectValue;
@@ -392,8 +409,12 @@ final class ShopCatalog
         ];
     }
 
-    private function shopPotion(): EquipmentDef
+    private function shopPotion(ProfileEnum $profile): EquipmentDef
     {
+        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
+            throw new RuntimeException('Shop potion profile must be HEAL or STAMINA.');
+        }
+
         foreach ($this->cachedRows() as $row) {
             if (! $row->enabled) {
                 continue;
@@ -407,10 +428,14 @@ final class ShopCatalog
                 continue;
             }
 
+            if ($row->def->profile !== $profile) {
+                continue;
+            }
+
             return $row->def;
         }
 
-        throw new RuntimeException('Shop potion missing in equipment catalog.');
+        throw new RuntimeException('Shop potion missing in equipment catalog for ' . $profile->value . '.');
     }
 
     /**

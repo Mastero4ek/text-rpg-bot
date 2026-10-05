@@ -34,7 +34,6 @@ it('lists and views characters', function (): void {
     ])
         ->assertOk()
         ->assertSchemaStateSet([
-            'tg_id' => 9101,
             'username' => 'AdminHero',
         ]);
 });

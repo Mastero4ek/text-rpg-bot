@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\Pages;
 
 use App\Filament\Resources\Characters\CharacterResource;
+use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 
 final class ViewCharacter extends ViewRecord
@@ -13,6 +14,8 @@ final class ViewCharacter extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            EditAction::make(),
+        ];
     }
 }

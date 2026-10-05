@@ -21,7 +21,9 @@ it('seeds equipment catalog into the database', function (): void {
         ->and(shopCatalog()->findItem('knife_0')->itemName)->toBe('Учебный нож')
         ->and(shopCatalog()->findItem('heal_0')->itemType)->toBe(TypeEnum::POTION)
         ->and(shopCatalog()->findItem('heal_0')->profile)->toBe(ProfileEnum::HEAL)
-        ->and(shopCatalog()->findItem('heal_0')->effectValue)->toBe(40);
+        ->and(shopCatalog()->findItem('heal_0')->effectValue)->toBe(40)
+        ->and(shopCatalog()->findItem('stamina_0')->profile)->toBe(ProfileEnum::STAMINA)
+        ->and(shopCatalog()->potionStaminaHeal())->toBe(25);
 });
 
 it('lists novice and tier weapons from hardcoded novice ids', function (): void {
@@ -29,9 +31,9 @@ it('lists novice and tier weapons from hardcoded novice ids', function (): void 
     $tier = shopCatalog()->tierWeapons();
 
     expect($novice)->toHaveCount(3)
-        ->and($tier)->toHaveCount(13)
+        ->and($tier)->toHaveCount(2)
         ->and(collect($novice)->pluck('itemId')->all())->toContain('knife_0')
-        ->and(collect($tier)->pluck('itemId')->all())->toContain('knife_1')
+        ->and(collect($tier)->pluck('itemId')->all())->toContain('sword_0')
         ->and(collect($tier)->pluck('itemId')->all())->not->toContain('knife_0');
 });
 
@@ -40,14 +42,14 @@ it('hides disabled and out-of-shop weapons from shop lists', function (): void {
     $disabled->enabled = false;
     $disabled->save();
 
-    $outOfShop = Equipment::query()->findOrFail('knife_1');
+    $outOfShop = Equipment::query()->findOrFail('sword_0');
     $outOfShop->in_shop = false;
     $outOfShop->save();
 
     expect(collect(shopCatalog()->noviceWeapons())->pluck('itemId')->all())->not->toContain('knife_0')
-        ->and(collect(shopCatalog()->tierWeapons())->pluck('itemId')->all())->not->toContain('knife_1')
+        ->and(collect(shopCatalog()->tierWeapons())->pluck('itemId')->all())->not->toContain('sword_0')
         ->and(shopCatalog()->isShopWeapon('knife_0'))->toBeFalse()
-        ->and(shopCatalog()->isShopWeapon('knife_1'))->toBeFalse();
+        ->and(shopCatalog()->isShopWeapon('sword_0'))->toBeFalse();
 });
 
 it('finds trashed and disabled equipment for already owned lookup', function (): void {
@@ -100,7 +102,7 @@ it('combat potion heal reads effect_value from equipment', function (): void {
 });
 
 it('buys weapon for gold vip wallet', function (): void {
-    $equipment = Equipment::query()->findOrFail('knife_1');
+    $equipment = Equipment::query()->findOrFail('sword_0');
     $equipment->currency = CurrencyEnum::GOLD;
     $equipment->price = 3;
     $equipment->save();
@@ -110,24 +112,24 @@ it('buys weapon for gold vip wallet', function (): void {
     $character->gold = 3;
     $character->save();
 
-    $buy = shopService()->buyWeapon($character->tg_id, 'knife_1');
+    $buy = shopService()->buyWeapon($character->tg_id, 'sword_0');
 
     expect($buy->ok)->toBeTrue()
         ->and($buy->character->gold)->toBe(0)
         ->and($buy->character->silver)->toBe(0)
-        ->and(inventory()->owns($character->tg_id, 'knife_1'))->toBeTrue();
+        ->and(inventory()->owns($character->tg_id, 'sword_0'))->toBeTrue();
 
     $poor = characters()->createDraft(7004);
     $poor->silver = 100;
     $poor->gold = 0;
     $poor->save();
 
-    expect(shopService()->buyWeapon($poor->tg_id, 'knife_1')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($poor->tg_id, 'knife_1')->error)->toBe(__('errors.not_enough_gold'));
+    expect(shopService()->buyWeapon($poor->tg_id, 'sword_0')->ok)->toBeFalse()
+        ->and(shopService()->buyWeapon($poor->tg_id, 'sword_0')->error)->toBe(__('errors.not_enough_gold'));
 });
 
 it('rejects buying weapons hidden from shop', function (): void {
-    $equipment = Equipment::query()->findOrFail('axe_1');
+    $equipment = Equipment::query()->findOrFail('hammer_0');
     $equipment->enabled = false;
     $equipment->save();
 
@@ -135,7 +137,7 @@ it('rejects buying weapons hidden from shop', function (): void {
     $character->silver = 999;
     $character->save();
 
-    expect(shopService()->buyWeapon($character->tg_id, 'axe_1')->ok)->toBeFalse();
+    expect(shopService()->buyWeapon($character->tg_id, 'hammer_0')->ok)->toBeFalse();
 });
 
 it('invalidates catalog cache and recovers from corrupt cache payload', function (): void {

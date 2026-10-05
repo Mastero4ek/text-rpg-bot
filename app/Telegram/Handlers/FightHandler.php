@@ -9,6 +9,7 @@ use App\Actions\Gem\GemBreakOnLoseAction;
 use App\Actions\Inventory\InventoryApplyFightWearAction;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
@@ -64,7 +65,7 @@ final class FightHandler
             return;
         }
 
-        if (preg_match('/^fight:atk:(HEAD|CHEST|BELLY|LEGS|POTION)$/', $data, $m) === 1) {
+        if (preg_match('/^fight:atk:(HEAD|CHEST|BELLY|LEGS|POTION|STAMINA_POTION)$/', $data, $m) === 1) {
             $this->attack($update, $responder, $m[1]);
 
             return;
@@ -166,11 +167,7 @@ final class FightHandler
         /** @var Fight $fight */
         $fight = $saved['fight'];
 
-        if ($player->potions > 0 && ! $fight->tutorial) {
-            $keyboard = TelegramKeyboards::attackWithPotion();
-        } else {
-            $keyboard = TelegramKeyboards::attackWithoutPotion();
-        }
+        $keyboard = TelegramKeyboards::attack($this->availablePotionAttacks($player, $fight));
 
         $this->persistFightMessage($update, $fight);
         $responder->edit(
@@ -191,7 +188,7 @@ final class FightHandler
             $fight = $this->fights->findByTgId($player->tg_id);
 
             if ($fight->step === FightStepEnum::ATTACK_SECOND) {
-                if ($choice === 'POTION') {
+                if ($choice === 'POTION' || $choice === 'STAMINA_POTION') {
                     return null;
                 }
 
@@ -206,13 +203,15 @@ final class FightHandler
                 return null;
             }
 
-            if ($choice === 'POTION') {
-                if ($fight->tutorial || $player->potions <= 0) {
+            if ($choice === 'POTION' || $choice === 'STAMINA_POTION') {
+                $attack = PlayerAttackEnum::from($choice);
+
+                if ($fight->tutorial || ! $this->canUsePotionAttack($player, $attack)) {
                     return ['kind' => 'potion_denied'];
                 }
 
                 $fight->use_potion = true;
-                $fight->player_attack = PlayerAttackEnum::POTION;
+                $fight->player_attack = $attack;
                 $fight->player_attack_second = null;
                 $fight->step = FightStepEnum::DEFEND;
                 $this->fights->save($fight);
@@ -467,6 +466,11 @@ final class FightHandler
             $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
             $player = $this->characters->findByTgId($player->tg_id);
             $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+            $player->current_stamina = $this->characters->clampStamina(
+                $fight->player_stamina,
+                $this->characters->maxStamina($player),
+            );
+            $player->last_stamina_update = now();
             $player->save();
             $this->clearFight->handle($player->tg_id);
             $responder->edit(
@@ -486,9 +490,46 @@ final class FightHandler
         $brokeSuffix = $this->brokenGearSuffix($broken) . $this->brokenGemsSuffix($gemBroken);
         $player->current_hp = 0;
         $player->last_hp_update = now();
+        $player->current_stamina = 0;
+        $player->last_stamina_update = now();
         $player->save();
         $this->clearFight->handle($player->tg_id);
         $responder->edit($text . __('combat.lose') . $brokeSuffix, TelegramKeyboards::mainMenu());
+    }
+
+    /**
+     * @return list<PlayerAttackEnum>
+     */
+    private function availablePotionAttacks(Character $player, Fight $fight): array
+    {
+        if ($fight->tutorial) {
+            return [];
+        }
+
+        $attacks = [];
+
+        if ($this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0) {
+            $attacks[] = PlayerAttackEnum::POTION;
+        }
+
+        if ($this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0) {
+            $attacks[] = PlayerAttackEnum::STAMINA_POTION;
+        }
+
+        return $attacks;
+    }
+
+    private function canUsePotionAttack(Character $player, PlayerAttackEnum $attack): bool
+    {
+        if ($attack === PlayerAttackEnum::POTION) {
+            return $this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0;
+        }
+
+        if ($attack === PlayerAttackEnum::STAMINA_POTION) {
+            return $this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0;
+        }
+
+        return false;
     }
 
     /**

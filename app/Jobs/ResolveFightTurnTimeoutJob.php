@@ -171,6 +171,11 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         $characters->addExpSilver($player, $reward['exp'], $reward['silver']);
         $player = $characters->findByTgId($player->tg_id);
         $player->current_hp = max(1, min($fight->player_hp, $characters->maxHp($player)));
+        $player->current_stamina = $characters->clampStamina(
+            $fight->player_stamina,
+            $characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
         $player->save();
         $clearFight->handle($player->tg_id);
 
@@ -230,6 +235,8 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         $brokeSuffix = $this->brokenGearSuffix($broken) . $this->brokenGemsSuffix($gemBroken);
         $player->current_hp = 0;
         $player->last_hp_update = now();
+        $player->current_stamina = 0;
+        $player->last_stamina_update = now();
         $player->save();
         $clearFight->handle($player->tg_id);
 

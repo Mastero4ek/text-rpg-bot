@@ -9,6 +9,7 @@ paths:
 - Panel: `/admin`, single User from `AdminUserSeeder` (`.env` ADMIN\_\*).
 - MVP resources are **read-only**: `canCreate` / `canEdit` / `canDelete` → `false`. No Create/Edit pages.
 - Exception (roadmap **1.0**): full **CRUD каталога снаряжения** (`Equipment` resource) — Create / Edit / View / Archive / Delete, все поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
+- Exception (`CharacterResource`): List/View/Edit; **Create нет**. View header — только Edit; Archive/Restore/ForceDelete — List row actions (+ bulk) и header Edit (как Equipment). Reset статов — красная кнопка в «Идентичность», visible только `operation === 'edit'`. Inventories RM — Section collapsed. Soft delete = бан. Clone нет. Form. Save с ростом `exp` → пороги. См. `docs/CHARACTER.md` §9.
 - Exception (live sessions): `FightResource` — List/View + Delete/bulk force-clear (`FightClearAction`); `canDelete` / `canDeleteAny` → `true`; Create/Edit **нет**.
 - Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/` (page/table mixins), `app/Filament/Support/` (presentation helpers, не traits), `app/Filament/Tables/Columns/`.
 - Labels / actions / hints: `lang/ru/admin.php` (`labels.*`, `models.*`, `navigation.*`, `actions.*`, `hints.*`, `sections.*`). Не хардкодить RU-строки в Table/Form/Pages.
@@ -38,6 +39,7 @@ paths:
 ### Edit (`EditRecord`)
 
 - `use HasFormActionsBetween`.
+- `Character` Edit: form actions **под** RelationManager инвентаря (`hasFormWrapper=false` + `content`: form → RM → actions). Остальные Edit — actions в footer формы как обычно.
 - Header **без** View: Архивировать / Восстановить / Удалить (порядок: restore перед force-delete).
 - Архивировать = `DeleteAction` + labels из `admin.actions.archive.*`, `->color('warning')`, **без** иконки на header-кнопке.
 - Удалить = `ForceDeleteAction` + `admin.actions.delete.*`, `->visible` только если `trashed()` и нет inventory refs.
@@ -48,7 +50,7 @@ paths:
 
 - Та же Form, что create/edit (`ViewRecord` сам `->disabled()`). **Не** определять `infolist()` у write-ресурсов.
 - Header: `Клонировать` (gray) → `EditAction`. Клон через trait `HasCloneToCreate` (`getCloneAction()`).
-- Отдельный Infolist — только у read-only ресурсов Characters / Inventories.
+- Отдельный Infolist — только у read-only ресурса Inventories (`CharacterResource` — Form, как Equipment).
 - `FightResource` (live sessions): View через **Form** (как Equipment/Gem: Section + icon + collapsible/collapsed), без Infolist; Create/Edit страниц нет.
 
 ### Clone → Create
@@ -128,7 +130,7 @@ paths:
 - Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
 - `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот только `RIGHT_HAND` + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL; зелье: POCKET + `HEAL`. Слот и профиль disabled пока тип не выбран.
 - Зонная `armor` только HELMET/ARMOR/PANTS/BOOTS (GLOVES/SHIELD → 0, поле скрыто).
-- Характеристики (`equipment_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage_min`+`weapon_damage_max`+MF; ARMOR → `stat_bonus`+MF (+`armor` на зонных слотах); JEWELRY → `stat_bonus`+MF; POTION → `effect_value` (профиль HEAL). При смене типа лишние статы **сбрасываются в пусто** (`null`), не в `0`.
+- Характеристики (`equipment_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage_min`+`weapon_damage_max`+MF; ARMOR → `stat_bonus`+MF (+`armor` на зонных слотах); JEWELRY → `stat_bonus`+MF; POTION → `effect_value` (профили HEAL / STAMINA). При смене типа лишние статы **сбрасываются в пусто** (`null`), не в `0`.
 - Create: **без** `->default(...)` на полях формы (пусто до ввода админа). NOT NULL инты при save → `0` в `Equipment::saving`.
 - Прочность: `max_durability` / износ / `repair_tier`; `gem_slots` только WEAPON/ARMOR; `repairable` на следующей строке (без default).
 - Экономика — **последняя** секция формы (`currency`+`price`, без default). `GemForm`: identity → economy.

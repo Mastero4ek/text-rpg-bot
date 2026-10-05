@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Http;
 it('sets attackSlots to 2 only with dual weapons in both hands from dualWieldMinLevel', function (): void {
     $p = characters()->createDraft(8501);
     $p = giveAndEquipStarterKnuckles($p);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     expect($p->level)->toBe(0)
         ->and(app(LoadoutService::class)->forCharacter($p)->attackSlots)->toBe(1)
@@ -44,7 +44,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
     $p->save();
 
     $p = giveAndEquipStarterKnuckles($p);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
     $fight->step = FightStepEnum::ATTACK;
@@ -108,11 +108,11 @@ it('resolves two player hits with split hand damage', function (): void {
     $p->save();
 
     $p = giveAndEquipStarterKnuckles($p);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     $loadout = app(LoadoutService::class)->forCharacter($p);
     $knuckles = shopCatalog()->findItem(shopCatalog()->starterKnucklesId());
-    $off = shopCatalog()->findItem('knife_4');
+    $off = shopCatalog()->findItem('knife_0');
     expect($loadout->attackSlots)->toBe(2)
         ->and($loadout->mainHandDamageMin)->toBe($knuckles->weaponDamageMin)
         ->and($loadout->mainHandDamageMax)->toBe($knuckles->weaponDamageMax)
@@ -192,8 +192,8 @@ it('rejects left hand weapon while single-hand weapon is equipped', function ():
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
-    inventory()->addItem($p->tg_id, 'knife_4');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_4');
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $fail = inventory()->equipToSlot($p, $knife->id, SlotEnum::LEFT_HAND);
 
     expect($fail->ok)->toBeFalse()
@@ -222,7 +222,7 @@ it('allows axe with shield for one attack and two blocks', function (): void {
 
 it('keeps one attack when knife is worn with shield', function (): void {
     $p = characters()->createDraft(8507);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::RIGHT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::RIGHT_HAND);
     inventory()->addItem($p->tg_id, 'heavy_1');
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
     $eq = inventory()->equip($p, $shield->id);
@@ -238,14 +238,14 @@ it('keeps one attack when knife is worn with shield', function (): void {
 it('unequips left hand dual weapon when single-hand is equipped', function (): void {
     $p = characters()->createDraft(8508);
     $p = giveAndEquipStarterKnuckles($p);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     inventory()->addItem($p->tg_id, 'axe_0');
     $axe = inventory()->findOwned($p->tg_id, 'axe_0');
     $eq = inventory()->equip($p, $axe->id);
     expect($eq->ok)->toBeTrue();
 
-    $knife = inventory()->findOwned($p->tg_id, 'knife_4');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $knife->refresh();
     expect($knife->is_equipped)->toBeFalse()
         ->and(app(LoadoutService::class)->forCharacter($eq->character)->attackSlots)->toBe(1);

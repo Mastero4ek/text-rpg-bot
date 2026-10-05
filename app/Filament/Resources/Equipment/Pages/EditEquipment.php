@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Equipment\Pages;
 
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
 use App\Models\Equipment;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
@@ -18,6 +19,15 @@ final class EditEquipment extends EditRecord
     use HasFormActionsBetween;
 
     protected static string $resource = EquipmentResource::class;
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return EquipmentForm::sanitizeCatalogFieldsForType($data);
+    }
 
     protected function getHeaderActions(): array
     {

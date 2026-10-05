@@ -76,8 +76,18 @@ final class ShopService
 
     public function buyPotion(int $tgId): ActionResult
     {
-        return DB::transaction(function () use ($tgId): ActionResult {
-            $def = $this->catalog->findItem($this->catalog->shopPotionId());
+        return $this->buyShopPotion($tgId, $this->catalog->shopPotionId());
+    }
+
+    public function buyStaminaPotion(int $tgId): ActionResult
+    {
+        return $this->buyShopPotion($tgId, $this->catalog->shopStaminaPotionId());
+    }
+
+    private function buyShopPotion(int $tgId, string $itemId): ActionResult
+    {
+        return DB::transaction(function () use ($tgId, $itemId): ActionResult {
+            $def = $this->catalog->findItem($itemId);
 
             $character = Character::query()->find($tgId);
 
@@ -89,11 +99,12 @@ final class ShopService
                 return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
 
-            $character = $this->characters->findByTgId($tgId);
-            $character->potions += 1;
-            $character->save();
+            $this->inventory->addItem($tgId, $def->itemId);
 
-            return ActionResult::ok($character);
+            return ActionResult::okWithDef(
+                $this->characters->findByTgId($tgId),
+                $def,
+            );
         });
     }
 

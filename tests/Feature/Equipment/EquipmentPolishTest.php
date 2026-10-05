@@ -77,8 +77,8 @@ it('allows any gem type in an open socket', function (): void {
     $p->gem_pouch = gemPouch('sapphire_0');
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_4');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_4');
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
 
     expect(app(GemService::class)->socket($p, $knife->id, 0)->ok)->toBeTrue();
 });

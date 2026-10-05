@@ -22,7 +22,15 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p->save();
     $potion = shopService()->buyPotion($p->tg_id);
     expect($potion->ok)->toBeTrue()
-        ->and($potion->character->potions)->toBe(1);
+        ->and(inventory()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::HEAL))->toBe(1)
+        ->and(inventory()->owns($p->tg_id, shopCatalog()->shopPotionId()))->toBeTrue();
+
+    $p->silver = shopCatalog()->staminaPotionPrice();
+    $p->save();
+    $stamina = shopService()->buyStaminaPotion($p->tg_id);
+    expect($stamina->ok)->toBeTrue()
+        ->and(inventory()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::STAMINA))->toBe(1)
+        ->and(inventory()->owns($p->tg_id, shopCatalog()->shopStaminaPotionId()))->toBeTrue();
 });
 
 it('equip weapon and armor', function (): void {

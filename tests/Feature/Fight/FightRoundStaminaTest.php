@@ -18,12 +18,12 @@ it('splits loadout mf by body and each hand', function (): void {
     $p->save();
 
     $p = giveAndEquipStarterKnuckles($p);
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
     $p = equipItemToSlot($p, 'focus_0', SlotEnum::RING_1);
 
     $loadout = app(LoadoutService::class)->forCharacter($p);
     $knuckles = shopCatalog()->findItem(shopCatalog()->starterKnucklesId());
-    $knife = shopCatalog()->findItem('knife_4');
+    $knife = shopCatalog()->findItem('knife_0');
     $ring = shopCatalog()->findItem('focus_0');
 
     expect($loadout->mainHandMf->toArray())->toBe($knuckles->mf->toArray())
