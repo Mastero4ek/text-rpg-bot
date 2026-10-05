@@ -39,23 +39,23 @@ it('equip weapon and armor', function (): void {
     inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
 
     $weapon = inventory()->findOwned($p->tg_id, 'axe_0');
-    $eq = inventory()->equip($p, $weapon->id);
+    $eq = loadout()->equip($p, $weapon->id);
     expect($eq->ok)->toBeTrue();
     $weapon->refresh();
-    expect($weapon->is_equipped)->toBeTrue()
+    expect($weapon->isEquipped())->toBeTrue()
         ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 
     $armor = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
-    $eqArmor = inventory()->equip($eq->character, $armor->id);
+    $eqArmor = loadout()->equip($eq->character, $armor->id);
     expect($eqArmor->ok)->toBeTrue();
     $armor->refresh();
-    expect($armor->is_equipped)->toBeTrue()
+    expect($armor->isEquipped())->toBeTrue()
         ->and($armor->slot)->toBe(App\Enums\Equipment\SlotEnum::ARMOR);
 
-    $uneq = inventory()->unequip($eqArmor->character, $armor->id);
+    $uneq = loadout()->unequip($eqArmor->character, $armor->id);
     expect($uneq->ok)->toBeTrue();
     $armor->refresh();
-    expect($armor->is_equipped)->toBeFalse();
+    expect($armor->isEquipped())->toBeFalse();
 });
 
 it('fight create and clear', function (): void {

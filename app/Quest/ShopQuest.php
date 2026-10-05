@@ -10,6 +10,7 @@ use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
 use App\Services\Gem\GemService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\LoadoutService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\Equipment\EquipmentDef;
@@ -34,6 +35,7 @@ final class ShopQuest
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
         private readonly InventoryService $inventory,
+        private readonly LoadoutService $loadout,
         private readonly GemService $gems,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
@@ -80,6 +82,10 @@ final class ShopQuest
             $player = $character;
 
             if (! $this->inventory->owns($player->tg_id, $itemId)) {
+                if ($this->inventory->isFull($player)) {
+                    return ActionResult::fail(__('errors.inventory_full'));
+                }
+
                 $this->inventory->addItem($player->tg_id, $itemId);
             }
 
@@ -105,7 +111,7 @@ final class ShopQuest
 
     private function equipAndGraduate(Character $player, string $itemId): ActionResult
     {
-        $eq = $this->inventory->equipByItemId($player, $itemId);
+        $eq = $this->loadout->equipByItemId($player, $itemId);
 
         if (! $eq->ok || ! $eq->character instanceof Character) {
             return $eq;

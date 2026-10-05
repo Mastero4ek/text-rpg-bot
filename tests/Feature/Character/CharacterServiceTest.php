@@ -31,7 +31,7 @@ it('maxHp includes armor bonus', function (): void {
 
     inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
     $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
-    inventory()->equip($p, $mail->id);
+    loadout()->equip($p, $mail->id);
 
     expect(characters()->maxHp($p))->toBe($without + shopCatalog()->mailShirt()->statBonus);
 });
@@ -228,7 +228,7 @@ it('statsScreenText shows body and total mf blocks', function (): void {
 
     inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
     $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
-    inventory()->equip($p, $mail->id);
+    loadout()->equip($p, $mail->id);
 
     $fresh = $p->fresh();
     $text = characters()->statsScreenText($fresh);

@@ -56,7 +56,7 @@ final class GemForm
                                         self::syncGemIdForType($set, $state, $operation);
                                     }),
                                 TextInput::make('max_durability')
-                                    ->label(__('admin.labels.max_durability'))
+                                    ->label(__('admin.labels.durability'))
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.gem_max_durability'))
                                     ->numeric()
                                     ->required()

@@ -3,6 +3,44 @@
     flex-grow: 0;
 }
 
+.fi-section:has(.fi-ta-ctn) > .fi-section-content-ctn > .fi-section-content {
+    padding: 0 !important;
+    gap: 0 !important;
+}
+
+.fi-backpack-capacity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.fi-backpack-capacity-input {
+    width: 8rem;
+    flex: 0 0 8rem;
+}
+
+.fi-backpack-capacity-input .fi-input {
+    padding-inline: 0.375rem;
+}
+
+.fi-backpack-capacity-sep {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: rgb(107 114 128);
+}
+
+.dark .fi-backpack-capacity-sep {
+    color: rgb(156 163 175);
+}
+
+.fi-section:has(.fi-ta-ctn) .fi-ta-ctn {
+    border-radius: 0;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+}
+
 .fi-btn,
 .fi-btn * {
     color: #ffffff !important;
@@ -23,8 +61,8 @@
 }
 
 .fi-ta-appearance-placeholder svg {
-    width: 70%;
-    height: 70%;
+    width: 50%;
+    height: 50%;
 }
 
 .fi-fight-crossed-swords {
@@ -42,4 +80,18 @@
     display: block;
     width: 100%;
     height: 100%;
+}
+
+.fi-equip-stat-changes {
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+}
+
+.fi-equip-stat-delta-up {
+    color: rgb(34 197 94);
+}
+
+.fi-equip-stat-delta-down {
+    color: rgb(239 68 68);
 }

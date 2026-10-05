@@ -188,13 +188,13 @@ it('rejects left hand weapon while single-hand weapon is equipped', function ():
     $p = characters()->createDraft(8505);
     inventory()->addItem($p->tg_id, 'axe_0');
     $axe = inventory()->findOwned($p->tg_id, 'axe_0');
-    $eq = inventory()->equip($p, $axe->id);
+    $eq = loadout()->equip($p, $axe->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
     inventory()->addItem($p->tg_id, 'knife_0');
     $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    $fail = inventory()->equipToSlot($p, $knife->id, SlotEnum::LEFT_HAND);
+    $fail = loadout()->equipToSlot($p, $knife->id, SlotEnum::LEFT_HAND);
 
     expect($fail->ok)->toBeFalse()
         ->and($fail->error)->toBe(__('errors.cannot_dual_with_single_hand'))
@@ -207,12 +207,12 @@ it('allows axe with shield for one attack and two blocks', function (): void {
     inventory()->addItem($p->tg_id, 'heavy_1');
 
     $axe = inventory()->findOwned($p->tg_id, 'axe_0');
-    $eqAxe = inventory()->equip($p, $axe->id);
+    $eqAxe = loadout()->equip($p, $axe->id);
     expect($eqAxe->ok)->toBeTrue();
     $p = $eqAxe->character;
 
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
-    $eqShield = inventory()->equip($p, $shield->id);
+    $eqShield = loadout()->equip($p, $shield->id);
     expect($eqShield->ok)->toBeTrue();
 
     $loadout = app(LoadoutService::class)->forCharacter($eqShield->character);
@@ -225,7 +225,7 @@ it('keeps one attack when knife is worn with shield', function (): void {
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::RIGHT_HAND);
     inventory()->addItem($p->tg_id, 'heavy_1');
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
-    $eq = inventory()->equip($p, $shield->id);
+    $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
 
     $loadout = app(LoadoutService::class)->forCharacter($eq->character);
@@ -242,11 +242,11 @@ it('unequips left hand dual weapon when single-hand is equipped', function (): v
 
     inventory()->addItem($p->tg_id, 'axe_0');
     $axe = inventory()->findOwned($p->tg_id, 'axe_0');
-    $eq = inventory()->equip($p, $axe->id);
+    $eq = loadout()->equip($p, $axe->id);
     expect($eq->ok)->toBeTrue();
 
     $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $knife->refresh();
-    expect($knife->is_equipped)->toBeFalse()
+    expect($knife->isEquipped())->toBeFalse()
         ->and(app(LoadoutService::class)->forCharacter($eq->character)->attackSlots)->toBe(1);
 });

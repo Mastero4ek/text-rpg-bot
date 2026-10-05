@@ -84,7 +84,7 @@ it('stats equip shop free club full path', function (): void {
     expect($res->ok)->toBeTrue();
     $p = $res->character;
     $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
-    expect($mail->is_equipped)->toBeTrue()
+    expect($mail->isEquipped())->toBeTrue()
         ->and($mail->slot)->toBe(App\Enums\Equipment\SlotEnum::ARMOR)
         ->and($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_SHOP);
 
@@ -94,7 +94,7 @@ it('stats equip shop free club full path', function (): void {
     $weapon = inventory()->findOwned($p->tg_id, shopCatalog()->freeTrainerItemId());
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::DONE)
         ->and($p->level)->toBe($ob['graduateLevel'])
-        ->and($weapon->is_equipped)->toBeTrue()
+        ->and($weapon->isEquipped())->toBeTrue()
         ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 });
 

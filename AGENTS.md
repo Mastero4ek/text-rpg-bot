@@ -9,7 +9,7 @@
   - Dev bot: long polling (`php artisan telegram:poll`) when `TELEGRAM_WEBHOOK_URL` is empty.
   - Prod bot: webhook `POST /telegram/webhook` when `TELEGRAM_WEBHOOK_URL` is set. `telegram:poll` must refuse to start. Secret token + Telegram IP allowlist.
   - `TELEGRAM_ASYNC=true` only in production (Redis queue → `ProcessTelegramUpdateJob`). Local: sync.
-- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); inventory view-only RelationManager (collapsed); CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
+- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); collapsed **Экипировка** (`loadout_slots`, Unequip на Edit) + **Рюкзак** (`inventories` unequipped) + **Сумка** (`gem_pouch`); CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
 - No public landing, no Mini App in MVP, no platform widget API.
 
 ## Layer structure
@@ -44,15 +44,17 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 | Quests | `app/Quest/` |
 | Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Equipment/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
-| Support / SDK glue | `app/Support/Telegram/` |
+| Filament presentation helpers | `app/Filament/Support/` (не путать с `app/Support/`) |
+| Domain / SDK glue | `app/Support/{Character,Equipment,Game,Gem,Random,Telegram}/` |
 | Game config JSON | `resources/configs/` |
 | UI translations | `lang/ru/` |
 
 ## Data
 
 - `users` — Filament operators only (one seeded super-admin).
-- `characters` — players, PK `tg_id`.
-- `inventories` — includes `item_name` snapshot; FK `tg_id` → `characters`.
+- `characters` — players, PK `tg_id`; `inventory_max_rows` (ёмкость рюкзака); `gem_pouch` JSON.
+- `inventories` — экземпляры предметов (`item_name` snapshot, `quantity`, `created_at`, sockets…); FK `tg_id` → `characters`. **Нет** `is_equipped`.
+- `loadout_slots` — sparse экипировка (`tg_id`, `slot`, `inventory_id`); equipped не считаются в ёмкость рюкзака.
 - `fights` — one active fight per character (`tg_id` PK); session columns, not a single `data` blob. Enemy snapshot and combat `log` (already-rendered RU strings) are JSON columns.
 - Nickname uniqueness: stored as typed; SQLite unique index on `LOWER(username)`.
 - HP regen: `last_hp_update` timestamp (Carbon), not a unix int.
@@ -158,6 +160,7 @@ These apply to project code in `app/` (Services, Actions, Controllers, Models), 
 
 - Always use PHP Enums where possible instead of hardcoded string values, if Enum class exists: in DB migrations, Pest tests and elsewhere.
 - Never chain multiple migration-creating commands (e.g., `make:model -m`, `make:migration`) with `&&` or `;` - they may get identical timestamps. Run each command separately and wait for completion before running the next.
+- Unreleased local alters (ещё не в shared/prod) — схлопывать в исходный `create_*` migration; отдельный `create_*` для новых таблиц оставлять. После схлопа — `migrate:fresh` локально.
 - Game balance lives in `resources/configs/*.json`; UI copy in `lang/ru/`. Do not hardcode player-facing Russian strings in Services/Actions.
 - Players are `characters` (PK `tg_id`). Filament operators are `users`.
 - Fight state lives in the `fights` table (session columns + JSON enemy/log), not in HTTP session and not as a single `data` blob.

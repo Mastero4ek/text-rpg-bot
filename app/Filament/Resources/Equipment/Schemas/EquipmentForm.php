@@ -221,7 +221,7 @@ final class EquipmentForm
                             ->required()
                             ->native(false),
                         TextInput::make('max_durability')
-                            ->label(__('admin.labels.max_durability'))
+                            ->label(__('admin.labels.durability'))
                             ->numeric()
                             ->minValue(0),
                         TextInput::make('durability_loss_per_fight')

@@ -18,7 +18,7 @@ it('stops giving bonuses at zero durability and restores after repair', function
     $p = characters()->createDraft(8202);
     inventory()->addItem($p->tg_id, 'mobile_0');
     $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
-    $eq = inventory()->equip($p, $cap->id);
+    $eq = loadout()->equip($p, $cap->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
@@ -32,10 +32,10 @@ it('stops giving bonuses at zero durability and restores after repair', function
     expect($broken->armorByZone['HEAD'])->toBe(0)
         ->and($broken->row(SlotEnum::HELMET))->not->toBeNull();
 
-    $p->silver = inventory()->repairCost($cap);
+    $p->silver = repair()->repairCost($cap);
     $p->save();
 
-    $repair = inventory()->repair($p, $cap->id);
+    $repair = repair()->repair($p, $cap->id);
     expect($repair->ok)->toBeTrue();
     $cap->refresh();
     expect($cap->durability)->toBe($cap->max_durability);
@@ -50,7 +50,7 @@ it('applies fight wear and can break equipped gear', function (): void {
     $knuckles->durability = 1;
     $knuckles->save();
 
-    $broken = inventory()->applyFightWearAfterWin($p, 0);
+    $broken = loadout()->applyFightWearAfterWin($p, 0);
 
     $knuckles->refresh();
     expect($knuckles->durability)->toBe(0)
@@ -72,15 +72,15 @@ it('charges repair by missing points and req_level', function (): void {
     $reqLevel = $equipment->req_level ?? 0;
     $expected = 5 * $perPoint * ($reqLevel + 1);
 
-    expect(inventory()->repairCost($boots))->toBe($expected);
+    expect(repair()->repairCost($boots))->toBe($expected);
 
     $p->silver = $expected - 1;
     $p->save();
-    expect(inventory()->repair($p, $boots->id)->ok)->toBeFalse();
+    expect(repair()->repair($p, $boots->id)->ok)->toBeFalse();
 
     $p->silver = $expected;
     $p->save();
-    $ok = inventory()->repair($p, $boots->id);
+    $ok = repair()->repair($p, $boots->id);
     expect($ok->ok)->toBeTrue()
         ->and($ok->character->silver)->toBe(0);
 });
@@ -89,7 +89,7 @@ it('broken shield loses second block slot', function (): void {
     $p = characters()->createDraft(8205);
     inventory()->addItem($p->tg_id, 'heavy_1');
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
-    $eq = inventory()->equip($p, $shield->id);
+    $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
 
     expect(app(LoadoutService::class)->forCharacter($eq->character)->blockSlots)->toBe(2);
@@ -107,7 +107,7 @@ it('lists only damaged repairable items for the smith', function (): void {
     $gloves->durability = 10;
     $gloves->save();
 
-    $list = inventory()->damagedList($p->tg_id);
+    $list = repair()->damagedList($p->tg_id);
     expect($list)->toHaveCount(1)
         ->and($list->first()->item_id)->toBe('mobile_3');
 });

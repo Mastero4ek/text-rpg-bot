@@ -1,0 +1,147 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\OnboardingStepEnum;
+use App\Models\Inventory;
+use App\Services\Gem\GemService;
+use App\Support\Telegram\TelegramClient;
+use App\Support\Telegram\TelegramResponder;
+use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\MenuHandler;
+use App\Telegram\Handlers\ShopHandler;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+
+beforeEach(function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
+    ]);
+});
+
+it('sells inventory row through shop sell_yes callback', function (): void {
+    $p = characters()->createDraft(6401);
+    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->silver = 0;
+    $p->save();
+
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    $payout = inventory()->sellPayout($knife);
+
+    $update = new TelegramUpdate([
+        'update_id' => 6401,
+        'callback_query' => [
+            'id' => 'cb-sell-1',
+            'data' => 'shop:sell_yes:' . $knife->id,
+            'from' => ['id' => $p->tg_id, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 11,
+                'chat' => ['id' => $p->tg_id, 'type' => 'private'],
+                'text' => 'shop',
+            ],
+        ],
+    ]);
+
+    app(ShopHandler::class)->handleCallback(
+        $update,
+        new TelegramResponder(app(TelegramClient::class), $update),
+    );
+
+    expect(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(characters()->findByTgId($p->tg_id)->silver)->toBe($payout);
+
+    Http::assertSent(function (Request $request) use ($knife, $payout): bool {
+        if (! str_contains($request->url(), '/sendMessage')) {
+            return false;
+        }
+
+        return ($request['text'] ?? null) === __('shop.sold', [
+            'name' => $knife->item_name,
+            'price' => $payout,
+            'mark' => '🪙',
+        ]);
+    });
+});
+
+it('discards backpack item through inv discard_yes callback', function (): void {
+    $p = characters()->createDraft(6402);
+    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->save();
+
+    inventory()->addItem($p->tg_id, 'axe_0');
+    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
+
+    $update = new TelegramUpdate([
+        'update_id' => 6402,
+        'callback_query' => [
+            'id' => 'cb-discard-1',
+            'data' => 'inv:discard_yes:' . $axe->id,
+            'from' => ['id' => $p->tg_id, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 12,
+                'chat' => ['id' => $p->tg_id, 'type' => 'private'],
+                'text' => 'inv',
+            ],
+        ],
+    ]);
+
+    app(MenuHandler::class)->handleCallback(
+        $update,
+        new TelegramResponder(app(TelegramClient::class), $update),
+    );
+
+    expect(Inventory::query()->whereKey($axe->id)->exists())->toBeFalse();
+
+    Http::assertSent(function (Request $request) use ($axe): bool {
+        if (! str_contains($request->url(), '/sendMessage')) {
+            return false;
+        }
+
+        return ($request['text'] ?? null) === __('profile.discarded', [
+            'name' => $axe->item_name,
+        ]);
+    });
+});
+
+it('discards gem from pouch through bag discard_yes callback', function (): void {
+    $p = characters()->createDraft(6403);
+    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->gem_pouch = array_merge(gemPouch('ruby_0', 9), gemPouch('emerald_0', 4));
+    $p->save();
+
+    $update = new TelegramUpdate([
+        'update_id' => 6403,
+        'callback_query' => [
+            'id' => 'cb-bag-discard-1',
+            'data' => 'bag:discard_yes:0',
+            'from' => ['id' => $p->tg_id, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 13,
+                'chat' => ['id' => $p->tg_id, 'type' => 'private'],
+                'text' => 'bag',
+            ],
+        ],
+    ]);
+
+    app(MenuHandler::class)->handleCallback(
+        $update,
+        new TelegramResponder(app(TelegramClient::class), $update),
+    );
+
+    $pouch = app(GemService::class)->pouch(characters()->findByTgId($p->tg_id));
+
+    expect($pouch)->toHaveCount(1)
+        ->and($pouch[0]['gem_id'])->toBe('emerald_0')
+        ->and($pouch[0]['durability'])->toBe(4);
+
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/sendMessage')) {
+            return false;
+        }
+
+        return ($request['text'] ?? null) === __('profile.discarded', [
+            'name' => 'Рубин ученика',
+        ]);
+    });
+});
