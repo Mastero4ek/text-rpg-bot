@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Inventory\InventoryDiscardAction;
+use App\Actions\Inventory\InventoryDiscardEquippedAction;
 use App\Models\Inventory;
 use App\Services\Gem\GemService;
 
@@ -63,4 +64,48 @@ it('rejects discarding equipped items and missing rows', function (): void {
 
     expect($missing->ok)->toBeFalse()
         ->and($missing->error)->toBe(__('errors.item_not_found'));
+});
+
+it('discards equipped gear without needing backpack space and moves gems to pouch', function (): void {
+    $p = characters()->createDraft(6204);
+    $p->inventory_max_rows = 1;
+    $p->gem_pouch = gemPouch('ruby_0', 8);
+    $p->save();
+
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    $socket = app(GemService::class)->socket($p, $knife->id, 0);
+    expect($socket->ok)->toBeTrue();
+    $p = $socket->character;
+    $knife->refresh();
+
+    $p = loadout()->equip($p, $knife->id)->character;
+    inventory()->addItem($p->tg_id, 'axe_0');
+
+    expect(inventory()->isFull($p))->toBeTrue()
+        ->and(app(GemService::class)->pouch($p))->toBe([]);
+
+    $discard = app(InventoryDiscardEquippedAction::class)->handle($p, $knife->id);
+
+    expect($discard->ok)->toBeTrue()
+        ->and(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(inventory()->rowCount($p->tg_id))->toBe(1);
+
+    $pouch = app(GemService::class)->pouch($discard->character);
+
+    expect($pouch)->toHaveCount(1)
+        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
+        ->and($pouch[0]['durability'])->toBe(8);
+});
+
+it('rejects discardEquipped for unequipped rows', function (): void {
+    $p = characters()->createDraft(6205);
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+
+    $result = inventory()->discardEquipped($p, $knife->id);
+
+    expect($result->ok)->toBeFalse()
+        ->and($result->error)->toBe(__('errors.not_equipped'))
+        ->and(Inventory::query()->whereKey($knife->id)->exists())->toBeTrue();
 });

@@ -81,32 +81,58 @@ final class LoadoutService
             ];
         }
 
-        $beforeHp = $character->max_hp + $before->statBonus;
-        $afterHp = $character->max_hp + $after->statBonus;
-        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_max_hp', $beforeHp, $afterHp);
-
-        $beforeDamage = $this->damageRangeText($before->weaponDamageMin, $before->weaponDamageMax);
-        $afterDamage = $this->damageRangeText($after->weaponDamageMin, $after->weaponDamageMax);
-
-        if ($beforeDamage !== $afterDamage) {
-            $lines[] = [
-                'kind' => 'plain',
-                'label' => $this->equipLang('admin.actions.equip.stat_damage'),
-                'before' => $beforeDamage,
-                'after' => $afterDamage,
-            ];
-        }
-
-        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_armor', $before->armor, $after->armor);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_dodge', $before->mf->dodge, $after->mf->dodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_dodge', $before->mf->antiDodge, $after->mf->antiDodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_crit', $before->mf->crit, $after->mf->crit);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_crit', $before->mf->antiCrit, $after->mf->antiCrit);
+        $this->appendLoadoutStatChangeLines($lines, $character, $before, $after);
 
         if ($lines === []) {
             return [[
                 'kind' => 'note',
                 'text' => $this->equipLang('admin.actions.equip.no_stat_changes'),
+            ]];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @return list<array{
+     *     kind: 'note'|'plain'|'delta',
+     *     text?: string,
+     *     label?: string,
+     *     before?: string,
+     *     after?: string,
+     *     delta?: int
+     * }>
+     */
+    public function unequipStatChanges(Character $character, Inventory $row): array
+    {
+        $before = $this->forCharacter($character);
+        $afterRows = $before->rowsBySlot;
+        $found = false;
+
+        foreach ($afterRows as $key => $wornRow) {
+            if ($wornRow instanceof Inventory && $wornRow->id === $row->id) {
+                $afterRows[$key] = null;
+                $found = true;
+            }
+        }
+
+        if (! $found) {
+            return [[
+                'kind' => 'note',
+                'text' => $this->equipLang('admin.actions.unequip.no_stat_changes'),
+            ]];
+        }
+
+        $after = $this->forRows($character, $afterRows);
+
+        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
+        $lines = [];
+        $this->appendLoadoutStatChangeLines($lines, $character, $before, $after);
+
+        if ($lines === []) {
+            return [[
+                'kind' => 'note',
+                'text' => $this->equipLang('admin.actions.unequip.no_stat_changes'),
             ]];
         }
 
@@ -1034,6 +1060,40 @@ final class LoadoutService
         }
 
         return $text;
+    }
+
+    /**
+     * @param  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     *
+     * @param-out  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     */
+    private function appendLoadoutStatChangeLines(
+        array &$lines,
+        Character $character,
+        EquippedLoadout $before,
+        EquippedLoadout $after,
+    ): void {
+        $beforeHp = $character->max_hp + $before->statBonus;
+        $afterHp = $character->max_hp + $after->statBonus;
+        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_max_hp', $beforeHp, $afterHp);
+
+        $beforeDamage = $this->damageRangeText($before->weaponDamageMin, $before->weaponDamageMax);
+        $afterDamage = $this->damageRangeText($after->weaponDamageMin, $after->weaponDamageMax);
+
+        if ($beforeDamage !== $afterDamage) {
+            $lines[] = [
+                'kind' => 'plain',
+                'label' => $this->equipLang('admin.actions.equip.stat_damage'),
+                'before' => $beforeDamage,
+                'after' => $afterDamage,
+            ];
+        }
+
+        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_armor', $before->armor, $after->armor);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_dodge', $before->mf->dodge, $after->mf->dodge);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_dodge', $before->mf->antiDodge, $after->mf->antiDodge);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_crit', $before->mf->crit, $after->mf->crit);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_crit', $before->mf->antiCrit, $after->mf->antiCrit);
     }
 
     /**

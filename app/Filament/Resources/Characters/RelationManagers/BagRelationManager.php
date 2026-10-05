@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use InvalidArgumentException;
+use Livewire\Attributes\On;
 use Livewire\Livewire;
 
 final class BagRelationManager extends RelationManager
@@ -98,6 +99,20 @@ final class BagRelationManager extends RelationManager
         }
     }
 
+    #[On('character-gems-changed')]
+    public function refreshAfterExternalChange(): void
+    {
+        $owner = $this->getOwnerRecord();
+
+        if ($owner instanceof Character) {
+            $owner->refresh();
+            $this->ownerRecord = $owner;
+            $this->bagMaxRows = $owner->bag_max_rows;
+        }
+
+        $this->resetTable();
+    }
+
     public function table(Table $table): Table
     {
         $owner = $this->getOwnerRecord();
@@ -113,8 +128,7 @@ final class BagRelationManager extends RelationManager
         }
 
         return GemPouchTable::configure($table, $owner, ! $this->isReadOnly())
-            ->recordAction(null)
-            ->recordUrl(null);
+            ->recordAction(null);
     }
 
     public function updatedBagMaxRows(mixed $value): void

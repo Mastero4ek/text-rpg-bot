@@ -17,6 +17,7 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Schema;
 use Filament\Support\Colors\Color;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\On;
 use RuntimeException;
 
 final class EditCharacter extends EditRecord
@@ -42,6 +43,15 @@ final class EditCharacter extends EditRecord
     public function hasFormWrapper(): bool
     {
         return false;
+    }
+
+    #[On('character-vitals-changed')]
+    public function refreshVitalsFromInventory(): void
+    {
+        $this->getRecord()->refresh();
+        $this->refreshFormData([
+            'current_hp',
+        ]);
     }
 
     protected function getHeaderActions(): array

@@ -8,6 +8,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Character;
 use App\Models\Inventory;
+use App\Models\LoadoutSlot;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
 use App\Services\Gem\GemService;
@@ -169,6 +170,47 @@ final class InventoryService
             }
 
             $character = $this->characters->findByTgId($character->tg_id);
+
+            return ActionResult::ok($character);
+        });
+    }
+
+    public function discardEquipped(Character $character, int $inventoryRowId): ActionResult
+    {
+        return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
+            $row = Inventory::query()
+                ->where('id', $inventoryRowId)
+                ->where('tg_id', $character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($row === null) {
+                return ActionResult::fail(__('errors.item_not_found'));
+            }
+
+            if (! $row->isEquipped()) {
+                return ActionResult::fail(__('errors.not_equipped'));
+            }
+
+            LoadoutSlot::query()
+                ->where('inventory_id', $row->id)
+                ->delete();
+
+            $row->unsetRelation('loadoutSlot');
+
+            $moved = $this->removeOneFromRow($row);
+
+            if (! $moved->ok) {
+                return $moved;
+            }
+
+            $character = $this->characters->findByTgId($character->tg_id);
+            $newCap = $this->characters->maxHp($character);
+            $character->current_hp = $this->characters->clampHp(
+                $character->current_hp,
+                $newCap,
+            );
+            $character->save();
 
             return ActionResult::ok($character);
         });

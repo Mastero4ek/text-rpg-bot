@@ -161,10 +161,17 @@ return [
             'stat_damage' => 'Урон',
             'stat_max_hp' => 'Макс. HP',
         ],
+        'unequip' => [
+            'label' => 'Снять',
+            'modal_heading' => 'Снять «:name»?',
+            'modal_submit' => 'Снять',
+            'notification' => 'Снято',
+            'no_stat_changes' => 'Характеристики не изменятся.',
+        ],
         'discard' => [
             'label' => 'Выбросить',
             'modal_heading' => 'Выбросить «:name»?',
-            'modal_description' => 'Предмет исчезнет из рюкзака без компенсации. У зелий списывается 1 шт.',
+            'modal_description' => 'Предмет исчезнет без компенсации. У зелий списывается 1 шт. Камни из сокетов вернутся в сумку.',
             'modal_submit' => 'Выбросить',
             'notification' => 'Выброшено',
         ],

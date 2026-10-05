@@ -175,6 +175,11 @@ final class GemPouchTable
                     ->options(GemTypeEnum::class),
             ])
             ->recordActions($recordActions)
+            ->recordUrl(fn (array $record): ?string => $record['in_catalog']
+                ? GemResource::getUrl('view', [
+                    'record' => $record['gem_id'],
+                ])
+                : null)
             ->toolbarActions([])
             ->headerActions([])
             ->emptyStateHeading(__('admin.empty.bag.heading'))

@@ -8,6 +8,12 @@ use App\Actions\Inventory\InventoryDiscardAction;
 use App\Actions\Inventory\InventoryEquipToSlotAction;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Filament\Resources\Characters\Pages\EditCharacter;
+use App\Filament\Resources\Characters\Pages\ViewCharacter;
+use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
+use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Filament\Support\EquipmentTypeProfileFilters;
 use App\Filament\Support\InventoryDurabilityText;
 use App\Filament\Support\InventoryEquipPreviewHtml;
@@ -34,6 +40,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
+use Livewire\Component;
 use RuntimeException;
 
 final class InventoriesTable
@@ -79,7 +86,7 @@ final class InventoriesTable
                     false: fn (Builder $query): Builder => $query->whereDoesntHave('loadoutSlot'),
                     blank: fn (Builder $query): Builder => $query,
                 ),
-        ], self::characterMutationActions());
+        ], self::characterMutationActions(), self::inventoryInstanceViewAction());
     }
 
     public static function configureForCharacter(Table $table): Table
@@ -89,7 +96,9 @@ final class InventoriesTable
             self::backpackItemColumns(),
             self::typeAndProfileFilters(),
             self::characterMutationActions(),
+            self::equipmentCatalogViewAction(),
         )
+            ->recordUrl(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
             ->emptyStateHeading(__('admin.empty.backpack.heading'))
             ->emptyStateDescription(__('admin.empty.backpack.description'));
     }
@@ -101,7 +110,9 @@ final class InventoriesTable
             self::backpackItemColumns(),
             self::typeAndProfileFilters(),
             [],
+            self::equipmentCatalogViewAction(),
         )
+            ->recordUrl(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
             ->emptyStateHeading(__('admin.empty.backpack.heading'))
             ->emptyStateDescription(__('admin.empty.backpack.description'));
     }
@@ -202,23 +213,55 @@ final class InventoriesTable
      * @param  list<\Filament\Tables\Filters\BaseFilter>  $filters
      * @param  list<Action>  $recordActions
      */
-    private static function finishTable(Table $table, array $columns, array $filters, array $recordActions): Table
-    {
+    private static function finishTable(
+        Table $table,
+        array $columns,
+        array $filters,
+        array $recordActions,
+        Action $viewAction,
+    ): Table {
         return $table
             ->defaultSort('id', 'asc')
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipment', 'loadoutSlot']))
             ->columns($columns)
             ->filters($filters)
             ->recordActions([
-                ViewAction::make()
-                    ->icon('heroicon-o-eye')
-                    ->color(Color::Teal)
-                    ->label('')
-                    ->tooltip(__('admin.actions.view.label')),
+                $viewAction,
                 ...$recordActions,
             ])
             ->toolbarActions([])
             ->headerActions([]);
+    }
+
+    private static function equipmentCatalogUrl(Inventory $record): ?string
+    {
+        if ($record->equipment === null) {
+            return null;
+        }
+
+        return EquipmentResource::getUrl('view', [
+            'record' => $record->item_id,
+        ]);
+    }
+
+    private static function equipmentCatalogViewAction(): Action
+    {
+        return Action::make('view')
+            ->icon('heroicon-o-eye')
+            ->color(Color::Teal)
+            ->label('')
+            ->tooltip(__('admin.actions.view.label'))
+            ->url(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
+            ->visible(fn (Inventory $record): bool => $record->equipment !== null);
+    }
+
+    private static function inventoryInstanceViewAction(): ViewAction
+    {
+        return ViewAction::make()
+            ->icon('heroicon-o-eye')
+            ->color(Color::Teal)
+            ->label('')
+            ->tooltip(__('admin.actions.view.label'));
     }
 
     /**
@@ -246,7 +289,7 @@ final class InventoriesTable
             ]))
             ->modalDescription(__('admin.actions.discard.modal_description'))
             ->modalSubmitActionLabel(__('admin.actions.discard.modal_submit'))
-            ->action(function (Inventory $record): void {
+            ->action(function (Inventory $record, Component $livewire): void {
                 $character = $record->character;
 
                 if (! $character instanceof Character) {
@@ -266,6 +309,14 @@ final class InventoriesTable
                         ->send();
 
                     return;
+                }
+
+                if ($livewire instanceof BackpackRelationManager) {
+                    if ($result->character instanceof Character) {
+                        $livewire->ownerRecord = $result->character;
+                    }
+
+                    $livewire->dispatch('character-gems-changed')->to(BagRelationManager::class);
                 }
 
                 Notification::make()
@@ -333,7 +384,7 @@ final class InventoriesTable
 
                 return $fields;
             })
-            ->action(function (Inventory $record, array $data): void {
+            ->action(function (Inventory $record, array $data, Component $livewire): void {
                 $character = $record->character;
 
                 if (! $character instanceof Character) {
@@ -375,6 +426,14 @@ final class InventoriesTable
 
                     return;
                 }
+
+                if ($livewire instanceof BackpackRelationManager && $result->character instanceof Character) {
+                    $livewire->ownerRecord = $result->character;
+                }
+
+                $livewire->dispatch('character-loadout-changed')->to(LoadoutRelationManager::class);
+                $livewire->dispatch('character-vitals-changed')->to(EditCharacter::class);
+                $livewire->dispatch('character-vitals-changed')->to(ViewCharacter::class);
 
                 Notification::make()
                     ->title(__('admin.actions.equip.notification'))

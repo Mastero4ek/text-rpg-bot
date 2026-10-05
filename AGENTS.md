@@ -9,7 +9,7 @@
   - Dev bot: long polling (`php artisan telegram:poll`) when `TELEGRAM_WEBHOOK_URL` is empty.
   - Prod bot: webhook `POST /telegram/webhook` when `TELEGRAM_WEBHOOK_URL` is set. `telegram:poll` must refuse to start. Secret token + Telegram IP allowlist.
   - `TELEGRAM_ASYNC=true` only in production (Redis queue → `ProcessTelegramUpdateJob`). Local: sync.
-- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); collapsed view-only **Экипировка** (`loadout_slots`) + **Рюкзак** (`inventories` unequipped) + **Сумка** (`gem_pouch`); CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
+- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); collapsed **Экипировка** (`loadout_slots`, Unequip на Edit) + **Рюкзак** (`inventories` unequipped) + **Сумка** (`gem_pouch`); CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
 - No public landing, no Mini App in MVP, no platform widget API.
 
 ## Layer structure

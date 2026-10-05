@@ -103,8 +103,17 @@ final class BackpackRelationManager extends RelationManager
     }
 
     #[On('character-gems-changed')]
-    public function refreshAfterCharacterGemsChanged(): void
+    #[On('character-loadout-changed')]
+    public function refreshAfterExternalChange(): void
     {
+        $owner = $this->getOwnerRecord();
+
+        if ($owner instanceof Character) {
+            $owner->refresh();
+            $this->ownerRecord = $owner;
+            $this->inventoryMaxRows = $owner->inventory_max_rows;
+        }
+
         $this->resetTable();
     }
 
