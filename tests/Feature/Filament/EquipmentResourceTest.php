@@ -199,12 +199,12 @@ it('filters equipment table by type', function (): void {
         ->assertCanNotSeeTableRecords([$armor]);
 });
 
-it('filters equipment table by slot', function (): void {
+it('filters equipment table by profile', function (): void {
     $weapon = Equipment::query()->findOrFail('knife_0');
     $armor = Equipment::query()->findOrFail('heavy_0');
 
     livewire(ListEquipment::class)
-        ->filterTable('slot', SlotEnum::ARMOR->value)
+        ->filterTable('profile', ProfileEnum::HEAVY->value)
         ->assertCanSeeTableRecords([$armor])
         ->assertCanNotSeeTableRecords([$weapon]);
 });

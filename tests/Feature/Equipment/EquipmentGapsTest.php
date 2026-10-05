@@ -29,9 +29,9 @@ it('renders gear text with damage range broken slot and totals', function (): vo
     $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $helm = inventory()->findOwned($p->tg_id, 'mobile_0');
 
-    expect(inventory()->equip($p, $knife->id)->ok)->toBeTrue();
+    expect(loadout()->equip($p, $knife->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
-    expect(inventory()->equip($p, $helm->id)->ok)->toBeTrue();
+    expect(loadout()->equip($p, $helm->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
 
     $knife->durability = 0;
@@ -135,12 +135,12 @@ it('rejects repair and omits unrepairable gear from smith lists', function (): v
     $p->gold = 10_000;
     $p->save();
 
-    $repair = inventory()->repair($p, $cap->id);
+    $repair = repair()->repair($p, $cap->id);
 
     expect($repair->ok)->toBeFalse()
         ->and($repair->error)->toBe(__('errors.cannot_repair'))
-        ->and(inventory()->damagedList($p->tg_id))->toHaveCount(0)
-        ->and(inventory()->repairAll($p)->ok)->toBeFalse();
+        ->and(repair()->damagedList($p->tg_id))->toHaveCount(0)
+        ->and(repair()->repairAll($p)->ok)->toBeFalse();
 
     $cap->refresh();
     expect($cap->durability)->toBe(10);
@@ -162,15 +162,15 @@ it('repairs only normal-tier gear on repair all', function (): void {
     $vip->durability = 10;
     $vip->save();
 
-    expect(inventory()->damagedList($p->tg_id))->toHaveCount(1)
-        ->and(inventory()->damagedList($p->tg_id)->first()->item_id)->toBe('mobile_0')
-        ->and(inventory()->damagedVipList($p->tg_id))->toHaveCount(1);
+    expect(repair()->damagedList($p->tg_id))->toHaveCount(1)
+        ->and(repair()->damagedList($p->tg_id)->first()->item_id)->toBe('mobile_0')
+        ->and(repair()->damagedVipList($p->tg_id))->toHaveCount(1);
 
-    $goldCost = inventory()->repairAllGoldCost($p);
+    $goldCost = repair()->repairAllGoldCost($p);
     $p->gold = $goldCost;
     $p->save();
 
-    $ok = inventory()->repairAll($p);
+    $ok = repair()->repairAll($p);
     expect($ok->ok)->toBeTrue();
 
     $cap->refresh();
@@ -203,7 +203,7 @@ it('does not wear unequipped inventory rows after a fight', function (): void {
     $bag->durability = 10;
     $bag->save();
 
-    inventory()->applyFightWearAfterWin($p, 0);
+    loadout()->applyFightWearAfterWin($p, 0);
 
     $knuckles->refresh();
     $bag->refresh();
@@ -211,7 +211,7 @@ it('does not wear unequipped inventory rows after a fight', function (): void {
 
     expect($knuckles->durability)->toBe(10 - $loss)
         ->and($bag->durability)->toBe(10)
-        ->and($bag->is_equipped)->toBeFalse();
+        ->and($bag->isEquipped())->toBeFalse();
 });
 
 it('counts pierce wear only from pierced block hits', function (): void {
@@ -253,7 +253,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
     $knuckles->durability = 20;
     $knuckles->save();
 
-    inventory()->applyFightWearAfterWin(characters()->findByTgId($p->tg_id), $fight->pierce_count);
+    loadout()->applyFightWearAfterWin(characters()->findByTgId($p->tg_id), $fight->pierce_count);
     $knuckles->refresh();
 
     $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;

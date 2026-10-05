@@ -17,6 +17,8 @@ final class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             EquipmentSeeder::class,
             GemSeeder::class,
+            CharacterSeeder::class,
+            FightSeeder::class,
         ]);
     }
 }

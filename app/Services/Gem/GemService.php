@@ -51,7 +51,7 @@ final class GemService
 
             $equipped = Inventory::query()
                 ->where('tg_id', $locked->tg_id)
-                ->where('is_equipped', true)
+                ->equipped()
                 ->orderBy('id')
                 ->get();
 
@@ -96,6 +96,32 @@ final class GemService
             }
 
             return $destroyedNames;
+        });
+    }
+
+    public function discardFromPouch(Character $character, int $pouchIndex): ActionResult
+    {
+        return DB::transaction(function () use ($character, $pouchIndex): ActionResult {
+            $locked = Character::query()
+                ->where('tg_id', $character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked === null) {
+                return ActionResult::fail(__('errors.item_not_found'));
+            }
+
+            $pouch = $this->pouch($locked);
+
+            if (! array_key_exists($pouchIndex, $pouch)) {
+                return ActionResult::fail(__('errors.gem_not_in_pouch'));
+            }
+
+            unset($pouch[$pouchIndex]);
+            $locked->gem_pouch = array_values($pouch);
+            $locked->save();
+
+            return ActionResult::ok($this->freshCharacter($locked->tg_id));
         });
     }
 
@@ -219,6 +245,41 @@ final class GemService
         }
 
         return $def->gemSlots;
+    }
+
+    public function moveSocketedToPouch(Character $character, Inventory $row): void
+    {
+        $instances = $this->socketedInstances($row);
+
+        if ($instances === []) {
+            if (is_array($row->socketed_gems) && $row->socketed_gems !== []) {
+                $row->socketed_gems = [];
+                $row->save();
+            }
+
+            return;
+        }
+
+        $locked = Character::query()
+            ->where('tg_id', $character->tg_id)
+            ->lockForUpdate()
+            ->first();
+
+        if ($locked === null) {
+            throw new RuntimeException("Character {$character->tg_id} missing.");
+        }
+
+        $pouch = $this->pouch($locked);
+
+        foreach ($instances as $instance) {
+            $pouch[] = $instance;
+        }
+
+        $locked->gem_pouch = $pouch;
+        $locked->save();
+
+        $row->socketed_gems = [];
+        $row->save();
     }
 
     public function mfFromSocketed(Inventory $row): Mf

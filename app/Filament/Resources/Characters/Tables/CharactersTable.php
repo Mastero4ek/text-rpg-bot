@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\Tables;
 
 use App\Actions\Character\CharacterDeleteAction;
+use App\Filament\Concerns\HasAppearanceColumn;
 use App\Models\Character;
 use App\Services\Game\GameConfig;
 use Filament\Actions\BulkActionGroup;
@@ -20,15 +21,19 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use RuntimeException;
 
 final class CharactersTable
 {
+    use HasAppearanceColumn;
+
     public static function configure(Table $table): Table
     {
         return $table
             ->defaultSort('updated_at', 'desc')
             ->columns([
+                self::appearanceColumn(),
                 TextColumn::make('username')
                     ->label(__('admin.labels.username'))
                     ->searchable(['username', 'tg_id'])
@@ -149,7 +154,8 @@ final class CharactersTable
                         ->icon(null)
                         ->color(Color::Amber),
                 ]),
-            ]);
+            ])
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('media'));
     }
 
     /**

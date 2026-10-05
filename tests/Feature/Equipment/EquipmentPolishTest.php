@@ -15,7 +15,7 @@ it('adds extra durability loss per pierce on win', function (): void {
     $knuckles->durability = 10;
     $knuckles->save();
 
-    inventory()->applyFightWearAfterWin($p, 3);
+    loadout()->applyFightWearAfterWin($p, 3);
     $knuckles->refresh();
 
     $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;

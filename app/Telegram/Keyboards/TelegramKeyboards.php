@@ -20,8 +20,11 @@ final class TelegramKeyboards
     {
         return self::inline([
             [self::cb(__('menu.profile'), 'menu:profile')],
+            [
+                self::cb(__('menu.backpack'), 'menu:inv'),
+                self::cb(__('menu.bag'), 'menu:bag'),
+            ],
             [self::cb(__('menu.gear'), 'menu:gear')],
-            [self::cb(__('menu.inventory'), 'menu:inv')],
             [self::cb(__('menu.shop'), 'menu:shop')],
             [self::cb(__('menu.smith'), 'menu:smith')],
             [self::cb(__('menu.fight'), 'menu:fight')],
@@ -180,6 +183,7 @@ final class TelegramKeyboards
 
         $rows[] = [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')];
         $rows[] = [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')];
+        $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
         $rows[] = [self::cb(__('menu.back'), 'menu:home')];
 
         return self::inline($rows);

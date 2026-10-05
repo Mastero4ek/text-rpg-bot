@@ -6,6 +6,7 @@ namespace App\Services\Shop;
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Models\Character;
+use App\Models\Inventory;
 use App\Services\Character\CharacterService;
 use App\Services\Inventory\InventoryService;
 use App\Support\Equipment\EquipmentDef;
@@ -61,6 +62,10 @@ final class ShopService
                 return ActionResult::fail(__('errors.already_owned'));
             }
 
+            if ($this->inventory->isFull($character)) {
+                return ActionResult::fail(__('errors.inventory_full'));
+            }
+
             if (! $this->debitPrice($tgId, $def)) {
                 return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
@@ -84,6 +89,58 @@ final class ShopService
         return $this->buyShopPotion($tgId, $this->catalog->shopStaminaPotionId());
     }
 
+    public function sell(Character $character, int $inventoryRowId): ActionResult
+    {
+        return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
+            $row = Inventory::query()
+                ->where('id', $inventoryRowId)
+                ->where('tg_id', $character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($row === null) {
+                return ActionResult::fail(__('errors.item_not_found'));
+            }
+
+            if ($row->isEquipped()) {
+                return ActionResult::fail(__('errors.unequip_first'));
+            }
+
+            if (! $this->catalog->hasItem($row->item_id)) {
+                return ActionResult::fail(__('errors.cannot_sell'));
+            }
+
+            $def = $this->catalog->findItem($row->item_id);
+            $payout = $this->inventory->sellPayout($row);
+
+            $this->inventory->removeOne($row);
+
+            if ($payout > 0) {
+                $locked = Character::query()
+                    ->where('tg_id', $character->tg_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($locked === null) {
+                    return ActionResult::fail(__('errors.item_not_found'));
+                }
+
+                if ($def->currency === CurrencyEnum::GOLD) {
+                    $locked->gold += $payout;
+                } else {
+                    $locked->silver += $payout;
+                }
+
+                $locked->save();
+            }
+
+            return ActionResult::okWithDef(
+                $this->characters->findByTgId($character->tg_id),
+                $def,
+            );
+        });
+    }
+
     private function buyShopPotion(int $tgId, string $itemId): ActionResult
     {
         return DB::transaction(function () use ($tgId, $itemId): ActionResult {
@@ -93,6 +150,10 @@ final class ShopService
 
             if ($character === null) {
                 return ActionResult::fail($this->notEnoughMessage($def->currency));
+            }
+
+            if (! $this->inventory->canAcceptItem($character, $itemId)) {
+                return ActionResult::fail(__('errors.inventory_full'));
             }
 
             if (! $this->debitPrice($tgId, $def)) {

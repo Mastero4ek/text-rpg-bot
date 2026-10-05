@@ -7,11 +7,14 @@ namespace App\Filament\Resources\Characters;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
-use App\Filament\Resources\Characters\RelationManagers\InventoriesRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Resources\Characters\Schemas\CharacterForm;
 use App\Filament\Resources\Characters\Tables\CharactersTable;
 use App\Models\Character;
 use BackedEnum;
+use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -41,7 +44,7 @@ final class CharacterResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['equippedInventories']);
+        return parent::getEloquentQuery()->with(['loadoutSlots']);
     }
 
     public static function getModelLabel(): string
@@ -79,7 +82,11 @@ final class CharacterResource extends Resource
     public static function getRelations(): array
     {
         return [
-            'inventories' => InventoriesRelationManager::class,
+            RelationGroup::make(__('admin.navigation.characters'), [
+                LoadoutRelationManager::class,
+                BackpackRelationManager::class,
+                BagRelationManager::class,
+            ]),
         ];
     }
 

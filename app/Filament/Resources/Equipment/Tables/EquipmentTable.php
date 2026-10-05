@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Equipment\Tables;
 
-use App\Enums\Equipment\SlotEnum;
-use App\Enums\Equipment\TypeEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
+use App\Filament\Support\EquipmentTypeProfileFilters;
 use App\Models\Equipment;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -19,7 +18,6 @@ use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -44,6 +42,12 @@ final class EquipmentTable
                     ->sortable(),
                 TextColumn::make('item_type')
                     ->label(__('admin.labels.item_type'))
+                    ->badge()
+                    ->alignCenter()
+                    ->placeholder('-')
+                    ->sortable(),
+                TextColumn::make('profile')
+                    ->label(__('admin.labels.profile'))
                     ->badge()
                     ->alignCenter()
                     ->placeholder('-')
@@ -76,14 +80,8 @@ final class EquipmentTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('item_type')
-                    ->label(__('admin.labels.item_type'))
-                    ->native(false)
-                    ->options(TypeEnum::class),
-                SelectFilter::make('slot')
-                    ->label(__('admin.labels.slot'))
-                    ->native(false)
-                    ->options(SlotEnum::class),
+                EquipmentTypeProfileFilters::itemType(),
+                EquipmentTypeProfileFilters::profile(),
                 TernaryFilter::make('in_shop')
                     ->label(__('admin.labels.in_shop'))
                     ->native(false),

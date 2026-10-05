@@ -16,6 +16,7 @@ use App\Support\Game\Mf;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use RuntimeException;
 
 final class CharacterService
@@ -141,11 +142,35 @@ final class CharacterService
             $character->last_stamina_update = now();
             $character->stat_points = $start['statPoints'];
             $character->gem_ward_charges = 0;
+            $character->inventory_max_rows = $this->defaultInventoryMaxRows();
             $character->arena_points = 0;
             $character->premium_until = null;
             $character->save();
 
             return $character;
+        });
+    }
+
+    public function setInventoryMaxRows(Character $character, int $maxRows): Character
+    {
+        if ($maxRows < 1) {
+            throw new InvalidArgumentException('Inventory max rows must be >= 1.');
+        }
+
+        return DB::transaction(function () use ($character, $maxRows): Character {
+            $locked = Character::query()
+                ->whereKey($character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked === null) {
+                throw new ModelNotFoundException('Character not found.');
+            }
+
+            $locked->inventory_max_rows = $maxRows;
+            $locked->save();
+
+            return $locked;
         });
     }
 
@@ -460,10 +485,10 @@ final class CharacterService
                 'gold' => $character->gold,
                 'stamina' => $character->current_stamina,
                 'maxStamina' => $this->maxStamina($character),
-                'potions' => Inventory::query()
+                'potions' => (int) Inventory::query()
                     ->where('tg_id', $character->tg_id)
                     ->where('item_type', TypeEnum::POTION)
-                    ->count(),
+                    ->sum('quantity'),
                 'exp' => $need,
                 'str' => $character->strength,
                 'agi' => $character->agility,
@@ -676,6 +701,27 @@ final class CharacterService
         }
 
         return $rows;
+    }
+
+    private function defaultInventoryMaxRows(): int
+    {
+        $settings = $this->config->settings();
+
+        if (! array_key_exists('inventory', $settings) || ! is_array($settings['inventory'])) {
+            throw new RuntimeException('settings.inventory missing.');
+        }
+
+        $inventory = $settings['inventory'];
+
+        if (! array_key_exists('maxRows', $inventory) || ! is_int($inventory['maxRows'])) {
+            throw new RuntimeException('settings.inventory.maxRows missing.');
+        }
+
+        if ($inventory['maxRows'] < 1) {
+            throw new RuntimeException('settings.inventory.maxRows must be >= 1.');
+        }
+
+        return $inventory['maxRows'];
     }
 
     /**

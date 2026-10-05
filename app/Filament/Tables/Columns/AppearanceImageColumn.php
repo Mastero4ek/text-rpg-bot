@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Tables\Columns;
 
+use App\Filament\Support\ResourceSvg;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 
@@ -54,7 +55,7 @@ final class AppearanceImageColumn extends SpatieMediaLibraryImageColumn
         $height = $this->getImageHeight();
 
         if ($height === null) {
-            $height = '2.5rem';
+            $height = '40px';
         }
 
         $width = $this->getImageWidth();
@@ -77,12 +78,7 @@ final class AppearanceImageColumn extends SpatieMediaLibraryImageColumn
 
         return '<div class="fi-ta-image ' . e($circularClass) . ' ' . e($alignmentClass) . '">'
             . '<div class="fi-ta-appearance-placeholder" style="' . $sizeStyle . '">'
-            . '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" '
-            . 'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-            . '<rect x="14" y="20" width="36" height="28" rx="4"/>'
-            . '<circle cx="32" cy="34" r="7"/>'
-            . '<path d="M24 20l3-5h10l3 5"/>'
-            . '</svg>'
+            . ResourceSvg::markup('appearance-camera.svg')
             . '</div>'
             . '</div>';
     }

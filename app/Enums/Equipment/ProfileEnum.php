@@ -52,6 +52,26 @@ enum ProfileEnum: string implements HasColor, HasLabel
         return [self::HEAL, self::STAMINA];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public static function optionsForType(?TypeEnum $type): array
+    {
+        if ($type instanceof TypeEnum) {
+            $profiles = self::forType($type);
+        } else {
+            $profiles = self::cases();
+        }
+
+        $options = [];
+
+        foreach ($profiles as $profile) {
+            $options[$profile->value] = $profile->getLabel();
+        }
+
+        return $options;
+    }
+
     public function allowsDualWield(): bool
     {
         return $this === self::KNIFE || $this === self::KNUCKLES;

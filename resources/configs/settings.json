@@ -1,4 +1,11 @@
 {
+    "inventory": {
+        "maxRows": 50,
+        "potionMaxStack": 5
+    },
+    "shop": {
+        "sellRatioPermille": 500
+    },
     "repair": {
         "silverPerMissingPoint": 2,
         "goldRepairAllDivisor": 15

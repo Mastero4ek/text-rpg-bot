@@ -11,6 +11,8 @@ use App\Services\Combat\CombatService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\LoadoutService;
+use App\Services\Inventory\RepairService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
@@ -37,6 +39,16 @@ function characters(): CharacterService
 function inventory(): InventoryService
 {
     return app(InventoryService::class);
+}
+
+function loadout(): LoadoutService
+{
+    return app(LoadoutService::class);
+}
+
+function repair(): RepairService
+{
+    return app(RepairService::class);
 }
 
 function shopService(): ShopService
@@ -70,7 +82,7 @@ function giveStarterKnuckles(int $tgId): Inventory
 function giveAndEquipStarterKnuckles(Character $character): Character
 {
     $row = giveStarterKnuckles($character->tg_id);
-    $equip = inventory()->equip($character, $row->id);
+    $equip = loadout()->equip($character, $row->id);
 
     if (! $equip->ok || ! $equip->character instanceof Character) {
         throw new RuntimeException('Failed to equip starter knuckles in test.');
@@ -86,7 +98,7 @@ function equipItemToSlot(Character $character, string $itemId, SlotEnum $slot): 
     }
 
     $row = inventory()->findOwned($character->tg_id, $itemId);
-    $equip = inventory()->equipToSlot($character, $row->id, $slot);
+    $equip = loadout()->equipToSlot($character, $row->id, $slot);
 
     if (! $equip->ok || ! $equip->character instanceof Character) {
         throw new RuntimeException("Failed to equip {$itemId} to {$slot->value} in test.");

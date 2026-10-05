@@ -52,7 +52,13 @@ final class StatsQuest
             }
 
             if (! $this->inventory->owns($character->tg_id, $this->shop->mailShirtId())) {
-                $this->inventory->addItem($character->tg_id, $this->shop->mailShirt()->itemId);
+                $mailShirtId = $this->shop->mailShirtId();
+
+                if (! $this->inventory->canAcceptItem($character, $mailShirtId)) {
+                    return ActionResult::fail(__('errors.inventory_full'));
+                }
+
+                $this->inventory->addItem($character->tg_id, $mailShirtId);
             }
 
             $reward = $this->reward();

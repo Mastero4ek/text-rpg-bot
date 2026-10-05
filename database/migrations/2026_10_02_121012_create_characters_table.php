@@ -34,6 +34,7 @@ return new class extends Migration
             $table->integer('stat_points')->default(3);
             $table->json('gem_pouch')->nullable();
             $table->unsignedInteger('gem_ward_charges')->default(0);
+            $table->unsignedInteger('inventory_max_rows')->default(50);
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();
             $table->timestamps();

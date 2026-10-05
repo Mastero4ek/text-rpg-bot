@@ -36,11 +36,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $stat_points
  * @property list<mixed>|null $gem_pouch
  * @property int $gem_ward_charges
+ * @property int $inventory_max_rows
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Inventory> $inventories
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, LoadoutSlot> $loadoutSlots
  */
 #[Fillable([
     'tg_id',
@@ -64,6 +67,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'stat_points',
     'gem_pouch',
     'gem_ward_charges',
+    'inventory_max_rows',
     'arena_points',
     'premium_until',
 ])]
@@ -79,14 +83,6 @@ final class Character extends Model implements HasMedia
     protected $keyType = 'int';
 
     /**
-     * @return HasMany<Inventory, $this>
-     */
-    public function equippedInventories(): HasMany
-    {
-        return $this->inventories()->where('is_equipped', true);
-    }
-
-    /**
      * @return HasOne<Fight, $this>
      */
     public function fight(): HasOne
@@ -100,6 +96,14 @@ final class Character extends Model implements HasMedia
     public function inventories(): HasMany
     {
         return $this->hasMany(Inventory::class, 'tg_id', 'tg_id');
+    }
+
+    /**
+     * @return HasMany<LoadoutSlot, $this>
+     */
+    public function loadoutSlots(): HasMany
+    {
+        return $this->hasMany(LoadoutSlot::class, 'tg_id', 'tg_id');
     }
 
     public function registerMediaCollections(): void
@@ -134,6 +138,7 @@ final class Character extends Model implements HasMedia
             'stat_points' => 'integer',
             'gem_pouch' => 'array',
             'gem_ward_charges' => 'integer',
+            'inventory_max_rows' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
         ];

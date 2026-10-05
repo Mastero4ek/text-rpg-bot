@@ -132,16 +132,16 @@ it('repairs all damaged gear for gold', function (): void {
     $boots->durability = 10;
     $boots->save();
 
-    $goldCost = inventory()->repairAllGoldCost($p);
+    $goldCost = repair()->repairAllGoldCost($p);
     expect($goldCost)->toBeGreaterThan(0);
 
     $p->gold = $goldCost - 1;
     $p->save();
-    expect(inventory()->repairAll($p)->ok)->toBeFalse();
+    expect(repair()->repairAll($p)->ok)->toBeFalse();
 
     $p->gold = $goldCost;
     $p->save();
-    $ok = inventory()->repairAll($p);
+    $ok = repair()->repairAll($p);
     expect($ok->ok)->toBeTrue()
         ->and($ok->character->gold)->toBe(0);
 
@@ -157,7 +157,7 @@ it('applies extra durability loss after lose', function (): void {
     $knuckles->durability = 5;
     $knuckles->save();
 
-    inventory()->applyFightWearAfterLose($p, 0);
+    loadout()->applyFightWearAfterLose($p, 0);
     $knuckles->refresh();
 
     $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
@@ -192,6 +192,40 @@ it('rejects buy and socket for disabled gem', function (): void {
     $p = giveAndEquipStarterKnuckles($p);
     $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     expect(app(GemService::class)->socket($p, $knuckles->id, 0)->ok)->toBeFalse();
+});
+
+it('discards a gem from pouch by index and reindexes remaining entries', function (): void {
+    $p = characters()->createDraft(8311);
+    $p->gem_pouch = [
+        ['gem_id' => 'ruby_0', 'durability' => 3],
+        ['gem_id' => 'emerald_0', 'durability' => 8],
+        ['gem_id' => 'sapphire_0', 'durability' => 5],
+    ];
+    $p->save();
+
+    $discard = app(GemService::class)->discardFromPouch($p, 1);
+
+    expect($discard->ok)->toBeTrue();
+
+    $pouch = app(GemService::class)->pouch($discard->character);
+
+    expect($pouch)->toHaveCount(2)
+        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
+        ->and($pouch[0]['durability'])->toBe(3)
+        ->and($pouch[1]['gem_id'])->toBe('sapphire_0')
+        ->and($pouch[1]['durability'])->toBe(5);
+});
+
+it('rejects discarding a gem index that is not in the pouch', function (): void {
+    $p = characters()->createDraft(8312);
+    $p->gem_pouch = gemPouch('ruby_0');
+    $p->save();
+
+    $discard = app(GemService::class)->discardFromPouch($p, 4);
+
+    expect($discard->ok)->toBeFalse()
+        ->and($discard->error)->toBe(__('errors.gem_not_in_pouch'))
+        ->and(app(GemService::class)->pouch($p->fresh()))->toHaveCount(1);
 });
 
 it('sockets by pouch index when pouch has duplicate gem ids', function (): void {

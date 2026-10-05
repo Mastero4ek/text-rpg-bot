@@ -8,12 +8,15 @@ use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Actions\Gem\GemBuyAction;
 use App\Actions\Gem\GemBuyWardAction;
+use App\Actions\Gem\GemDiscardFromPouchAction;
 use App\Actions\Gem\GemSocketAction;
 use App\Actions\Gem\GemUnsocketAction;
+use App\Actions\Inventory\InventoryDiscardAction;
 use App\Actions\Inventory\InventoryRepairAction;
 use App\Actions\Inventory\InventoryRepairAllAction;
 use App\Actions\Inventory\InventoryRepairVipAction;
 use App\Enums\Equipment\SlotEnum;
+use App\Enums\Equipment\TypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Inventory;
@@ -22,8 +25,10 @@ use App\Services\Gem\GemCatalog;
 use App\Services\Gem\GemService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Inventory\LoadoutService;
+use App\Services\Inventory\RepairService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
+use App\Support\Game\GemMfText;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -36,12 +41,15 @@ final class MenuHandler
         private readonly GemService $gemService,
         private readonly GemCatalog $gemCatalog,
         private readonly LoadoutService $loadout,
+        private readonly RepairService $repairs,
         private readonly OnboardingService $onboarding,
         private readonly InventoryRepairAction $repair,
         private readonly InventoryRepairAllAction $repairAll,
         private readonly InventoryRepairVipAction $repairVip,
+        private readonly InventoryDiscardAction $discardItemAction,
         private readonly GemBuyAction $buyGem,
         private readonly GemBuyWardAction $buyGemWard,
+        private readonly GemDiscardFromPouchAction $discardGemAction,
         private readonly GemSocketAction $socketGem,
         private readonly GemUnsocketAction $unsocketGem,
         private readonly CharacterSpendStatPointAction $spendStatPoint,
@@ -159,7 +167,7 @@ final class MenuHandler
 
         if (preg_match('/^gear:uneq:(' . $slotPattern . ')$/', $data, $m) === 1) {
             $slot = SlotEnum::from($m[1]);
-            $res = $this->inventory->unequipSlot($player, $slot);
+            $res = $this->loadout->unequipSlot($player, $slot);
 
             if (! $res->ok || ! $res->character instanceof Character) {
                 $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -178,8 +186,20 @@ final class MenuHandler
             return;
         }
 
-        if ($data === 'menu:inv') {
-            $this->inventoryScreen($responder, $player);
+        if ($data === 'menu:inv' || $data === 'inv:filter:all') {
+            $this->backpackScreen($responder, $player, null);
+
+            return;
+        }
+
+        if ($data === 'menu:bag' || $data === 'bag:filter:gems') {
+            $this->bagScreen($responder, $player);
+
+            return;
+        }
+
+        if (preg_match('/^inv:filter:(WEAPON|ARMOR|JEWELRY|POTION)$/', $data, $m) === 1) {
+            $this->backpackScreen($responder, $player, TypeEnum::from($m[1]));
 
             return;
         }
@@ -212,6 +232,36 @@ final class MenuHandler
             return;
         }
 
+        if (preg_match('/^inv:discard:(\d+)$/', $data, $m) === 1) {
+            $this->discardConfirmScreen($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^inv:discard_yes:(\d+)$/', $data, $m) === 1) {
+            $this->runDiscardItem($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^bag:gem:(\d+)$/', $data, $m) === 1) {
+            $this->bagGemCardScreen($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^bag:discard:(\d+)$/', $data, $m) === 1) {
+            $this->bagDiscardConfirmScreen($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^bag:discard_yes:(\d+)$/', $data, $m) === 1) {
+            $this->runDiscardGem($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
         if ($data === 'menu:stats') {
             $this->statsScreen($responder, $player);
 
@@ -237,7 +287,7 @@ final class MenuHandler
 
     private function equip(TelegramResponder $responder, Character $player, int $rowId): void
     {
-        $res = $this->inventory->equip($player, $rowId);
+        $res = $this->loadout->equip($player, $rowId);
 
         if (! $res->ok || ! $res->character instanceof Character || ! $res->item instanceof Inventory) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -254,7 +304,7 @@ final class MenuHandler
         int $rowId,
         SlotEnum $slot,
     ): void {
-        $res = $this->inventory->equipToSlot($player, $rowId, $slot);
+        $res = $this->loadout->equipToSlot($player, $rowId, $slot);
 
         if (! $res->ok || ! $res->character instanceof Character || ! $res->item instanceof Inventory) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -272,17 +322,13 @@ final class MenuHandler
         $hasCandidate = false;
 
         foreach ($rows as $row) {
-            if ($row->is_equipped) {
-                continue;
-            }
-
             if (! $this->shop->hasItem($row->item_id)) {
                 continue;
             }
 
             $def = $this->shop->findItem($row->item_id);
 
-            if (! $this->inventory->fitsEquipSlot($player, $def, $slot)) {
+            if (! $this->loadout->fitsEquipSlot($player, $def, $slot)) {
                 continue;
             }
 
@@ -340,7 +386,7 @@ final class MenuHandler
         }
 
         $buttons[] = [[
-            'text' => __('menu.inventory'),
+            'text' => __('menu.backpack'),
             'callback_data' => 'menu:inv',
         ]];
         $buttons[] = [[
@@ -365,24 +411,31 @@ final class MenuHandler
         $responder->edit($text, ['inline_keyboard' => $buttons]);
     }
 
-    private function inventoryScreen(TelegramResponder $responder, Character $player): void
+    private function backpackScreen(TelegramResponder $responder, Character $player, ?TypeEnum $type): void
     {
-        $rows = $this->inventory->list($player->tg_id);
+        $rows = $this->inventory->listByType($player->tg_id, $type);
+        $current = $this->inventory->rowCount($player->tg_id);
+        $max = $this->inventory->maxRows($player);
         $buttons = [];
 
         foreach ($rows as $row) {
-            if ($row->is_equipped) {
-                $mark = '✅ ';
-            } else {
-                $mark = '';
-            }
-
             $buttons[] = [[
-                'text' => $mark . $row->item_name,
+                'text' => $this->inventory->rowLabel($row),
                 'callback_data' => 'inv:card:' . $row->id,
             ]];
         }
 
+        $buttons[] = [
+            ['text' => __('menu.backpack_filter_all'), 'callback_data' => 'inv:filter:all'],
+            ['text' => TypeEnum::WEAPON->getLabel(), 'callback_data' => 'inv:filter:WEAPON'],
+        ];
+        $buttons[] = [
+            ['text' => TypeEnum::ARMOR->getLabel(), 'callback_data' => 'inv:filter:ARMOR'],
+            ['text' => TypeEnum::JEWELRY->getLabel(), 'callback_data' => 'inv:filter:JEWELRY'],
+        ];
+        $buttons[] = [
+            ['text' => TypeEnum::POTION->getLabel(), 'callback_data' => 'inv:filter:POTION'],
+        ];
         $buttons[] = [[
             'text' => __('menu.gear'),
             'callback_data' => 'menu:gear',
@@ -392,10 +445,80 @@ final class MenuHandler
             'callback_data' => 'menu:home',
         ]];
 
-        $responder->edit(
-            $this->inventory->inventoryText($rows),
-            ['inline_keyboard' => $buttons],
-        );
+        if ($type instanceof TypeEnum) {
+            $header = __('profile.backpack_header', [
+                'current' => $current,
+                'max' => $max,
+                'filter' => $type->getLabel(),
+            ]);
+        } else {
+            $header = __('profile.backpack_header_all', [
+                'current' => $current,
+                'max' => $max,
+            ]);
+        }
+
+        if ($rows->isEmpty()) {
+            if ($type instanceof TypeEnum) {
+                $body = __('profile.inventory_empty_type');
+            } else {
+                $body = __('profile.inventory_empty');
+            }
+        } else {
+            $body = $this->inventory->inventoryText($rows);
+        }
+
+        $responder->edit($header . "\n\n" . $body, ['inline_keyboard' => $buttons]);
+    }
+
+    private function bagScreen(TelegramResponder $responder, Character $player): void
+    {
+        $pouch = $this->gemService->pouch($player);
+        $buttons = [];
+
+        foreach ($pouch as $index => $instance) {
+            if (! $this->gemCatalog->has($instance['gem_id'])) {
+                $label = $instance['gem_id'] . ' (' . $instance['durability'] . ')';
+            } else {
+                $def = $this->gemCatalog->find($instance['gem_id']);
+                $label = __('profile.bag_gem_row', [
+                    'name' => $def->name,
+                    'current' => $instance['durability'],
+                    'max' => $def->maxDurability,
+                ]);
+            }
+
+            $buttons[] = [[
+                'text' => $label,
+                'callback_data' => 'bag:gem:' . $index,
+            ]];
+        }
+
+        $buttons[] = [[
+            'text' => __('menu.bag_filter_gems'),
+            'callback_data' => 'bag:filter:gems',
+        ]];
+        $buttons[] = [[
+            'text' => __('menu.to_smith'),
+            'callback_data' => 'smith:gems',
+        ]];
+        $buttons[] = [[
+            'text' => __('menu.back'),
+            'callback_data' => 'menu:home',
+        ]];
+
+        $header = __('profile.bag_header', [
+            'count' => count($pouch),
+            'ward' => $player->gem_ward_charges,
+        ]);
+
+        if ($pouch === []) {
+            $text = $header . "\n\n" . __('profile.bag_empty');
+        } else {
+            $text = $header;
+        }
+
+        $responder->edit($text, ['inline_keyboard' => $buttons]);
     }
 
     private function itemCardScreen(
@@ -439,7 +562,7 @@ final class MenuHandler
 
         $buttons = [];
 
-        if ($row->is_equipped) {
+        if ($row->isEquipped()) {
             $buttons[] = [[
                 'text' => __('menu.unequip_item', ['name' => $row->item_name]),
                 'callback_data' => 'inv:uneq:' . $row->id,
@@ -458,6 +581,13 @@ final class MenuHandler
             }
         }
 
+        if (! $row->isEquipped()) {
+            $buttons[] = [[
+                'text' => __('menu.discard_item'),
+                'callback_data' => 'inv:discard:' . $row->id,
+            ]];
+        }
+
         if ($pickSlot instanceof SlotEnum) {
             $buttons[] = [[
                 'text' => __('menu.back_to_slot', ['slot' => $pickSlot->getLabel()]),
@@ -465,7 +595,7 @@ final class MenuHandler
             ]];
         } else {
             $buttons[] = [[
-                'text' => __('menu.inventory'),
+                'text' => __('menu.backpack'),
                 'callback_data' => 'menu:inv',
             ]];
         }
@@ -476,6 +606,177 @@ final class MenuHandler
         ]];
 
         $responder->edit($text, ['inline_keyboard' => $buttons]);
+    }
+
+    private function bagDiscardConfirmScreen(TelegramResponder $responder, Character $player, int $pouchIndex): void
+    {
+        $pouch = $this->gemService->pouch($player);
+
+        if (! array_key_exists($pouchIndex, $pouch)) {
+            $responder->reply(__('errors.gem_not_in_pouch'), null);
+
+            return;
+        }
+
+        $instance = $pouch[$pouchIndex];
+
+        if ($this->gemCatalog->has($instance['gem_id'])) {
+            $name = $this->gemCatalog->find($instance['gem_id'])->name;
+        } else {
+            $name = $instance['gem_id'];
+        }
+
+        $responder->edit(
+            __('profile.discard_gem_confirm', ['name' => $name]),
+            ['inline_keyboard' => [
+                [[
+                    'text' => __('menu.discard_confirm_yes'),
+                    'callback_data' => 'bag:discard_yes:' . $pouchIndex,
+                ]],
+                [[
+                    'text' => __('menu.bag'),
+                    'callback_data' => 'menu:bag',
+                ]],
+            ]],
+        );
+    }
+
+    private function bagGemCardScreen(TelegramResponder $responder, Character $player, int $pouchIndex): void
+    {
+        $pouch = $this->gemService->pouch($player);
+
+        if (! array_key_exists($pouchIndex, $pouch)) {
+            $responder->reply(__('errors.gem_not_in_pouch'), null);
+
+            return;
+        }
+
+        $instance = $pouch[$pouchIndex];
+
+        if (! $this->gemCatalog->has($instance['gem_id'])) {
+            $responder->reply(__('errors.gem_not_found'), null);
+
+            return;
+        }
+
+        $def = $this->gemCatalog->find($instance['gem_id']);
+        $text = __('profile.bag_gem_card', [
+            'name' => $def->name,
+            'type' => $def->type->getLabel(),
+            'mf' => GemMfText::forDef($def),
+            'current' => $instance['durability'],
+            'max' => $def->maxDurability,
+        ]);
+
+        $responder->edit($text, ['inline_keyboard' => [
+            [[
+                'text' => __('menu.discard_item'),
+                'callback_data' => 'bag:discard:' . $pouchIndex,
+            ]],
+            [[
+                'text' => __('menu.to_smith'),
+                'callback_data' => 'smith:gems',
+            ]],
+            [[
+                'text' => __('menu.bag'),
+                'callback_data' => 'menu:bag',
+            ]],
+        ]]);
+    }
+
+    private function discardConfirmScreen(TelegramResponder $responder, Character $player, int $rowId): void
+    {
+        $row = Inventory::query()
+            ->where('id', $rowId)
+            ->where('tg_id', $player->tg_id)
+            ->first();
+
+        if ($row === null) {
+            $responder->reply(__('errors.item_not_found'), null);
+
+            return;
+        }
+
+        if ($row->isEquipped()) {
+            $responder->reply(__('errors.unequip_first'), null);
+
+            return;
+        }
+
+        $hasGems = $this->gemService->socketedInstances($row) !== [];
+
+        if ($hasGems) {
+            $text = __('profile.discard_confirm', ['name' => $this->inventory->rowLabel($row)]);
+        } else {
+            $text = __('profile.discard_confirm_plain', ['name' => $this->inventory->rowLabel($row)]);
+        }
+
+        $responder->edit($text, ['inline_keyboard' => [
+            [[
+                'text' => __('menu.discard_confirm_yes'),
+                'callback_data' => 'inv:discard_yes:' . $row->id,
+            ]],
+            [[
+                'text' => __('menu.backpack'),
+                'callback_data' => 'inv:card:' . $row->id,
+            ]],
+        ]]);
+    }
+
+    private function runDiscardGem(TelegramResponder $responder, Character $player, int $pouchIndex): void
+    {
+        $pouch = $this->gemService->pouch($player);
+
+        if (! array_key_exists($pouchIndex, $pouch)) {
+            $responder->reply(__('errors.gem_not_in_pouch'), null);
+
+            return;
+        }
+
+        $instance = $pouch[$pouchIndex];
+
+        if ($this->gemCatalog->has($instance['gem_id'])) {
+            $name = $this->gemCatalog->find($instance['gem_id'])->name;
+        } else {
+            $name = $instance['gem_id'];
+        }
+
+        $res = $this->discardGemAction->handle($player, $pouchIndex);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->reply(__('profile.discarded', ['name' => $name]), null);
+        $this->bagScreen($responder, $res->character);
+    }
+
+    private function runDiscardItem(TelegramResponder $responder, Character $player, int $rowId): void
+    {
+        $row = Inventory::query()
+            ->where('id', $rowId)
+            ->where('tg_id', $player->tg_id)
+            ->first();
+
+        if ($row === null) {
+            $responder->reply(__('errors.item_not_found'), null);
+
+            return;
+        }
+
+        $name = $row->item_name;
+        $res = $this->discardItemAction->handle($player, $rowId);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+            return;
+        }
+
+        $responder->reply(__('profile.discarded', ['name' => $name]), null);
+        $this->backpackScreen($responder, $res->character, null);
     }
 
     private function pouchText(Character $player): string
@@ -640,11 +941,11 @@ final class MenuHandler
 
     private function smithScreen(TelegramResponder $responder, Character $player): void
     {
-        $rows = $this->inventory->damagedList($player->tg_id);
+        $rows = $this->repairs->damagedList($player->tg_id);
         $buttons = [];
 
         foreach ($rows as $row) {
-            $cost = $this->inventory->repairCost($row);
+            $cost = $this->repairs->repairCost($row);
             $buttons[] = [[
                 'text' => __('smith.repair_btn', [
                     'name' => $row->item_name,
@@ -659,7 +960,7 @@ final class MenuHandler
         if (! $rows->isEmpty()) {
             $buttons[] = [[
                 'text' => __('smith.repair_all_btn', [
-                    'price' => $this->inventory->repairAllGoldCost($player),
+                    'price' => $this->repairs->repairAllGoldCost($player),
                 ]),
                 'callback_data' => 'smith:repair_all',
             ]];
@@ -719,13 +1020,13 @@ final class MenuHandler
 
     private function smithVipScreen(TelegramResponder $responder, Character $player): void
     {
-        $rows = $this->inventory->damagedVipList($player->tg_id);
+        $rows = $this->repairs->damagedVipList($player->tg_id);
         $buttons = [];
-        $goldPass = $this->inventory->repairVipGoldPass();
+        $goldPass = $this->repairs->repairVipGoldPass();
         $hasPremium = $this->characters->hasActivePremium($player);
 
         foreach ($rows as $row) {
-            $silver = $this->inventory->repairVipSilverCost($row);
+            $silver = $this->repairs->repairVipSilverCost($row);
 
             if ($hasPremium) {
                 $btn = __('smith.vip_repair_btn_premium', [
@@ -1031,7 +1332,7 @@ final class MenuHandler
         }
 
         $player = $this->characters->applyRegen($player);
-        $player = $this->inventory->dropUnmetEquipped($player);
+        $player = $this->loadout->dropUnmetEquipped($player);
 
         if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
             $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
@@ -1105,7 +1406,7 @@ final class MenuHandler
 
     private function unequip(TelegramResponder $responder, Character $player, int $rowId): void
     {
-        $res = $this->inventory->unequip($player, $rowId);
+        $res = $this->loadout->unequip($player, $rowId);
 
         if (! $res->ok || ! $res->character instanceof Character || ! $res->item instanceof Inventory) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);

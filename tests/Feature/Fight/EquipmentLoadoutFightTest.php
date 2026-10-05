@@ -25,7 +25,7 @@ it('maps armor by zone and sets two block slots with shield', function (): void 
 
     foreach (['mobile_0', 'heavy_0', 'mobile_2', 'mobile_1', 'heavy_1'] as $itemId) {
         $row = inventory()->findOwned($p->tg_id, $itemId);
-        $res = inventory()->equip($p, $row->id);
+        $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
         $p = $res->character;
     }
@@ -51,22 +51,22 @@ it('unequips left hand when shield is equipped and the reverse', function (): vo
 
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
     $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    expect($knife->is_equipped)->toBeTrue()
+    expect($knife->isEquipped())->toBeTrue()
         ->and($knife->slot)->toBe(SlotEnum::LEFT_HAND);
 
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
-    $eqShield = inventory()->equip($p, $shield->id);
+    $eqShield = loadout()->equip($p, $shield->id);
     expect($eqShield->ok)->toBeTrue();
     $knife->refresh();
     $shield->refresh();
-    expect($shield->is_equipped)->toBeTrue()
-        ->and($knife->is_equipped)->toBeFalse();
+    expect($shield->isEquipped())->toBeTrue()
+        ->and($knife->isEquipped())->toBeFalse();
 
     $p = equipItemToSlot($eqShield->character, 'knife_0', SlotEnum::LEFT_HAND);
     $knife->refresh();
     $shield->refresh();
-    expect($knife->is_equipped)->toBeTrue()
-        ->and($shield->is_equipped)->toBeFalse();
+    expect($knife->isEquipped())->toBeTrue()
+        ->and($shield->isEquipped())->toBeFalse();
 });
 
 it('sums left hand weapon damage and jewelry mf into loadout', function (): void {
@@ -84,7 +84,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
 
     foreach (['focus_0', 'vital_0'] as $itemId) {
         $row = inventory()->findOwned($p->tg_id, $itemId);
-        $res = inventory()->equip($p, $row->id);
+        $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
         $p = $res->character;
     }
@@ -134,7 +134,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
 
     inventory()->addItem($p->tg_id, 'heavy_1');
     $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
-    $eq = inventory()->equip($p, $shield->id);
+    $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
@@ -238,9 +238,9 @@ it('keeps gloves and rings equippable in gameplay slots', function (): void {
     $gloves = inventory()->findOwned($p->tg_id, 'mobile_3');
     $ring = inventory()->findOwned($p->tg_id, 'focus_0');
 
-    expect(inventory()->equip($p, $gloves->id)->ok)->toBeTrue();
+    expect(loadout()->equip($p, $gloves->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
-    expect(inventory()->equip($p, $ring->id)->ok)->toBeTrue();
+    expect(loadout()->equip($p, $ring->id)->ok)->toBeTrue();
 
     $loadout = app(LoadoutService::class)->forCharacter(characters()->findByTgId($p->tg_id));
     expect($loadout->row(SlotEnum::GLOVES))->toBeInstanceOf(Inventory::class)

@@ -9,6 +9,7 @@ use App\Actions\Character\CharacterGrantSilverAction;
 use App\Actions\Character\CharacterGrantStatPointsAction;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Actions\Character\CharacterResetStatsForGoldAction;
+use App\Actions\Character\CharacterSetInventoryMaxRowsAction;
 use App\Actions\Character\CharacterSetLocationAction;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
@@ -99,6 +100,18 @@ it('set location failure does not notify', function (): void {
 
     expect($res->ok)->toBeFalse();
     $this->assertDatabaseCount('notifications', 0);
+});
+
+it('set inventory max rows persists capacity and rejects zero', function (): void {
+    $p = characters()->createDraft(1207);
+
+    $updated = app(CharacterSetInventoryMaxRowsAction::class)->handle($p, 12);
+
+    expect($updated->inventory_max_rows)->toBe(12)
+        ->and($p->fresh()->inventory_max_rows)->toBe(12);
+
+    expect(fn () => app(CharacterSetInventoryMaxRowsAction::class)->handle($updated, 0))
+        ->toThrow(InvalidArgumentException::class);
 });
 
 it('delete action clears fight inventory and force deletes', function (): void {

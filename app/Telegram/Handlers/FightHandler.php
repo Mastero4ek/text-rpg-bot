@@ -571,7 +571,7 @@ final class FightHandler
         }
 
         $player = $this->characters->applyRegen($player);
-        $player = $this->inventory->dropUnmetEquipped($player);
+        $player = $this->loadout->dropUnmetEquipped($player);
 
         if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
             $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);

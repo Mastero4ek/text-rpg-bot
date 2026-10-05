@@ -17,14 +17,14 @@ it('keeps ordinary smith from repairing vip-tier gear', function (): void {
     $knife->save();
 
     expect(Equipment::query()->findOrFail('knife_0')->repair_tier)->toBe(RepairEnum::VIP)
-        ->and(inventory()->damagedList($p->tg_id))->toHaveCount(0)
-        ->and(inventory()->damagedVipList($p->tg_id))->toHaveCount(1);
+        ->and(repair()->damagedList($p->tg_id))->toHaveCount(0)
+        ->and(repair()->damagedVipList($p->tg_id))->toHaveCount(1);
 
     $p->silver = 10_000;
     $p->save();
 
-    expect(inventory()->repair($p, $knife->id)->ok)->toBeFalse()
-        ->and(inventory()->repair($p, $knife->id)->error)->toBe(__('errors.needs_vip_smith'));
+    expect(repair()->repair($p, $knife->id)->ok)->toBeFalse()
+        ->and(repair()->repair($p, $knife->id)->error)->toBe(__('errors.needs_vip_smith'));
 });
 
 it('repairs vip gear with gold pass when no premium', function (): void {
@@ -38,17 +38,17 @@ it('repairs vip gear with gold pass when no premium', function (): void {
     $axe->durability = $axe->max_durability - 4;
     $axe->save();
 
-    $silver = inventory()->repairVipSilverCost($axe);
-    $goldPass = inventory()->repairVipGoldPass();
+    $silver = repair()->repairVipSilverCost($axe);
+    $goldPass = repair()->repairVipGoldPass();
 
     $p->silver = $silver;
     $p->gold = $goldPass - 1;
     $p->save();
-    expect(inventory()->repairVip($p, $axe->id)->ok)->toBeFalse();
+    expect(repair()->repairVip($p, $axe->id)->ok)->toBeFalse();
 
     $p->gold = $goldPass;
     $p->save();
-    $ok = inventory()->repairVip($p, $axe->id);
+    $ok = repair()->repairVip($p, $axe->id);
     expect($ok->ok)->toBeTrue()
         ->and($ok->character->gold)->toBe(0)
         ->and($ok->character->silver)->toBe(0);
@@ -69,12 +69,12 @@ it('skips gold pass for premium on vip repair', function (): void {
     $club->durability = $club->max_durability - 3;
     $club->save();
 
-    $silver = inventory()->repairVipSilverCost($club);
+    $silver = repair()->repairVipSilverCost($club);
     $p->silver = $silver;
     $p->gold = 0;
     $p->save();
 
-    $ok = inventory()->repairVip($p, $club->id);
+    $ok = repair()->repairVip($p, $club->id);
     expect($ok->ok)->toBeTrue()
         ->and($ok->character->gold)->toBe(0)
         ->and($ok->character->silver)->toBe(0);
@@ -91,8 +91,8 @@ it('charges vip silver multiplier over base repair cost', function (): void {
     $knife->durability = $knife->max_durability - 5;
     $knife->save();
 
-    $base = inventory()->repairCost($knife);
+    $base = repair()->repairCost($knife);
     $mult = gameConfig()->settings()['vipRepair']['silverMultiplier'];
 
-    expect(inventory()->repairVipSilverCost($knife))->toBe($base * $mult);
+    expect(repair()->repairVipSilverCost($knife))->toBe($base * $mult);
 });

@@ -292,7 +292,7 @@ final class FightRoundService
 
     private function loadoutAfterDrop(Character $character): EquippedLoadout
     {
-        $character = $this->inventory->dropUnmetEquipped($character);
+        $character = $this->loadout->dropUnmetEquipped($character);
 
         return $this->loadout->forCharacter($character);
     }
