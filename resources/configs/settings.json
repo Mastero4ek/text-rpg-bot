@@ -1,82 +1,476 @@
 {
-  "repair": {
-    "silverPerMissingPoint": 2,
-    "goldRepairAllDivisor": 15
-  },
-  "vipRepair": {
-    "silverMultiplier": 2,
-    "goldPass": 1
-  },
-  "wear": {
-    "extraLossOnLose": 1,
-    "extraLossPerPierce": 1
-  },
-  "gems": {
-    "breakChanceOnLose": 40,
-    "unsocketSilver": 5,
-    "wardGold": 2,
-    "premiumBreakChanceReduce": 15
-  },
-  "combat": {
-    "aiDefendChance": 0.55,
-    "dualWieldMinLevel": 1,
-    "turnTimeoutSeconds": 180,
-    "mfPerStat": 3,
-    "stamina": {
-      "maxPerStrength": 6,
-      "drainDefend": 4,
-      "drainAttack": 7,
-      "drainExtraOnCrit": 3,
-      "drainExtraOnDodge": 3
+    "repair": {
+        "silverPerMissingPoint": 2,
+        "goldRepairAllDivisor": 15
     },
-    "damage": {
-      "base": 8,
-      "statMultiplier": 2,
-      "varianceMin": 0.85,
-      "varianceRange": 0.3
+    "vipRepair": {
+        "silverMultiplier": 2,
+        "goldPass": 1
     },
-    "stances": {
-      "ATTACK": {
-        "damageMult": 1.15,
-        "dodge": -6,
-        "antiCrit": -4,
-        "crit": 4,
-        "antiDodge": 2
-      },
-      "DEFEND": {
-        "damageMult": 0.85,
-        "dodge": 8,
-        "antiCrit": 6,
-        "crit": -2,
-        "antiDodge": 0
-      }
+    "wear": {
+        "extraLossOnLose": 1,
+        "extraLossPerPierce": 1
     },
-    "pierce": {
-      "chanceMin": 5,
-      "chanceMax": 55,
-      "chanceBase": 8,
-      "chanceScale": 0.5,
-      "multMin": 1.25,
-      "multRange": 0.75
+    "gems": {
+        "breakChanceOnLose": 40,
+        "unsocketSilver": 5,
+        "wardGold": 2,
+        "premiumBreakChanceReduce": 15
     },
-    "crit": {
-      "chanceMin": 5,
-      "chanceMax": 55,
-      "chanceBase": 8,
-      "chanceScale": 0.5,
-      "mult": 2
+    "combat": {
+        "aiDefendChance": 0.55,
+        "dualWieldMinLevel": 1,
+        "turnTimeoutSeconds": 180,
+        "mfPerStat": 3,
+        "stamina": {
+            "maxPerStrength": 6,
+            "drainDefend": 4,
+            "drainAttack": 7,
+            "drainExtraOnCrit": 3,
+            "drainExtraOnDodge": 3
+        },
+        "damage": {
+            "base": 8,
+            "statMultiplier": 2,
+            "varianceMin": 0.85,
+            "varianceRange": 0.3
+        },
+        "stances": {
+            "ATTACK": {
+                "damageMult": 1.15,
+                "dodge": -6,
+                "antiCrit": -4,
+                "crit": 4,
+                "antiDodge": 2
+            },
+            "DEFEND": {
+                "damageMult": 0.85,
+                "dodge": 8,
+                "antiCrit": 6,
+                "crit": -2,
+                "antiDodge": 0
+            }
+        },
+        "pierce": {
+            "chanceMin": 5,
+            "chanceMax": 55,
+            "chanceBase": 8,
+            "chanceScale": 0.5,
+            "multMin": 1.25,
+            "multRange": 0.75
+        },
+        "crit": {
+            "chanceMin": 5,
+            "chanceMax": 55,
+            "chanceBase": 8,
+            "chanceScale": 0.5,
+            "mult": 2
+        },
+        "dodge": {
+            "chanceMin": 5,
+            "chanceMax": 65,
+            "chanceBase": 8,
+            "chanceScale": 0.5
+        },
+        "pveRewards": {
+            "expBase": 20,
+            "expPerLevel": 5,
+            "silverMin": 10,
+            "silverMax": 20
+        }
     },
-    "dodge": {
-      "chanceMin": 5,
-      "chanceMax": 65,
-      "chanceBase": 8,
-      "chanceScale": 0.5
-    },
-    "pveRewards": {
-      "expBase": 20,
-      "expPerLevel": 5,
-      "silverMin": 10,
-      "silverMax": 20
+    "character": {
+        "maxHp": {
+            "perVitality": 6
+        },
+        "regen": {
+            "tickSeconds": 10,
+            "vitalityDivisor": 2,
+            "vitalityBonus": 1
+        },
+        "staminaRegen": {
+            "tickSeconds": 10,
+            "strengthDivisor": 2,
+            "strengthBonus": 1
+        },
+        "level": {
+            "max": 15,
+            "upsPerLevel": 3,
+            "statPointsOnUp": 1,
+            "statPointsOnLevel": 3,
+            "statPointsOnLevelAbove": 10,
+            "levelAboveThreshold": 10
+        },
+        "statReset": {
+            "goldCost": 10
+        },
+        "experience": [
+            {
+                "level": 0,
+                "exp": 0,
+                "kind": "start",
+                "silverGain": 0
+            },
+            {
+                "level": 0,
+                "exp": 50,
+                "kind": "up",
+                "silverGain": 8
+            },
+            {
+                "level": 0,
+                "exp": 100,
+                "kind": "up",
+                "silverGain": 8
+            },
+            {
+                "level": 0,
+                "exp": 150,
+                "kind": "up",
+                "silverGain": 8
+            },
+            {
+                "level": 1,
+                "exp": 200,
+                "kind": "level",
+                "silverGain": 17
+            },
+            {
+                "level": 1,
+                "exp": 300,
+                "kind": "up",
+                "silverGain": 9
+            },
+            {
+                "level": 1,
+                "exp": 400,
+                "kind": "up",
+                "silverGain": 9
+            },
+            {
+                "level": 1,
+                "exp": 500,
+                "kind": "up",
+                "silverGain": 9
+            },
+            {
+                "level": 2,
+                "exp": 600,
+                "kind": "level",
+                "silverGain": 21
+            },
+            {
+                "level": 2,
+                "exp": 750,
+                "kind": "up",
+                "silverGain": 10
+            },
+            {
+                "level": 2,
+                "exp": 900,
+                "kind": "up",
+                "silverGain": 10
+            },
+            {
+                "level": 2,
+                "exp": 1050,
+                "kind": "up",
+                "silverGain": 10
+            },
+            {
+                "level": 3,
+                "exp": 1200,
+                "kind": "level",
+                "silverGain": 25
+            },
+            {
+                "level": 3,
+                "exp": 1400,
+                "kind": "up",
+                "silverGain": 11
+            },
+            {
+                "level": 3,
+                "exp": 1600,
+                "kind": "up",
+                "silverGain": 11
+            },
+            {
+                "level": 3,
+                "exp": 1800,
+                "kind": "up",
+                "silverGain": 11
+            },
+            {
+                "level": 4,
+                "exp": 2000,
+                "kind": "level",
+                "silverGain": 29
+            },
+            {
+                "level": 4,
+                "exp": 2250,
+                "kind": "up",
+                "silverGain": 12
+            },
+            {
+                "level": 4,
+                "exp": 2500,
+                "kind": "up",
+                "silverGain": 12
+            },
+            {
+                "level": 4,
+                "exp": 2750,
+                "kind": "up",
+                "silverGain": 12
+            },
+            {
+                "level": 5,
+                "exp": 3000,
+                "kind": "level",
+                "silverGain": 33
+            },
+            {
+                "level": 5,
+                "exp": 3300,
+                "kind": "up",
+                "silverGain": 13
+            },
+            {
+                "level": 5,
+                "exp": 3600,
+                "kind": "up",
+                "silverGain": 13
+            },
+            {
+                "level": 5,
+                "exp": 3900,
+                "kind": "up",
+                "silverGain": 13
+            },
+            {
+                "level": 6,
+                "exp": 4200,
+                "kind": "level",
+                "silverGain": 37
+            },
+            {
+                "level": 6,
+                "exp": 4550,
+                "kind": "up",
+                "silverGain": 14
+            },
+            {
+                "level": 6,
+                "exp": 4900,
+                "kind": "up",
+                "silverGain": 14
+            },
+            {
+                "level": 6,
+                "exp": 5250,
+                "kind": "up",
+                "silverGain": 14
+            },
+            {
+                "level": 7,
+                "exp": 5600,
+                "kind": "level",
+                "silverGain": 41
+            },
+            {
+                "level": 7,
+                "exp": 6000,
+                "kind": "up",
+                "silverGain": 15
+            },
+            {
+                "level": 7,
+                "exp": 6400,
+                "kind": "up",
+                "silverGain": 15
+            },
+            {
+                "level": 7,
+                "exp": 6800,
+                "kind": "up",
+                "silverGain": 15
+            },
+            {
+                "level": 8,
+                "exp": 7200,
+                "kind": "level",
+                "silverGain": 45
+            },
+            {
+                "level": 8,
+                "exp": 7650,
+                "kind": "up",
+                "silverGain": 16
+            },
+            {
+                "level": 8,
+                "exp": 8100,
+                "kind": "up",
+                "silverGain": 16
+            },
+            {
+                "level": 8,
+                "exp": 8550,
+                "kind": "up",
+                "silverGain": 16
+            },
+            {
+                "level": 9,
+                "exp": 9000,
+                "kind": "level",
+                "silverGain": 49
+            },
+            {
+                "level": 9,
+                "exp": 9500,
+                "kind": "up",
+                "silverGain": 17
+            },
+            {
+                "level": 9,
+                "exp": 10000,
+                "kind": "up",
+                "silverGain": 17
+            },
+            {
+                "level": 9,
+                "exp": 10500,
+                "kind": "up",
+                "silverGain": 17
+            },
+            {
+                "level": 10,
+                "exp": 11000,
+                "kind": "level",
+                "silverGain": 53
+            },
+            {
+                "level": 10,
+                "exp": 11550,
+                "kind": "up",
+                "silverGain": 18
+            },
+            {
+                "level": 10,
+                "exp": 12100,
+                "kind": "up",
+                "silverGain": 18
+            },
+            {
+                "level": 10,
+                "exp": 12650,
+                "kind": "up",
+                "silverGain": 18
+            },
+            {
+                "level": 11,
+                "exp": 13200,
+                "kind": "level",
+                "silverGain": 57
+            },
+            {
+                "level": 11,
+                "exp": 13800,
+                "kind": "up",
+                "silverGain": 19
+            },
+            {
+                "level": 11,
+                "exp": 14400,
+                "kind": "up",
+                "silverGain": 19
+            },
+            {
+                "level": 11,
+                "exp": 15000,
+                "kind": "up",
+                "silverGain": 19
+            },
+            {
+                "level": 12,
+                "exp": 15600,
+                "kind": "level",
+                "silverGain": 61
+            },
+            {
+                "level": 12,
+                "exp": 16250,
+                "kind": "up",
+                "silverGain": 20
+            },
+            {
+                "level": 12,
+                "exp": 16900,
+                "kind": "up",
+                "silverGain": 20
+            },
+            {
+                "level": 12,
+                "exp": 17550,
+                "kind": "up",
+                "silverGain": 20
+            },
+            {
+                "level": 13,
+                "exp": 18200,
+                "kind": "level",
+                "silverGain": 65
+            },
+            {
+                "level": 13,
+                "exp": 18900,
+                "kind": "up",
+                "silverGain": 21
+            },
+            {
+                "level": 13,
+                "exp": 19600,
+                "kind": "up",
+                "silverGain": 21
+            },
+            {
+                "level": 13,
+                "exp": 20300,
+                "kind": "up",
+                "silverGain": 21
+            },
+            {
+                "level": 14,
+                "exp": 21000,
+                "kind": "level",
+                "silverGain": 69
+            },
+            {
+                "level": 14,
+                "exp": 21750,
+                "kind": "up",
+                "silverGain": 22
+            },
+            {
+                "level": 14,
+                "exp": 22500,
+                "kind": "up",
+                "silverGain": 22
+            },
+            {
+                "level": 14,
+                "exp": 23250,
+                "kind": "up",
+                "silverGain": 22
+            },
+            {
+                "level": 15,
+                "exp": 24000,
+                "kind": "level",
+                "silverGain": 73
+            }
+        ]
     }
-  }
 }

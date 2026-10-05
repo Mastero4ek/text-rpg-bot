@@ -20,6 +20,7 @@ enum ProfileEnum: string implements HasColor, HasLabel
     case KNIFE = 'KNIFE';
     case KNUCKLES = 'KNUCKLES';
     case MOBILE = 'MOBILE';
+    case STAMINA = 'STAMINA';
     case SWORD = 'SWORD';
     case VITAL = 'VITAL';
     case WARD = 'WARD';
@@ -48,7 +49,7 @@ enum ProfileEnum: string implements HasColor, HasLabel
             return [self::FOCUS, self::CHARM, self::VITAL];
         }
 
-        return [self::HEAL];
+        return [self::HEAL, self::STAMINA];
     }
 
     public function allowsDualWield(): bool
@@ -71,7 +72,7 @@ enum ProfileEnum: string implements HasColor, HasLabel
             self::HAMMER, self::CLUB, self::HEAVY => Color::Amber,
             self::WARD, self::CHARM => Color::Indigo,
             self::HEAL, self::VITAL => Color::Green,
-            self::KNIFE, self::KNUCKLES, self::MOBILE, self::SWORD => Color::Sky,
+            self::KNIFE, self::KNUCKLES, self::MOBILE, self::SWORD, self::STAMINA => Color::Sky,
         };
     }
 

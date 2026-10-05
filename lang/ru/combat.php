@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 return [
     'attack_choice' => [
-        'POTION' => 'Зелье',
+        'POTION' => 'Зелье HP',
+        'STAMINA_POTION' => 'Зелье выносливости',
     ],
     'kinds' => [
         'PVE' => 'PvE',
@@ -42,6 +43,7 @@ return [
     'hit' => ':attacker бьёт в :zone на :dmg',
     'no_potion_turn' => 'Нет зелий — ход без удара.',
     'drink_potion' => ':name пьёт зелье (+:heal HP)',
+    'drink_stamina_potion' => ':name пьёт зелье выносливости (+:heal 💚)',
     'status' => "⚔️ :player ❤️:hp/:maxHp 💚:stamina/:maxStamina\n😈 :enemy ❤️:ehp/:emax 💚:estamina/:emaxStamina",
     'turn_timeout' => 'Пропуск хода по таймауту.',
     'pick_stance' => "\n\nВыбери стойку:",
@@ -56,7 +58,8 @@ return [
     'gems_broke' => "\n\nКамни разрушены: :names.",
     'btn_attack' => '⚔ Атака',
     'btn_defend' => '🛡 Защита',
-    'btn_potion' => '🧪 Зелье (вместо удара)',
+    'btn_potion' => '🧪 Зелье HP (вместо удара)',
+    'btn_stamina_potion' => '💚 Зелье выносливости (вместо удара)',
     'btn_soldier' => 'Деревянный солдат [0]',
     'btn_wanderer' => 'Бродяга [ур. :level]',
     'pick_enemy' => 'Выбери противника:',

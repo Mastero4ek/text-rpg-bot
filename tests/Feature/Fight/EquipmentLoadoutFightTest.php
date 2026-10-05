@@ -49,8 +49,8 @@ it('unequips left hand when shield is equipped and the reverse', function (): vo
     $p = characters()->createDraft(8102);
     inventory()->addItem($p->tg_id, 'heavy_1');
 
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
-    $knife = inventory()->findOwned($p->tg_id, 'knife_4');
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     expect($knife->is_equipped)->toBeTrue()
         ->and($knife->slot)->toBe(SlotEnum::LEFT_HAND);
 
@@ -62,7 +62,7 @@ it('unequips left hand when shield is equipped and the reverse', function (): vo
     expect($shield->is_equipped)->toBeTrue()
         ->and($knife->is_equipped)->toBeFalse();
 
-    $p = equipItemToSlot($eqShield->character, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($eqShield->character, 'knife_0', SlotEnum::LEFT_HAND);
     $knife->refresh();
     $shield->refresh();
     expect($knife->is_equipped)->toBeTrue()
@@ -80,7 +80,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     $baseMin = app(LoadoutService::class)->forCharacter($p)->weaponDamageMin;
     $baseMax = app(LoadoutService::class)->forCharacter($p)->weaponDamageMax;
 
-    $p = equipItemToSlot($p, 'knife_4', SlotEnum::LEFT_HAND);
+    $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     foreach (['focus_0', 'vital_0'] as $itemId) {
         $row = inventory()->findOwned($p->tg_id, $itemId);
@@ -90,7 +90,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     }
 
     $loadout = app(LoadoutService::class)->forCharacter($p);
-    $knife = shopCatalog()->findItem('knife_4');
+    $knife = shopCatalog()->findItem('knife_0');
     $ring = shopCatalog()->findItem('focus_0');
     $amulet = shopCatalog()->findItem('vital_0');
 
@@ -106,10 +106,10 @@ it('sells new doll wearables from shop', function (): void {
     $p->silver = 500;
     $p->save();
 
-    foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'charm_0', 'vital_0', 'knife_4'] as $itemId) {
+    foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'vital_0', 'knife_0'] as $itemId) {
         $buy = shopService()->buyGear($p->tg_id, $itemId);
 
-        if ($itemId === 'knife_4') {
+        if ($itemId === 'knife_0') {
             $buy = shopService()->buyWeapon($p->tg_id, $itemId);
         }
 
@@ -233,10 +233,10 @@ it('resolves after one defend zone without shield', function (): void {
 it('keeps gloves and rings equippable in gameplay slots', function (): void {
     $p = characters()->createDraft(8107);
     inventory()->addItem($p->tg_id, 'mobile_3');
-    inventory()->addItem($p->tg_id, 'charm_0');
+    inventory()->addItem($p->tg_id, 'focus_0');
 
     $gloves = inventory()->findOwned($p->tg_id, 'mobile_3');
-    $ring = inventory()->findOwned($p->tg_id, 'charm_0');
+    $ring = inventory()->findOwned($p->tg_id, 'focus_0');
 
     expect(inventory()->equip($p, $gloves->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
@@ -244,5 +244,5 @@ it('keeps gloves and rings equippable in gameplay slots', function (): void {
 
     $loadout = app(LoadoutService::class)->forCharacter(characters()->findByTgId($p->tg_id));
     expect($loadout->row(SlotEnum::GLOVES))->toBeInstanceOf(Inventory::class)
-        ->and($loadout->row(SlotEnum::RING_2))->toBeInstanceOf(Inventory::class);
+        ->and($loadout->row(SlotEnum::RING_1))->toBeInstanceOf(Inventory::class);
 });

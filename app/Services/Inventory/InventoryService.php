@@ -81,6 +81,50 @@ final class InventoryService
         );
     }
 
+    public function consumePotion(int $tgId, ProfileEnum $profile): ActionResult
+    {
+        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
+            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
+        }
+
+        return DB::transaction(function () use ($tgId, $profile): ActionResult {
+            $rows = Inventory::query()
+                ->where('tg_id', $tgId)
+                ->where('item_type', TypeEnum::POTION)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $match = null;
+
+            foreach ($rows as $row) {
+                $def = $this->shop->findItem($row->item_id);
+
+                if ($def->profile !== $profile) {
+                    continue;
+                }
+
+                $match = $row;
+
+                break;
+            }
+
+            if ($match === null) {
+                return ActionResult::fail(__('combat.no_potion_turn'));
+            }
+
+            $def = $this->shop->findItem($match->item_id);
+
+            if ($def->effectValue === null) {
+                throw new RuntimeException("Potion {$match->item_id} has no effect_value.");
+            }
+
+            $match->delete();
+
+            return ActionResult::okWithDef($this->characters->findByTgId($tgId), $def);
+        });
+    }
+
     /**
      * @return Collection<int, Inventory>
      */
@@ -324,6 +368,41 @@ final class InventoryService
             ->where('tg_id', $tgId)
             ->where('item_id', $itemId)
             ->exists();
+    }
+
+    public function potionCount(int $tgId): int
+    {
+        return Inventory::query()
+            ->where('tg_id', $tgId)
+            ->where('item_type', TypeEnum::POTION)
+            ->count();
+    }
+
+    public function potionCountByProfile(int $tgId, ProfileEnum $profile): int
+    {
+        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
+            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
+        }
+
+        $count = 0;
+
+        foreach ($this->list($tgId) as $row) {
+            if ($row->item_type !== TypeEnum::POTION) {
+                continue;
+            }
+
+            if (! $this->shop->hasItem($row->item_id)) {
+                continue;
+            }
+
+            if ($this->shop->findItem($row->item_id)->profile !== $profile) {
+                continue;
+            }
+
+            $count++;
+        }
+
+        return $count;
     }
 
     public function repair(Character $character, int $inventoryRowId): ActionResult

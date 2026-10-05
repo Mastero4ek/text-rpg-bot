@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
+use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
@@ -23,9 +24,9 @@ it('renders gear text with damage range broken slot and totals', function (): vo
     $p->username = 'GearUi';
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_1');
+    inventory()->addItem($p->tg_id, 'knife_0');
     inventory()->addItem($p->tg_id, 'mobile_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_1');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $helm = inventory()->findOwned($p->tg_id, 'mobile_0');
 
     expect(inventory()->equip($p, $knife->id)->ok)->toBeTrue();
@@ -38,7 +39,7 @@ it('renders gear text with damage range broken slot and totals', function (): vo
 
     $loadout = app(LoadoutService::class)->forCharacter($p);
     $text = app(LoadoutService::class)->gearText($loadout);
-    $knifeDef = shopCatalog()->findItem('knife_1');
+    $knifeDef = shopCatalog()->findItem('knife_0');
     $helmDef = shopCatalog()->findItem('mobile_0');
 
     expect($text)->toContain(__('profile.gear_slot_broken', [
@@ -68,9 +69,9 @@ it('builds item card with damage range durability and empty gem socket', functio
     $p->username = 'CardUi';
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_1');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_1');
-    $def = shopCatalog()->findItem('knife_1');
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    $def = shopCatalog()->findItem('knife_0');
 
     $update = new TelegramUpdate([
         'update_id' => 9701,
@@ -146,12 +147,16 @@ it('rejects repair and omits unrepairable gear from smith lists', function (): v
 });
 
 it('repairs only normal-tier gear on repair all', function (): void {
+    $equipment = Equipment::query()->findOrFail('knife_0');
+    $equipment->repair_tier = RepairEnum::VIP;
+    $equipment->save();
+
     $p = characters()->createDraft(8704);
     inventory()->addItem($p->tg_id, 'mobile_0');
-    inventory()->addItem($p->tg_id, 'knife_3');
+    inventory()->addItem($p->tg_id, 'knife_0');
 
     $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
-    $vip = inventory()->findOwned($p->tg_id, 'knife_3');
+    $vip = inventory()->findOwned($p->tg_id, 'knife_0');
     $cap->durability = 10;
     $cap->save();
     $vip->durability = 10;

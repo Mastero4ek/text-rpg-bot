@@ -6,13 +6,17 @@ use App\Enums\Equipment\RepairEnum;
 use App\Models\Equipment;
 
 it('keeps ordinary smith from repairing vip-tier gear', function (): void {
+    $equipment = Equipment::query()->findOrFail('knife_0');
+    $equipment->repair_tier = RepairEnum::VIP;
+    $equipment->save();
+
     $p = characters()->createDraft(8401);
-    inventory()->addItem($p->tg_id, 'knife_3');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_3');
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $knife->durability = 10;
     $knife->save();
 
-    expect(Equipment::query()->findOrFail('knife_3')->repair_tier)->toBe(RepairEnum::VIP)
+    expect(Equipment::query()->findOrFail('knife_0')->repair_tier)->toBe(RepairEnum::VIP)
         ->and(inventory()->damagedList($p->tg_id))->toHaveCount(0)
         ->and(inventory()->damagedVipList($p->tg_id))->toHaveCount(1);
 
@@ -24,9 +28,13 @@ it('keeps ordinary smith from repairing vip-tier gear', function (): void {
 });
 
 it('repairs vip gear with gold pass when no premium', function (): void {
+    $equipment = Equipment::query()->findOrFail('axe_0');
+    $equipment->repair_tier = RepairEnum::VIP;
+    $equipment->save();
+
     $p = characters()->createDraft(8402);
-    inventory()->addItem($p->tg_id, 'axe_3');
-    $axe = inventory()->findOwned($p->tg_id, 'axe_3');
+    inventory()->addItem($p->tg_id, 'axe_0');
+    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
     $axe->durability = $axe->max_durability - 4;
     $axe->save();
 
@@ -50,10 +58,14 @@ it('repairs vip gear with gold pass when no premium', function (): void {
 });
 
 it('skips gold pass for premium on vip repair', function (): void {
+    $equipment = Equipment::query()->findOrFail('club_0');
+    $equipment->repair_tier = RepairEnum::VIP;
+    $equipment->save();
+
     $p = characters()->createDraft(8403);
     $p->premium_until = now()->addDay();
-    inventory()->addItem($p->tg_id, 'club_3');
-    $club = inventory()->findOwned($p->tg_id, 'club_3');
+    inventory()->addItem($p->tg_id, 'club_0');
+    $club = inventory()->findOwned($p->tg_id, 'club_0');
     $club->durability = $club->max_durability - 3;
     $club->save();
 
@@ -69,9 +81,13 @@ it('skips gold pass for premium on vip repair', function (): void {
 });
 
 it('charges vip silver multiplier over base repair cost', function (): void {
+    $equipment = Equipment::query()->findOrFail('knife_0');
+    $equipment->repair_tier = RepairEnum::VIP;
+    $equipment->save();
+
     $p = characters()->createDraft(8404);
-    inventory()->addItem($p->tg_id, 'knife_3');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_3');
+    inventory()->addItem($p->tg_id, 'knife_0');
+    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
     $knife->durability = $knife->max_durability - 5;
     $knife->save();
 

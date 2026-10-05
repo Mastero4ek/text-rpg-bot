@@ -10,7 +10,6 @@ use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
 use App\Services\Game\GameConfig;
 use App\Support\Game\Enemy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -21,7 +20,6 @@ final class FightService
 {
     public function __construct(
         private readonly CharacterService $characters,
-        private readonly CombatService $combat,
         private readonly GameConfig $config,
     ) {}
 
@@ -111,7 +109,8 @@ final class FightService
         return DB::transaction(function () use ($character, $enemy, $tutorial): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
 
-            $maxStamina = $this->combat->maxStamina($character->strength);
+            $character = $this->characters->applyRegen($character);
+            $maxStamina = $this->characters->maxStamina($character);
 
             $fight = new Fight;
             $fight->tg_id = $character->tg_id;
@@ -119,7 +118,10 @@ final class FightService
             $fight->tutorial = $tutorial;
             $fight->player_hp = $character->current_hp;
             $fight->player_max_hp = $this->characters->maxHp($character);
-            $fight->player_stamina = $maxStamina;
+            $fight->player_stamina = $this->characters->clampStamina(
+                $character->current_stamina,
+                $maxStamina,
+            );
             $fight->player_max_stamina = $maxStamina;
             $fight->enemy = $enemy->toArray();
             $fight->step = FightStepEnum::STANCE;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Character\CharacterResetStatsForGoldAction;
+use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Actions\Gem\GemBuyAction;
 use App\Actions\Gem\GemBuyWardAction;
 use App\Actions\Gem\GemSocketAction;
@@ -42,6 +44,8 @@ final class MenuHandler
         private readonly GemBuyWardAction $buyGemWard,
         private readonly GemSocketAction $socketGem,
         private readonly GemUnsocketAction $unsocketGem,
+        private readonly CharacterSpendStatPointAction $spendStatPoint,
+        private readonly CharacterResetStatsForGoldAction $resetStatsForGold,
         private readonly ShopCatalog $shop,
     ) {}
 
@@ -216,6 +220,18 @@ final class MenuHandler
 
         if (preg_match('/^stat:(STRENGTH|AGILITY|INSTINCT|VITALITY)$/', $data, $m) === 1) {
             $this->spendStat($responder, $player, $m[1]);
+
+            return;
+        }
+
+        if ($data === 'stat:reset') {
+            $this->statsResetConfirm($responder);
+
+            return;
+        }
+
+        if ($data === 'stat:reset_yes') {
+            $this->statsReset($responder, $player);
         }
     }
 
@@ -1028,7 +1044,7 @@ final class MenuHandler
 
     private function spendStat(TelegramResponder $responder, Character $player, string $stat): void
     {
-        $res = $this->characters->spendStatPoint($player, $stat);
+        $res = $this->spendStatPoint->handle($player, $stat);
 
         if (! $res->ok || ! $res->character instanceof Character) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -1036,46 +1052,54 @@ final class MenuHandler
             return;
         }
 
-        if ($res->character->stat_points > 0) {
-            $responder->edit(
-                __('profile.stats_left', [
-                    'points' => $res->character->stat_points,
-                    'str' => $res->character->strength,
-                    'agi' => $res->character->agility,
-                    'inst' => $res->character->instinct,
-                    'vit' => $res->character->vitality,
-                ]),
-                TelegramKeyboards::statsUpgrade(),
-            );
-
-            return;
-        }
-
         $responder->edit(
-            __('profile.stats_done', [
-                'profile' => $this->characters->profileText($res->character),
-            ]),
-            TelegramKeyboards::mainMenu(),
+            $this->characters->statsScreenText($res->character),
+            TelegramKeyboards::statsScreen(
+                $res->character->stat_points,
+                $this->characters->statResetGoldCost(),
+            ),
         );
     }
 
     private function statsScreen(TelegramResponder $responder, Character $player): void
     {
-        if ($player->stat_points <= 0) {
-            $responder->edit(__('profile.no_free_points'), TelegramKeyboards::mainMenu());
+        $responder->edit(
+            $this->characters->statsScreenText($player),
+            TelegramKeyboards::statsScreen(
+                $player->stat_points,
+                $this->characters->statResetGoldCost(),
+            ),
+        );
+    }
+
+    private function statsResetConfirm(TelegramResponder $responder): void
+    {
+        $responder->edit(
+            __('profile.stats_reset_confirm', [
+                'gold' => $this->characters->statResetGoldCost(),
+            ]),
+            TelegramKeyboards::statsResetConfirm(),
+        );
+    }
+
+    private function statsReset(TelegramResponder $responder, Character $player): void
+    {
+        $res = $this->resetStatsForGold->handle($player);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $responder->reply(TelegramResponder::errorMessage($res->error), null);
 
             return;
         }
 
         $responder->edit(
-            __('profile.stats_screen', [
-                'points' => $player->stat_points,
-                'str' => $player->strength,
-                'agi' => $player->agility,
-                'inst' => $player->instinct,
-                'vit' => $player->vitality,
+            __('profile.stats_reset_done', [
+                'screen' => $this->characters->statsScreenText($res->character),
             ]),
-            TelegramKeyboards::statsUpgrade(),
+            TelegramKeyboards::statsScreen(
+                $res->character->stat_points,
+                $this->characters->statResetGoldCost(),
+            ),
         );
     }
 

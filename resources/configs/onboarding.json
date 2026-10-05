@@ -9,8 +9,7 @@
     "vitality": 3,
     "statPoints": 3,
     "level": 0,
-    "exp": 0,
-    "potions": 0
+    "exp": 0
   },
   "rewards": {
     "tutorialWin": { "exp": 15, "silver": 2 },

@@ -268,10 +268,14 @@ it('creates jewelry with stat bonus and mf without weapon damage', function (): 
         ]))
         ->assertFormFieldVisible('stat_bonus')
         ->assertFormFieldVisible('mf_crit')
+        ->assertFormFieldVisible('req_level')
         ->assertFormFieldHidden('weapon_damage_min')
         ->assertFormFieldHidden('weapon_damage_max')
         ->assertFormFieldHidden('armor')
         ->assertFormFieldHidden('effect_value')
+        ->assertFormFieldHidden('max_durability')
+        ->assertFormFieldHidden('gem_slots')
+        ->assertFormFieldHidden('repairable')
         ->call('create')
         ->assertHasNoFormErrors();
 
@@ -283,6 +287,9 @@ it('creates jewelry with stat bonus and mf without weapon damage', function (): 
         ->and($created->mf_crit)->toBe(3)
         ->and($created->weapon_damage_min)->toBe(0)
         ->and($created->weapon_damage_max)->toBe(0)
+        ->and($created->max_durability)->toBeNull()
+        ->and($created->gem_slots)->toBeNull()
+        ->and($created->repairable)->toBeFalse()
         ->and(shopCatalog()->findItem($focusId)->statBonus)->toBe(4);
 });
 
@@ -331,21 +338,22 @@ it('resets combat fields and toggles visibility when type changes to potion', fu
             'mf_anti_dodge' => null,
             'mf_crit' => null,
             'mf_anti_crit' => null,
-            'slot' => null,
+            'slot' => SlotEnum::POCKET->value,
             'profile' => null,
             'item_id' => null,
         ])
         ->assertFormFieldHidden('weapon_damage_min')
         ->assertFormFieldHidden('weapon_damage_max')
         ->assertFormFieldHidden('mf_dodge')
+        ->assertFormFieldHidden('req_level')
+        ->assertFormFieldHidden('max_durability')
+        ->assertFormFieldHidden('gem_slots')
         ->assertFormFieldVisible('effect_value')
         ->fillForm([
-            'slot' => SlotEnum::POCKET->value,
             'profile' => ProfileEnum::HEAL,
             'effect_value' => 40,
             'name' => 'Зелье из оружия',
             'description' => 'После смены типа',
-            'repairable' => false,
         ])
         ->assertSchemaStateSet([
             'item_id' => $healId,
@@ -550,8 +558,8 @@ it('hides zone armor for gloves and clears it on save', function (): void {
     expect(Equipment::query()->findOrFail($mobileId)->armor)->toBe(0);
 });
 
-it('offers only HEAL potion profile in enum forType', function (): void {
-    expect(ProfileEnum::forType(TypeEnum::POTION))->toBe([ProfileEnum::HEAL]);
+it('offers HEAL and STAMINA potion profiles in enum forType', function (): void {
+    expect(ProfileEnum::forType(TypeEnum::POTION))->toBe([ProfileEnum::HEAL, ProfileEnum::STAMINA]);
 });
 
 /**

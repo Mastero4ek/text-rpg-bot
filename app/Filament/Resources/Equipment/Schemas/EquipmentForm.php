@@ -109,6 +109,7 @@ final class EquipmentForm
                     ->columns(5)
                     ->columnSpanFull()
                     ->collapsed()
+                    ->visible(fn (Get $get): bool => self::typeShowsRequirements(self::selectedType($get('item_type'))))
                     ->schema([
                         TextInput::make('req_level')
                             ->label(__('admin.labels.req_level'))
@@ -212,6 +213,7 @@ final class EquipmentForm
                     ->columns(4)
                     ->columnSpanFull()
                     ->collapsed()
+                    ->visible(fn (Get $get): bool => self::typeShowsDurability(self::selectedType($get('item_type'))))
                     ->schema([
                         Select::make('repair_tier')
                             ->label(__('admin.labels.repair_tier'))
@@ -255,6 +257,74 @@ final class EquipmentForm
                             ->minValue(0),
                     ]),
             ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function sanitizeCatalogFieldsForType(array $data): array
+    {
+        $type = self::selectedType($data['item_type'] ?? null);
+
+        if ($type === TypeEnum::WEAPON) {
+            $data['stat_bonus'] = 0;
+            $data['armor'] = 0;
+            $data['effect_value'] = null;
+
+            return $data;
+        }
+
+        if ($type === TypeEnum::ARMOR) {
+            $data['weapon_damage_min'] = 0;
+            $data['weapon_damage_max'] = 0;
+            $data['effect_value'] = null;
+
+            if (! self::slotShowsZoneArmor(self::selectedSlot($data['slot'] ?? null))) {
+                $data['armor'] = 0;
+            }
+
+            return $data;
+        }
+
+        if ($type === TypeEnum::JEWELRY) {
+            $data['weapon_damage_min'] = 0;
+            $data['weapon_damage_max'] = 0;
+            $data['armor'] = 0;
+            $data['effect_value'] = null;
+            $data['gem_slots'] = null;
+            $data['max_durability'] = null;
+            $data['durability_loss_per_fight'] = null;
+            $data['repairable'] = false;
+            $data['repair_tier'] = RepairEnum::NORMAL;
+
+            return $data;
+        }
+
+        if ($type !== TypeEnum::POTION) {
+            return $data;
+        }
+
+        $data['weapon_damage_min'] = 0;
+        $data['weapon_damage_max'] = 0;
+        $data['stat_bonus'] = 0;
+        $data['armor'] = 0;
+        $data['mf_dodge'] = 0;
+        $data['mf_anti_dodge'] = 0;
+        $data['mf_crit'] = 0;
+        $data['mf_anti_crit'] = 0;
+        $data['req_level'] = null;
+        $data['req_strength'] = null;
+        $data['req_agility'] = null;
+        $data['req_instinct'] = null;
+        $data['req_vitality'] = null;
+        $data['max_durability'] = null;
+        $data['durability_loss_per_fight'] = null;
+        $data['gem_slots'] = null;
+        $data['repairable'] = false;
+        $data['repair_tier'] = RepairEnum::NORMAL;
+
+        return $data;
     }
 
     /**
@@ -315,6 +385,10 @@ final class EquipmentForm
             $set('armor', null);
             $set('effect_value', null);
             $set('gem_slots', null);
+            $set('max_durability', null);
+            $set('durability_loss_per_fight', null);
+            $set('repairable', false);
+            $set('repair_tier', RepairEnum::NORMAL);
 
             return;
         }
@@ -328,6 +402,15 @@ final class EquipmentForm
         $set('mf_crit', null);
         $set('mf_anti_crit', null);
         $set('gem_slots', null);
+        $set('req_level', null);
+        $set('req_strength', null);
+        $set('req_agility', null);
+        $set('req_instinct', null);
+        $set('req_vitality', null);
+        $set('max_durability', null);
+        $set('durability_loss_per_fight', null);
+        $set('repairable', false);
+        $set('repair_tier', RepairEnum::NORMAL);
     }
 
     private static function selectedProfile(mixed $state): ?ProfileEnum
@@ -436,6 +519,13 @@ final class EquipmentForm
             return;
         }
 
+        $slots = SlotEnum::forType($type);
+
+        if (count($slots) === 1) {
+            $set('slot', $slots[0]->value);
+            self::syncArmorForSlot($set, $slots[0]->value);
+        }
+
         self::resetIrrelevantCharacteristics($set, $type);
     }
 
@@ -454,6 +544,15 @@ final class EquipmentForm
         }
 
         $set('item_id', Equipment::nextItemIdForProfile($profile));
+    }
+
+    private static function typeShowsDurability(?TypeEnum $type): bool
+    {
+        if ($type === TypeEnum::WEAPON) {
+            return true;
+        }
+
+        return $type === TypeEnum::ARMOR;
     }
 
     private static function typeShowsEffects(?TypeEnum $type): bool
@@ -481,6 +580,15 @@ final class EquipmentForm
         }
 
         return $type === TypeEnum::JEWELRY;
+    }
+
+    private static function typeShowsRequirements(?TypeEnum $type): bool
+    {
+        if (! $type instanceof TypeEnum) {
+            return false;
+        }
+
+        return $type !== TypeEnum::POTION;
     }
 
     private static function typeShowsStatBonus(?TypeEnum $type): bool

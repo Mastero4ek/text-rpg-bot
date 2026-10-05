@@ -13,6 +13,7 @@ use App\Quest\StatsQuest;
 use App\Quest\TutorialQuest;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
+use App\Support\Character\NickValidator;
 use App\Support\Game\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -22,6 +23,7 @@ final class OnboardingService
     public function __construct(
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
+        private readonly NickValidator $nickValidator,
         public readonly TutorialQuest $tutorialQuest,
         public readonly StatsQuest $statsQuest,
         public readonly EquipQuest $equipQuest,
@@ -64,7 +66,7 @@ final class OnboardingService
 
     public function ensurePlayer(int $tgId): Character
     {
-        $character = Character::query()->find($tgId);
+        $character = Character::withTrashed()->find($tgId);
 
         if ($character === null) {
             return $this->characters->createDraft($tgId);
@@ -76,16 +78,13 @@ final class OnboardingService
     public function setNick(Character $character, string $raw): ActionResult
     {
         return DB::transaction(function () use ($character, $raw): ActionResult {
-            $nick = mb_trim($raw);
-            $limits = $this->nickLimits();
-            $pattern = '/^[A-Za-zА-Яа-яЁё0-9_\- ]{' . $limits['min'] . ',' . $limits['max'] . '}$/u';
+            $error = $this->nickValidator->validate($raw);
 
-            if (preg_match($pattern, $nick) !== 1) {
-                return ActionResult::fail(__('errors.nick_invalid', [
-                    'nickMin' => $limits['min'],
-                    'nickMax' => $limits['max'],
-                ]));
+            if ($error !== null) {
+                return ActionResult::fail($error);
             }
+
+            $nick = mb_trim($raw);
 
             if ($this->characters->usernameTakenByOther($nick, $character->tg_id)) {
                 return ActionResult::fail(__('errors.nick_taken'));
@@ -186,32 +185,5 @@ final class OnboardingService
         }
 
         return $keys;
-    }
-
-    /**
-     * @return array{min: int, max: int}
-     */
-    private function nickLimits(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('nick', $onboarding) || ! is_array($onboarding['nick'])) {
-            throw new RuntimeException('onboarding.nick missing.');
-        }
-
-        $nick = $onboarding['nick'];
-
-        if (! array_key_exists('min', $nick) || ! is_int($nick['min'])) {
-            throw new RuntimeException('onboarding.nick.min missing.');
-        }
-
-        if (! array_key_exists('max', $nick) || ! is_int($nick['max'])) {
-            throw new RuntimeException('onboarding.nick.max missing.');
-        }
-
-        return [
-            'min' => $nick['min'],
-            'max' => $nick['max'],
-        ];
     }
 }

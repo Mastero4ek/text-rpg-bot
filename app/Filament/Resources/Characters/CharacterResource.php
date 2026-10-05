@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters;
 
+use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Filament\Resources\Characters\RelationManagers\InventoriesRelationManager;
-use App\Filament\Resources\Characters\Schemas\CharacterInfolist;
+use App\Filament\Resources\Characters\Schemas\CharacterForm;
 use App\Filament\Resources\Characters\Tables\CharactersTable;
 use App\Models\Character;
 use BackedEnum;
@@ -16,7 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 final class CharacterResource extends Resource
 {
@@ -33,14 +34,9 @@ final class CharacterResource extends Resource
         return false;
     }
 
-    public static function canDelete(Model $record): bool
+    public static function form(Schema $schema): Schema
     {
-        return false;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return false;
+        return CharacterForm::configure($schema);
     }
 
     public static function getEloquentQuery(): Builder
@@ -63,6 +59,7 @@ final class CharacterResource extends Resource
         return [
             'index' => ListCharacters::route('/'),
             'view' => ViewCharacter::route('/{record}'),
+            'edit' => EditCharacter::route('/{record}/edit'),
         ];
     }
 
@@ -71,16 +68,19 @@ final class CharacterResource extends Resource
         return __('admin.models.character.plural');
     }
 
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getRecordRouteBindingEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
+    }
+
     public static function getRelations(): array
     {
         return [
             'inventories' => InventoriesRelationManager::class,
         ];
-    }
-
-    public static function infolist(Schema $schema): Schema
-    {
-        return CharacterInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table

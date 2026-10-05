@@ -26,14 +26,18 @@ return new class extends Migration
             $table->integer('instinct')->default(3);
             $table->integer('vitality')->default(3);
             $table->integer('current_hp');
+            $table->unsignedInteger('max_hp');
             $table->timestamp('last_hp_update');
+            $table->unsignedInteger('current_stamina');
+            $table->unsignedInteger('max_stamina');
+            $table->timestamp('last_stamina_update');
             $table->integer('stat_points')->default(3);
-            $table->unsignedInteger('potions')->default(0);
             $table->json('gem_pouch')->nullable();
             $table->unsignedInteger('gem_ward_charges')->default(0);
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         DB::statement(

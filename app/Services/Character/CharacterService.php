@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Character;
 
+use App\Enums\Equipment\TypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
+use App\Models\Inventory;
 use App\Services\Game\GameConfig;
 use App\Services\Inventory\LoadoutService;
 use App\Support\Game\ActionResult;
+use App\Support\Game\Mf;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -27,11 +30,16 @@ final class CharacterService
         return max(0, min($maxHp, $hp));
     }
 
+    public function clampStamina(int $stamina, int $maxStamina): int
+    {
+        return max(0, min($maxStamina, $stamina));
+    }
+
     public function baseMaxHp(int $vitality): int
     {
         $maxHp = $this->characterMaxHpConfig();
 
-        return $maxHp['base'] + $vitality * $maxHp['perVitality'];
+        return $vitality * $maxHp['perVitality'];
     }
 
     public function armorBonus(Character $character): int
@@ -41,14 +49,57 @@ final class CharacterService
 
     public function maxHp(Character $character): int
     {
-        return $this->baseMaxHp($character->vitality) + $this->armorBonus($character);
+        return $character->max_hp + $this->armorBonus($character);
     }
 
-    public function expNeed(int $level): int
+    public function bodyStamina(Character $character): int
+    {
+        return $character->max_stamina;
+    }
+
+    public function maxStamina(Character $character): int
+    {
+        return $character->max_stamina;
+    }
+
+    public function maxStaminaFromStrength(int $strength): int
+    {
+        $stamina = $this->combatStaminaConfig();
+
+        return $strength * $stamina['maxPerStrength'];
+    }
+
+    public function bodyMf(Character $character): Mf
+    {
+        $k = $this->mfPerStat();
+
+        return new Mf(
+            $character->agility * $k,
+            $character->agility * $k,
+            $character->instinct * $k,
+            $character->instinct * $k,
+        );
+    }
+
+    public function nextExpThreshold(Character $character): ?int
     {
         $levelCfg = $this->characterLevelConfig();
 
-        return $level * $levelCfg['expPerLevelMultiplier'];
+        if ($character->level >= $levelCfg['max']) {
+            return null;
+        }
+
+        foreach ($this->experienceRows() as $row) {
+            if ($row['kind'] === 'start') {
+                continue;
+            }
+
+            if ($row['exp'] > $character->exp) {
+                return $row['exp'];
+            }
+        }
+
+        return null;
     }
 
     public function findByTgId(int $tgId): Character
@@ -67,6 +118,7 @@ final class CharacterService
         return DB::transaction(function () use ($tgId): Character {
             $start = $this->onboardingStartConfig();
             $hp = $this->baseMaxHp($start['vitality']);
+            $stamina = $this->maxStaminaFromStrength($start['strength']);
 
             $character = new Character;
             $character->tg_id = $tgId;
@@ -82,9 +134,12 @@ final class CharacterService
             $character->instinct = $start['instinct'];
             $character->vitality = $start['vitality'];
             $character->current_hp = $hp;
+            $character->max_hp = $hp;
             $character->last_hp_update = now();
+            $character->current_stamina = $stamina;
+            $character->max_stamina = $stamina;
+            $character->last_stamina_update = now();
             $character->stat_points = $start['statPoints'];
-            $character->potions = $start['potions'];
             $character->gem_ward_charges = 0;
             $character->arena_points = 0;
             $character->premium_until = null;
@@ -97,23 +152,50 @@ final class CharacterService
     public function applyRegen(Character $character): Character
     {
         return DB::transaction(function () use ($character): Character {
-            $cap = $this->maxHp($character);
+            $dirty = false;
+            $hpCap = $this->maxHp($character);
             $regen = $this->characterRegenConfig();
 
-            if ($character->current_hp < $cap) {
+            if ($character->current_hp < $hpCap) {
                 $secondsPassed = (int) $character->last_hp_update->diffInSeconds(now());
-                $hpPerTick = (int) floor(
-                    $character->vitality / $regen['vitalityDivisor'] + $regen['vitalityBonus']
-                );
-                $hpToRegen = (int) floor($secondsPassed / $regen['tickSeconds']) * $hpPerTick;
+                $hpPerTick = (int) floor($character->vitality / $regen['vitalityDivisor']) + $regen['vitalityBonus'];
+                $ticks = (int) floor($secondsPassed / $regen['tickSeconds']);
+                $hpToRegen = $ticks * $hpPerTick;
 
                 if ($hpToRegen > 0) {
-                    $character->current_hp = min($cap, $character->current_hp + $hpToRegen);
+                    $character->current_hp = min($hpCap, $character->current_hp + $hpToRegen);
                     $character->last_hp_update = now();
-                    $character->save();
+                    $dirty = true;
                 }
-            } elseif ($character->current_hp >= $cap) {
+            } else {
                 $character->last_hp_update = now();
+                $dirty = true;
+            }
+
+            $staminaCap = $this->maxStamina($character);
+            $staminaRegen = $this->characterStaminaRegenConfig();
+
+            if ($character->current_stamina < $staminaCap) {
+                $secondsPassed = (int) $character->last_stamina_update->diffInSeconds(now());
+                $staminaPerTick = (int) floor($character->strength / $staminaRegen['strengthDivisor']) + $staminaRegen['strengthBonus'];
+                $ticks = (int) floor($secondsPassed / $staminaRegen['tickSeconds']);
+                $staminaToRegen = $ticks * $staminaPerTick;
+
+                if ($staminaToRegen > 0) {
+                    $character->current_stamina = min(
+                        $staminaCap,
+                        $character->current_stamina + $staminaToRegen,
+                    );
+                    $character->last_stamina_update = now();
+                    $dirty = true;
+                }
+            } else {
+                $character->last_stamina_update = now();
+                $dirty = true;
+            }
+
+            if ($dirty) {
+                $character->save();
             }
 
             return $character;
@@ -140,37 +222,101 @@ final class CharacterService
         return $this->applyRegen($character);
     }
 
-    public function tryLevelUp(Character $character): bool
+    public function applyExperienceThresholds(Character $character, int $oldExp, int $newExp): bool
     {
         $levelCfg = $this->characterLevelConfig();
 
-        if ($character->level < 1 || $character->level >= $levelCfg['max']) {
+        if ($character->level >= $levelCfg['max']) {
             return false;
         }
 
-        $leveled = false;
+        $applied = false;
 
-        while ($character->level < $levelCfg['max'] && $character->exp >= $this->expNeed($character->level)) {
-            $character->exp -= $this->expNeed($character->level);
-            $character->level += 1;
-            $character->stat_points += $levelCfg['statPointsPerLevel'];
-            $leveled = true;
+        foreach ($this->experienceRows() as $row) {
+            if ($row['kind'] === 'start') {
+                continue;
+            }
+
+            if ($row['exp'] <= $oldExp) {
+                continue;
+            }
+
+            if ($row['exp'] > $newExp) {
+                continue;
+            }
+
+            if ($character->level >= $levelCfg['max']) {
+                break;
+            }
+
+            if ($row['kind'] === 'up') {
+                $character->stat_points += $levelCfg['statPointsOnUp'];
+                $character->silver += $row['silverGain'];
+                $applied = true;
+
+                continue;
+            }
+
+            if ($row['kind'] === 'level') {
+                $character->level = $row['level'];
+                $character->stat_points += $this->statPointsForLevel($row['level']);
+                $character->silver += $row['silverGain'];
+                $applied = true;
+            }
         }
 
-        return $leveled;
+        return $applied;
     }
 
     public function addExpSilver(Character $character, int $expGain, int $silverGain): Character
     {
         return DB::transaction(function () use ($character, $expGain, $silverGain): Character {
-            $levelCfg = $this->characterLevelConfig();
-
-            if ($character->level < $levelCfg['max']) {
-                $character->exp += $expGain;
-            }
-
+            $oldExp = $character->exp;
+            $character->exp += $expGain;
             $character->silver += $silverGain;
-            $this->tryLevelUp($character);
+            $this->applyExperienceThresholds($character, $oldExp, $character->exp);
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function grantExp(Character $character, int $amount): Character
+    {
+        return DB::transaction(function () use ($character, $amount): Character {
+            $oldExp = $character->exp;
+            $character->exp += $amount;
+            $this->applyExperienceThresholds($character, $oldExp, $character->exp);
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function grantSilver(Character $character, int $amount): Character
+    {
+        return DB::transaction(function () use ($character, $amount): Character {
+            $character->silver += $amount;
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function grantGold(Character $character, int $amount): Character
+    {
+        return DB::transaction(function () use ($character, $amount): Character {
+            $character->gold += $amount;
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function grantStatPoints(Character $character, int $amount): Character
+    {
+        return DB::transaction(function () use ($character, $amount): Character {
+            $character->stat_points += $amount;
             $character->save();
 
             return $character;
@@ -195,10 +341,20 @@ final class CharacterService
             $character->stat_points -= 1;
 
             if ($statKey === StatKeyEnum::VITALITY) {
-                $gain = $this->characterStatSpendConfig()['vitalityHpGain'];
+                $gain = $this->characterMaxHpConfig()['perVitality'];
+                $character->max_hp += $gain;
                 $character->current_hp = $this->clampHp(
                     $character->current_hp + $gain,
                     $this->maxHp($character),
+                );
+            }
+
+            if ($statKey === StatKeyEnum::STRENGTH) {
+                $gain = $this->combatStaminaConfig()['maxPerStrength'];
+                $character->max_stamina += $gain;
+                $character->current_stamina = $this->clampStamina(
+                    $character->current_stamina + $gain,
+                    $this->maxStamina($character),
                 );
             }
 
@@ -208,15 +364,77 @@ final class CharacterService
         });
     }
 
+    public function resetStats(Character $character): Character
+    {
+        return DB::transaction(function () use ($character): Character {
+            $start = $this->onboardingStartConfig();
+            $character->strength = $start['strength'];
+            $character->agility = $start['agility'];
+            $character->instinct = $start['instinct'];
+            $character->vitality = $start['vitality'];
+            $character->stat_points = $this->totalEarnedStatPoints($character);
+            $character->max_hp = $this->baseMaxHp($character->vitality);
+            $character->max_stamina = $this->maxStaminaFromStrength($character->strength);
+            $cap = $this->maxHp($character);
+            $character->current_hp = $this->clampHp($character->current_hp, $cap);
+            $staminaCap = $this->maxStamina($character);
+            $character->current_stamina = $this->clampStamina($character->current_stamina, $staminaCap);
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function resetStatsForGold(Character $character): ActionResult
+    {
+        return DB::transaction(function () use ($character): ActionResult {
+            $cost = $this->statResetGoldCost();
+
+            if ($character->gold < $cost) {
+                return ActionResult::fail(__('errors.not_enough_gold'));
+            }
+
+            $character->gold -= $cost;
+            $this->resetStats($character);
+
+            return ActionResult::ok($character->fresh());
+        });
+    }
+
+    public function totalEarnedStatPoints(Character $character): int
+    {
+        $start = $this->onboardingStartConfig();
+        $levelCfg = $this->characterLevelConfig();
+        $total = $start['statPoints'];
+
+        foreach ($this->experienceRows() as $row) {
+            if ($row['exp'] > $character->exp) {
+                continue;
+            }
+
+            if ($row['kind'] === 'up') {
+                $total += $levelCfg['statPointsOnUp'];
+
+                continue;
+            }
+
+            if ($row['kind'] === 'level') {
+                $total += $this->statPointsForLevel($row['level']);
+            }
+        }
+
+        return $total;
+    }
+
     public function profileText(Character $character): string
     {
         $cap = $this->maxHp($character);
-        $levelCfg = $this->characterLevelConfig();
+        $next = $this->nextExpThreshold($character);
 
-        if ($character->level >= $levelCfg['max'] || $character->level < 1) {
+        if ($next === null) {
             $need = '—';
         } else {
-            $need = $character->exp . '/' . $this->expNeed($character->level);
+            $need = $character->exp . '/' . $next;
         }
 
         if ($character->username === null) {
@@ -240,7 +458,12 @@ final class CharacterService
                 'maxHp' => $cap,
                 'silver' => $character->silver,
                 'gold' => $character->gold,
-                'potions' => $character->potions,
+                'stamina' => $character->current_stamina,
+                'maxStamina' => $this->maxStamina($character),
+                'potions' => Inventory::query()
+                    ->where('tg_id', $character->tg_id)
+                    ->where('item_type', TypeEnum::POTION)
+                    ->count(),
                 'exp' => $need,
                 'str' => $character->strength,
                 'agi' => $character->agility,
@@ -260,6 +483,37 @@ final class CharacterService
         return implode("\n", $lines);
     }
 
+    public function statsScreenText(Character $character): string
+    {
+        $bodyMf = $this->bodyMf($character);
+        $bodyHp = $this->baseMaxHp($character->vitality);
+        $bodyStamina = $this->bodyStamina($character);
+        $loadout = $this->loadout->forCharacter($character);
+        $totalMf = $bodyMf->merge($loadout->mf);
+        $totalHp = $this->maxHp($character);
+
+        return __('profile.stats_screen', [
+            'points' => $character->stat_points,
+            'str' => $character->strength,
+            'agi' => $character->agility,
+            'inst' => $character->instinct,
+            'vit' => $character->vitality,
+            'bodyStamina' => $bodyStamina,
+            'bodyHp' => $bodyHp,
+            'bodyDodge' => $bodyMf->dodge,
+            'bodyAntiDodge' => $bodyMf->antiDodge,
+            'bodyCrit' => $bodyMf->crit,
+            'bodyAntiCrit' => $bodyMf->antiCrit,
+            'totalStamina' => $bodyStamina,
+            'totalHp' => $totalHp,
+            'totalDodge' => $totalMf->dodge,
+            'totalAntiDodge' => $totalMf->antiDodge,
+            'totalCrit' => $totalMf->crit,
+            'totalAntiCrit' => $totalMf->antiCrit,
+            'gearHp' => $loadout->statBonus,
+        ]);
+    }
+
     public function usernameTakenByOther(string $username, int $tgId): bool
     {
         return Character::query()
@@ -268,8 +522,51 @@ final class CharacterService
             ->exists();
     }
 
+    public function statResetGoldCost(): int
+    {
+        $character = $this->config->character();
+
+        if (! array_key_exists('statReset', $character) || ! is_array($character['statReset'])) {
+            throw new RuntimeException('character.statReset missing.');
+        }
+
+        return $this->intField($character['statReset'], 'goldCost');
+    }
+
+    private function statPointsForLevel(int $newLevel): int
+    {
+        $levelCfg = $this->characterLevelConfig();
+
+        if ($newLevel > $levelCfg['levelAboveThreshold']) {
+            return $levelCfg['statPointsOnLevelAbove'];
+        }
+
+        return $levelCfg['statPointsOnLevel'];
+    }
+
+    private function mfPerStat(): int
+    {
+        return $this->intField($this->config->combat(), 'mfPerStat');
+    }
+
     /**
-     * @return array{base: int, perVitality: int}
+     * @return array{maxPerStrength: int}
+     */
+    private function combatStaminaConfig(): array
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('stamina', $combat) || ! is_array($combat['stamina'])) {
+            throw new RuntimeException('settings.combat.stamina missing.');
+        }
+
+        return [
+            'maxPerStrength' => $this->intField($combat['stamina'], 'maxPerStrength'),
+        ];
+    }
+
+    /**
+     * @return array{perVitality: int}
      */
     private function characterMaxHpConfig(): array
     {
@@ -280,7 +577,6 @@ final class CharacterService
         }
 
         return [
-            'base' => $this->intField($character['maxHp'], 'base'),
             'perVitality' => $this->intField($character['maxHp'], 'perVitality'),
         ];
     }
@@ -304,7 +600,32 @@ final class CharacterService
     }
 
     /**
-     * @return array{max: int, expPerLevelMultiplier: int, statPointsPerLevel: int}
+     * @return array{tickSeconds: int, strengthDivisor: int, strengthBonus: int}
+     */
+    private function characterStaminaRegenConfig(): array
+    {
+        $character = $this->config->character();
+
+        if (! array_key_exists('staminaRegen', $character) || ! is_array($character['staminaRegen'])) {
+            throw new RuntimeException('character.staminaRegen missing.');
+        }
+
+        return [
+            'tickSeconds' => $this->intField($character['staminaRegen'], 'tickSeconds'),
+            'strengthDivisor' => $this->intField($character['staminaRegen'], 'strengthDivisor'),
+            'strengthBonus' => $this->intField($character['staminaRegen'], 'strengthBonus'),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     max: int,
+     *     upsPerLevel: int,
+     *     statPointsOnUp: int,
+     *     statPointsOnLevel: int,
+     *     statPointsOnLevelAbove: int,
+     *     levelAboveThreshold: int
+     * }
      */
     private function characterLevelConfig(): array
     {
@@ -316,25 +637,45 @@ final class CharacterService
 
         return [
             'max' => $this->intField($character['level'], 'max'),
-            'expPerLevelMultiplier' => $this->intField($character['level'], 'expPerLevelMultiplier'),
-            'statPointsPerLevel' => $this->intField($character['level'], 'statPointsPerLevel'),
+            'upsPerLevel' => $this->intField($character['level'], 'upsPerLevel'),
+            'statPointsOnUp' => $this->intField($character['level'], 'statPointsOnUp'),
+            'statPointsOnLevel' => $this->intField($character['level'], 'statPointsOnLevel'),
+            'statPointsOnLevelAbove' => $this->intField($character['level'], 'statPointsOnLevelAbove'),
+            'levelAboveThreshold' => $this->intField($character['level'], 'levelAboveThreshold'),
         ];
     }
 
     /**
-     * @return array{vitalityHpGain: int}
+     * @return list<array{level: int, exp: int, kind: string, silverGain: int}>
      */
-    private function characterStatSpendConfig(): array
+    private function experienceRows(): array
     {
         $character = $this->config->character();
 
-        if (! array_key_exists('statSpend', $character) || ! is_array($character['statSpend'])) {
-            throw new RuntimeException('character.statSpend missing.');
+        if (! array_key_exists('experience', $character) || ! is_array($character['experience'])) {
+            throw new RuntimeException('character.experience missing.');
         }
 
-        return [
-            'vitalityHpGain' => $this->intField($character['statSpend'], 'vitalityHpGain'),
-        ];
+        $rows = [];
+
+        foreach ($character['experience'] as $row) {
+            if (! is_array($row)) {
+                throw new RuntimeException('character.experience row invalid.');
+            }
+
+            if (! array_key_exists('kind', $row) || ! is_string($row['kind'])) {
+                throw new RuntimeException('character.experience.kind missing.');
+            }
+
+            $rows[] = [
+                'level' => $this->intField($row, 'level'),
+                'exp' => $this->intField($row, 'exp'),
+                'kind' => $row['kind'],
+                'silverGain' => $this->intField($row, 'silverGain'),
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -347,8 +688,7 @@ final class CharacterService
      *     vitality: int,
      *     statPoints: int,
      *     level: int,
-     *     exp: int,
-     *     potions: int
+     *     exp: int
      * }
      */
     private function onboardingStartConfig(): array
@@ -371,7 +711,6 @@ final class CharacterService
             'statPoints' => $this->intField($start, 'statPoints'),
             'level' => $this->intField($start, 'level'),
             'exp' => $this->intField($start, 'exp'),
-            'potions' => $this->intField($start, 'potions'),
         ];
     }
 

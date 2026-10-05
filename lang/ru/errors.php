@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'banned' => 'Тебя отправили в бан. Игра недоступна.',
     'unknown_stat' => 'Неизвестный стат',
     'no_stat_points' => 'Нет очков',
     'item_not_found' => 'Предмет не найден',
@@ -19,6 +20,7 @@ return [
     'item_not_in_shop' => 'Нет в магазине',
     'not_in_inventory' => 'Нет в инвентаре',
     'nick_invalid' => 'Ник: :nickMin–:nickMax символов (буквы, цифры, пробел, _ -). Напиши имя ещё раз.',
+    'nick_forbidden' => 'Такой ник нельзя. Выбери другое имя.',
     'nick_taken' => 'Такой ник уже занят. Попробуй другой.',
     'pick_city_button' => 'Выбери город кнопкой.',
     'spend_all_points' => 'Сначала потрать все очки.',

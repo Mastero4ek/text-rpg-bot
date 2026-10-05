@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'card' => "👤 :name\n🏙 :city · ур. :level\n❤️ :hp/:maxHp · 🪙 :silver · 🥇 :gold · 🧪 :potions\n⭐ опыт: :exp\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit",
+    'card' => "👤 :name\n🏙 :city · ур. :level\n❤️ :hp/:maxHp · 💚 :stamina/:maxStamina · 🪙 :silver · 🥇 :gold · 🧪 :potions\n⭐ опыт: :exp\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit",
     'free_points' => 'Свободно очков: :points',
     'gear_heading' => 'Снаряжение:',
     'gear_header' => ":name (ур. :level)\nHP: :hp/:maxHp | Серебро: :silver",
@@ -35,11 +35,15 @@ return [
     'inventory_empty' => 'Инвентарь пуст.',
     'inventory_row' => ':mark [#:id] :name',
     'no_free_points' => 'Нет свободных очков.',
-    'stats_screen' => "Свободно очков: :points\nС:str Л:agi И:inst Ж:vit",
-    'stats_left' => "Ок. Осталось: :points\nС:str Л:agi И:inst Ж:vit",
+    'stats_screen' => "Навыки\nСвободно: :points\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit\n\nМФ тела:\nвыносливость :bodyStamina · жизнь :bodyHp\nуворот :bodyDodge / анти :bodyAntiDodge\nкрит :bodyCrit / анти :bodyAntiCrit\n\nИтог (тело + вещи):\nвыносливость :totalStamina · жизнь :totalHp\nуворот :totalDodge / анти :totalAntiDodge\nкрит :totalCrit / анти :totalAntiCrit\nHP от шмота: +:gearHp",
+    'stats_left' => "Ок. Осталось: :points\n\n:screen",
     'stats_done' => "Очки потрачены.\n\n:profile",
+    'stats_reset_confirm' => "Сбросить статы за :gold🥇?\nТело вернётся к старту, свободные очки пересчитаются по опыту.",
+    'stats_reset_done' => "Статы сброшены.\n\n:screen",
     'btn_str' => '+Сила',
     'btn_agi' => '+Ловкость',
     'btn_inst' => '+Инстинкт',
     'btn_vit' => '+Жизнь',
+    'btn_reset' => 'Сброс статов — :gold🥇',
+    'btn_reset_confirm' => 'Да, сбросить',
 ];

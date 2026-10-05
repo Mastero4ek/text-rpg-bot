@@ -76,7 +76,7 @@ it('destroys socketed gem when durability reaches zero on lose', function (): vo
     $broken = app(GemService::class)->breakSocketedOnLose($socket->character);
     $knuckles->refresh();
 
-    expect($broken)->toContain('Сапфир новичка')
+    expect($broken)->toContain('Сапфир ученика')
         ->and(app(GemService::class)->socketedInstances($knuckles))->toBe([]);
 });
 

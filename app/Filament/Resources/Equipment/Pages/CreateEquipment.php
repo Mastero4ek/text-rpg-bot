@@ -8,6 +8,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Filament\Concerns\HasCloneToCreate;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
 use App\Models\Equipment;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -46,7 +47,7 @@ final class CreateEquipment extends CreateRecord
             $data['item_id'] = Equipment::nextItemIdForProfile($profile);
         }
 
-        return $data;
+        return EquipmentForm::sanitizeCatalogFieldsForType($data);
     }
 
     private function assignGeneratedItemId(): void

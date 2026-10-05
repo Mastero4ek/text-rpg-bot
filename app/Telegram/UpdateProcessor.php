@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
+use App\Models\Character;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -38,6 +39,10 @@ final class UpdateProcessor
 
             $responder = new TelegramResponder($this->client, $update);
 
+            if ($this->replyIfBanned($update, $responder)) {
+                return;
+            }
+
             if ($update->isCallback()) {
                 $this->routeCallback($update, $responder);
 
@@ -59,6 +64,23 @@ final class UpdateProcessor
                 'update' => $payload,
             ]);
         }
+    }
+
+    private function replyIfBanned(TelegramUpdate $update, TelegramResponder $responder): bool
+    {
+        $character = Character::withTrashed()->find($update->userId());
+
+        if (! $character instanceof Character) {
+            return false;
+        }
+
+        if (! $character->trashed()) {
+            return false;
+        }
+
+        $responder->reply(__('errors.banned'), null);
+
+        return true;
     }
 
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void

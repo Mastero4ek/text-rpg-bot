@@ -6,6 +6,7 @@ namespace App\Services\Fight;
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Models\Character;
@@ -14,6 +15,7 @@ use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Inventory\LoadoutService;
+use App\Support\Equipment\EquipmentDef;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\Enemy;
 use App\Support\Game\Fighter;
@@ -100,15 +102,22 @@ final class FightRoundService
             $fight->player_defend_second = null;
             $fight->use_potion = false;
         } elseif ($fight->use_potion) {
-            if ($fresh->potions <= 0) {
+            if ($fight->player_attack === PlayerAttackEnum::STAMINA_POTION) {
+                $profile = ProfileEnum::STAMINA;
+            } else {
+                $profile = ProfileEnum::HEAL;
+            }
+
+            $consumed = $this->inventory->consumePotion($fresh->tg_id, $profile);
+
+            if (
+                ! $consumed->ok
+                || ! $consumed->def instanceof EquipmentDef
+                || $consumed->def->effectValue === null
+            ) {
                 $logs[] = __('combat.no_potion_turn');
             } else {
-                $fresh->potions -= 1;
-                $heal = $this->combat->potionHeal();
-                $fight->player_hp = $this->characters->clampHp(
-                    $fight->player_hp + $heal,
-                    $fight->player_max_hp,
-                );
+                $heal = $consumed->def->effectValue;
 
                 if ($fresh->username === null) {
                     $drinkName = __('common.you');
@@ -116,14 +125,29 @@ final class FightRoundService
                     $drinkName = $fresh->username;
                 }
 
-                $logs[] = __('combat.drink_potion', [
-                    'name' => $drinkName,
-                    'heal' => $heal,
-                ]);
+                if ($profile === ProfileEnum::STAMINA) {
+                    $fight->player_stamina = $this->characters->clampStamina(
+                        $fight->player_stamina + $heal,
+                        $fight->player_max_stamina,
+                    );
+                    $logs[] = __('combat.drink_stamina_potion', [
+                        'name' => $drinkName,
+                        'heal' => $heal,
+                    ]);
+                } else {
+                    $fight->player_hp = $this->characters->clampHp(
+                        $fight->player_hp + $heal,
+                        $fight->player_max_hp,
+                    );
+                    $logs[] = __('combat.drink_potion', [
+                        'name' => $drinkName,
+                        'heal' => $heal,
+                    ]);
+                }
             }
         } elseif (
             $fight->player_attack !== null
-            && $fight->player_attack !== PlayerAttackEnum::POTION
+            && ! $fight->player_attack->isPotion()
         ) {
             $mainHit = $this->combat->calculateHit(
                 $this->playerFighterWithStance(
@@ -151,7 +175,7 @@ final class FightRoundService
             if (
                 $enemy->currentHp > 0
                 && $fight->player_attack_second !== null
-                && $fight->player_attack_second !== PlayerAttackEnum::POTION
+                && ! $fight->player_attack_second->isPotion()
             ) {
                 $offHit = $this->combat->calculateHit(
                     $this->playerFighterWithStance(
@@ -248,6 +272,8 @@ final class FightRoundService
         $fight->use_potion = false;
         $fresh->current_hp = $fight->player_hp;
         $fresh->last_hp_update = now();
+        $fresh->current_stamina = $fight->player_stamina;
+        $fresh->last_stamina_update = now();
         $fresh->save();
         $this->fights->save($fight);
 

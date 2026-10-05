@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property int $tg_id
@@ -25,15 +28,19 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $instinct
  * @property int $vitality
  * @property int $current_hp
+ * @property int $max_hp
  * @property CarbonInterface $last_hp_update
+ * @property int $current_stamina
+ * @property int $max_stamina
+ * @property CarbonInterface $last_stamina_update
  * @property int $stat_points
- * @property int $potions
  * @property list<mixed>|null $gem_pouch
  * @property int $gem_ward_charges
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property CarbonInterface|null $deleted_at
  */
 #[Fillable([
     'tg_id',
@@ -49,21 +56,35 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'instinct',
     'vitality',
     'current_hp',
+    'max_hp',
     'last_hp_update',
+    'current_stamina',
+    'max_stamina',
+    'last_stamina_update',
     'stat_points',
-    'potions',
     'gem_pouch',
     'gem_ward_charges',
     'arena_points',
     'premium_until',
 ])]
-final class Character extends Model
+final class Character extends Model implements HasMedia
 {
+    use InteractsWithMedia;
+    use SoftDeletes;
+
     public $incrementing = false;
 
     protected $primaryKey = 'tg_id';
 
     protected $keyType = 'int';
+
+    /**
+     * @return HasMany<Inventory, $this>
+     */
+    public function equippedInventories(): HasMany
+    {
+        return $this->inventories()->where('is_equipped', true);
+    }
 
     /**
      * @return HasOne<Fight, $this>
@@ -81,12 +102,11 @@ final class Character extends Model
         return $this->hasMany(Inventory::class, 'tg_id', 'tg_id');
     }
 
-    /**
-     * @return HasMany<Inventory, $this>
-     */
-    public function equippedInventories(): HasMany
+    public function registerMediaCollections(): void
     {
-        return $this->inventories()->where('is_equipped', true);
+        $this->addMediaCollection('image')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
     }
 
     /**
@@ -106,9 +126,12 @@ final class Character extends Model
             'instinct' => 'integer',
             'vitality' => 'integer',
             'current_hp' => 'integer',
+            'max_hp' => 'integer',
             'last_hp_update' => 'datetime',
+            'current_stamina' => 'integer',
+            'max_stamina' => 'integer',
+            'last_stamina_update' => 'datetime',
             'stat_points' => 'integer',
-            'potions' => 'integer',
             'gem_pouch' => 'array',
             'gem_ward_charges' => 'integer',
             'arena_points' => 'integer',

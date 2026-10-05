@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Character\CharacterService;
@@ -48,6 +49,7 @@ final class ShopHandler
                     $this->shop->weaponsForMode('full'),
                     $wearables,
                     $this->shop->potionPrice(),
+                    $this->shop->staminaPotionPrice(),
                 ),
             );
 
@@ -104,7 +106,34 @@ final class ShopHandler
             }
 
             $responder->reply(
-                __('shop.bought_potion', ['potions' => $res->character->potions]),
+                __('shop.bought_potion', [
+                    'potions' => $this->inventory->potionCountByProfile(
+                        $res->character->tg_id,
+                        ProfileEnum::HEAL,
+                    ),
+                ]),
+                null,
+            );
+
+            return;
+        }
+
+        if ($data === 'shop:stamina_potion') {
+            $res = $this->shopService->buyStaminaPotion($player->tg_id);
+
+            if (! $res->ok || ! $res->character instanceof Character) {
+                $responder->reply(TelegramResponder::errorMessage($res->error), null);
+
+                return;
+            }
+
+            $responder->reply(
+                __('shop.bought_stamina_potion', [
+                    'potions' => $this->inventory->potionCountByProfile(
+                        $res->character->tg_id,
+                        ProfileEnum::STAMINA,
+                    ),
+                ]),
                 null,
             );
         }
