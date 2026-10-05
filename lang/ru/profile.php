@@ -37,7 +37,7 @@ return [
     'inventory_row' => ':mark [#:id] :name',
     'backpack_header' => 'Рюкзак :current/:max · :filter',
     'backpack_header_all' => 'Рюкзак :current/:max',
-    'bag_header' => 'Сумка · Камни: :count · Оберег: :ward',
+    'bag_header' => 'Сумка · Камни: :count',
     'bag_empty' => 'Сумка пуста.',
     'bag_gem_row' => ':name (:current/:max)',
     'bag_gem_card' => ":name\nТип: :type\nMF: :mf\nПрочность: :current/:max",

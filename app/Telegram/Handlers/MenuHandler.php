@@ -7,7 +7,6 @@ namespace App\Telegram\Handlers;
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Actions\Gem\GemBuyAction;
-use App\Actions\Gem\GemBuyWardAction;
 use App\Actions\Gem\GemDiscardFromPouchAction;
 use App\Actions\Gem\GemSocketAction;
 use App\Actions\Gem\GemUnsocketAction;
@@ -48,7 +47,6 @@ final class MenuHandler
         private readonly InventoryRepairVipAction $repairVip,
         private readonly InventoryDiscardAction $discardItemAction,
         private readonly GemBuyAction $buyGem,
-        private readonly GemBuyWardAction $buyGemWard,
         private readonly GemDiscardFromPouchAction $discardGemAction,
         private readonly GemSocketAction $socketGem,
         private readonly GemUnsocketAction $unsocketGem,
@@ -111,12 +109,6 @@ final class MenuHandler
 
         if ($data === 'smith:gems') {
             $this->smithGemsScreen($responder, $player);
-
-            return;
-        }
-
-        if ($data === 'smith:gems:ward') {
-            $this->smithBuyWard($responder, $player);
 
             return;
         }
@@ -509,7 +501,6 @@ final class MenuHandler
 
         $header = __('profile.bag_header', [
             'count' => count($pouch),
-            'ward' => $player->gem_ward_charges,
         ]);
 
         if ($pouch === []) {
@@ -826,29 +817,6 @@ final class MenuHandler
         );
     }
 
-    private function smithBuyWard(TelegramResponder $responder, Character $player): void
-    {
-        $res = $this->buyGemWard->handle($player);
-
-        if (! $res->ok || ! $res->character instanceof Character) {
-            $responder->reply(TelegramResponder::errorMessage($res->error), null);
-
-            return;
-        }
-
-        $responder->edit(
-            __('smith.bought_ward', [
-                'charges' => $res->character->gem_ward_charges,
-                'gold' => $res->character->gold,
-            ]),
-            ['inline_keyboard' => [[
-                ['text' => __('smith.gems_btn'), 'callback_data' => 'smith:gems'],
-            ], [
-                ['text' => __('menu.smith'), 'callback_data' => 'menu:smith'],
-            ]]],
-        );
-    }
-
     private function smithGemsScreen(TelegramResponder $responder, Character $player): void
     {
         $buttons = [];
@@ -864,12 +832,6 @@ final class MenuHandler
             ]];
         }
 
-        $buttons[] = [[
-            'text' => __('smith.buy_ward_btn', [
-                'price' => $this->gemCatalog->wardGold(),
-            ]),
-            'callback_data' => 'smith:gems:ward',
-        ]];
         $buttons[] = [[
             'text' => __('smith.socket_btn'),
             'callback_data' => 'smith:gems:socket',
@@ -887,7 +849,6 @@ final class MenuHandler
             __('smith.gems_title', [
                 'silver' => $player->silver,
                 'gold' => $player->gold,
-                'ward' => $player->gem_ward_charges,
                 'pouch' => $this->pouchText($player),
             ]),
             ['inline_keyboard' => $buttons],

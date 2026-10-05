@@ -21,8 +21,8 @@
     "gems": {
         "breakChanceOnLose": 40,
         "unsocketSilver": 5,
-        "wardGold": 2,
-        "premiumBreakChanceReduce": 15
+        "premiumBreakChanceReduce": 15,
+        "bagMaxRows": 10
     },
     "combat": {
         "aiDefendChance": 0.55,

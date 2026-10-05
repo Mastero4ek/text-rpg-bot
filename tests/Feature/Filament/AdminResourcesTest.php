@@ -15,6 +15,7 @@ use App\Filament\Resources\Inventories\Pages\ViewInventory;
 use App\Models\Fight;
 use App\Models\Inventory;
 use App\Models\User;
+use App\Services\Gem\GemService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\Bus;
@@ -165,6 +166,123 @@ it('hides equipped items from backpack relation manager', function (): void {
         ->assertOk()
         ->assertCanSeeTableRecords([$axe])
         ->assertCanNotSeeTableRecords([$knife]);
+});
+
+it('updates bag capacity from edit relation manager', function (): void {
+    $character = characters()->createDraft(9110);
+    $character->bag_max_rows = 10;
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => EditCharacter::class,
+    ])
+        ->assertOk()
+        ->set('bagMaxRows', 4)
+        ->assertSet('bagMaxRows', 4);
+
+    expect($character->fresh()->bag_max_rows)->toBe(4);
+});
+
+it('rejects invalid bag capacity on edit relation manager', function (): void {
+    $character = characters()->createDraft(9111);
+    $character->bag_max_rows = 10;
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => EditCharacter::class,
+    ])
+        ->assertOk()
+        ->set('bagMaxRows', 0)
+        ->assertSet('bagMaxRows', 10)
+        ->assertNotified(__('admin.actions.set_bag_max_rows.invalid'));
+
+    expect($character->fresh()->bag_max_rows)->toBe(10);
+});
+
+it('lists pouch gems on bag relation manager', function (): void {
+    $character = characters()->createDraft(9112);
+    $character->gem_pouch = gemPouch('ruby_0');
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => ViewCharacter::class,
+    ])
+        ->assertOk()
+        ->assertSee('Рубин ученика');
+});
+
+it('discards pouch gem from edit bag relation manager', function (): void {
+    $character = characters()->createDraft(9113);
+    $character->gem_pouch = gemPouch('ruby_0');
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => EditCharacter::class,
+    ])
+        ->assertOk()
+        ->callAction(TestAction::make('discard')->table('0'))
+        ->assertNotified(__('admin.actions.discard_gem.notification'));
+
+    expect(app(GemService::class)->pouch($character->fresh()))->toBe([]);
+});
+
+it('sockets pouch gem into equipment from edit bag relation manager', function (): void {
+    $character = characters()->createDraft(9114);
+    $character->gem_pouch = gemPouch('ruby_0');
+    $character->save();
+
+    $character = giveAndEquipStarterKnuckles($character);
+    $knuckles = inventory()->findOwned($character->tg_id, shopCatalog()->starterKnucklesId());
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => EditCharacter::class,
+    ])
+        ->assertOk()
+        ->callAction(TestAction::make('socket')->table('0'), data: [
+            'inventory_id' => $knuckles->id,
+        ])
+        ->assertNotified(__('admin.actions.socket_gem.notification'));
+
+    $character = $character->fresh();
+
+    expect(app(GemService::class)->pouch($character))->toBe([])
+        ->and(app(GemService::class)->socketedGemIds($knuckles->fresh()))->toBe(['ruby_0']);
+});
+
+it('shows no free sockets message when socketing without targets', function (): void {
+    $character = characters()->createDraft(9115);
+    $character->gem_pouch = gemPouch('ruby_0');
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => EditCharacter::class,
+    ])
+        ->assertOk()
+        ->mountAction(TestAction::make('socket')->table('0'))
+        ->assertMountedActionModalSee(__('admin.actions.socket_gem.no_targets'));
+
+    expect(app(GemService::class)->pouch($character->fresh()))->toHaveCount(1);
+});
+
+it('hides bag mutation actions on view relation manager', function (): void {
+    $character = characters()->createDraft(9116);
+    $character->gem_pouch = gemPouch('ruby_0');
+    $character->save();
+
+    livewire(BagRelationManager::class, [
+        'ownerRecord' => $character,
+        'pageClass' => ViewCharacter::class,
+    ])
+        ->assertOk()
+        ->assertActionDoesNotExist(TestAction::make('discard')->table('0'))
+        ->assertActionDoesNotExist(TestAction::make('socket')->table('0'))
+        ->assertActionVisible(TestAction::make('view')->table('0'));
 });
 
 it('lists and views live fights', function (): void {

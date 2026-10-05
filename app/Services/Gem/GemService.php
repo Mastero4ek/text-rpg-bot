@@ -39,13 +39,6 @@ final class GemService
                 return [];
             }
 
-            if ($locked->gem_ward_charges > 0) {
-                $locked->gem_ward_charges -= 1;
-                $locked->save();
-
-                return [];
-            }
-
             $destroyedNames = [];
             $chance = $this->breakChanceFor($locked);
 
@@ -125,36 +118,6 @@ final class GemService
         });
     }
 
-    public function buyWard(Character $character): ActionResult
-    {
-        return DB::transaction(function () use ($character): ActionResult {
-            $cost = $this->gems->wardGold();
-
-            $updated = Character::query()
-                ->where('tg_id', $character->tg_id)
-                ->where('gold', '>=', $cost)
-                ->decrement('gold', $cost);
-
-            if ($updated <= 0) {
-                return ActionResult::fail(__('errors.not_enough_gold'));
-            }
-
-            $locked = Character::query()
-                ->where('tg_id', $character->tg_id)
-                ->lockForUpdate()
-                ->first();
-
-            if ($locked === null) {
-                return ActionResult::fail(__('errors.item_not_found'));
-            }
-
-            $locked->gem_ward_charges += 1;
-            $locked->save();
-
-            return ActionResult::ok($locked);
-        });
-    }
-
     public function grantToPouch(Character $character, string $gemId, int $qty): Character
     {
         if (! $this->gems->inCatalog($gemId)) {
@@ -172,6 +135,11 @@ final class GemService
         }
 
         $character = $this->freshCharacter($character->tg_id);
+
+        if (! $this->canAcceptBagRows($character, $qty)) {
+            throw new RuntimeException(__('errors.bag_full'));
+        }
+
         $this->appendInstances($character, $gemId, $def->maxDurability, $qty);
 
         return $this->freshCharacter($character->tg_id);
@@ -211,6 +179,11 @@ final class GemService
             }
 
             $character = $this->freshCharacter($character->tg_id);
+
+            if (! $this->canAcceptBagRows($character, 1)) {
+                return ActionResult::fail(__('errors.bag_full'));
+            }
+
             $this->appendInstances($character, $gemId, $gem->maxDurability, 1);
 
             return ActionResult::ok($character);
@@ -247,7 +220,7 @@ final class GemService
         return $def->gemSlots;
     }
 
-    public function moveSocketedToPouch(Character $character, Inventory $row): void
+    public function moveSocketedToPouch(Character $character, Inventory $row): ActionResult
     {
         $instances = $this->socketedInstances($row);
 
@@ -257,7 +230,7 @@ final class GemService
                 $row->save();
             }
 
-            return;
+            return ActionResult::ok($character);
         }
 
         $locked = Character::query()
@@ -269,10 +242,19 @@ final class GemService
             throw new RuntimeException("Character {$character->tg_id} missing.");
         }
 
+        if (! $this->canAcceptBagRows($locked, count($instances))) {
+            return ActionResult::fail(__('errors.bag_full'));
+        }
+
         $pouch = $this->pouch($locked);
+        $addedAt = now()->toIso8601String();
 
         foreach ($instances as $instance) {
-            $pouch[] = $instance;
+            $pouch[] = [
+                'gem_id' => $instance['gem_id'],
+                'durability' => $instance['durability'],
+                'added_at' => $addedAt,
+            ];
         }
 
         $locked->gem_pouch = $pouch;
@@ -280,6 +262,8 @@ final class GemService
 
         $row->socketed_gems = [];
         $row->save();
+
+        return ActionResult::ok($this->freshCharacter($locked->tg_id));
     }
 
     public function mfFromSocketed(Inventory $row): Mf
@@ -302,7 +286,7 @@ final class GemService
     }
 
     /**
-     * @return list<array{gem_id: string, durability: int}>
+     * @return list<array{gem_id: string, durability: int, added_at?: string}>
      */
     public function pouch(Character $character): array
     {
@@ -325,13 +309,47 @@ final class GemService
                 continue;
             }
 
-            $out[] = [
+            $instance = [
                 'gem_id' => $row['gem_id'],
                 'durability' => $row['durability'],
             ];
+
+            if (array_key_exists('added_at', $row) && is_string($row['added_at']) && $row['added_at'] !== '') {
+                $instance['added_at'] = $row['added_at'];
+            }
+
+            $out[] = $instance;
         }
 
         return $out;
+    }
+
+    public function bagMaxRows(Character $character): int
+    {
+        if ($character->bag_max_rows < 1) {
+            throw new RuntimeException('Character bag_max_rows must be >= 1.');
+        }
+
+        return $character->bag_max_rows;
+    }
+
+    public function bagRowCount(Character $character): int
+    {
+        return count($this->pouch($character));
+    }
+
+    public function canAcceptBagRows(Character $character, int $rows): bool
+    {
+        if ($rows < 1) {
+            throw new RuntimeException('Bag accept rows must be >= 1.');
+        }
+
+        return ($this->bagRowCount($character) + $rows) <= $this->bagMaxRows($character);
+    }
+
+    public function isBagFull(Character $character): bool
+    {
+        return $this->bagRowCount($character) >= $this->bagMaxRows($character);
     }
 
     public function socket(Character $character, int $inventoryRowId, int $pouchIndex): ActionResult
@@ -482,6 +500,12 @@ final class GemService
                 return ActionResult::fail(__('errors.gem_socket_empty'));
             }
 
+            $character = $this->freshCharacter($character->tg_id);
+
+            if (! $this->canAcceptBagRows($character, 1)) {
+                return ActionResult::fail(__('errors.bag_full'));
+            }
+
             $cost = $this->gems->unsocketSilver();
 
             if ($cost > 0) {
@@ -502,7 +526,11 @@ final class GemService
 
             $character = $this->freshCharacter($character->tg_id);
             $pouch = $this->pouch($character);
-            $pouch[] = $instance;
+            $pouch[] = [
+                'gem_id' => $instance['gem_id'],
+                'durability' => $instance['durability'],
+                'added_at' => now()->toIso8601String(),
+            ];
             $character->gem_pouch = $pouch;
             $character->save();
 
@@ -515,11 +543,13 @@ final class GemService
     private function appendInstances(Character $character, string $gemId, int $durability, int $qty): void
     {
         $pouch = $this->pouch($character);
+        $addedAt = now()->toIso8601String();
 
         for ($i = 0; $i < $qty; $i++) {
             $pouch[] = [
                 'gem_id' => $gemId,
                 'durability' => $durability,
+                'added_at' => $addedAt,
             ];
         }
 

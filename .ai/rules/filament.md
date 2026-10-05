@@ -9,7 +9,7 @@ paths:
 - Panel: `/admin`, single User from `AdminUserSeeder` (`.env` ADMIN\_\*).
 - MVP resources are **read-only**: `canCreate` / `canEdit` / `canDelete` → `false`. No Create/Edit pages.
 - Exception (roadmap **1.0**): full **CRUD каталога снаряжения** (`Equipment` resource) — Create / Edit / View / Archive / Delete, все поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
-- Exception (`CharacterResource`): List/View/Edit; **Create нет**. View header — только Edit; Archive/Restore/ForceDelete — List row actions (+ bulk) и header Edit (как Equipment). Reset статов — красная кнопка в «Идентичность», visible только `operation === 'edit'`. Под формой `RelationGroup` со стеком RM (без табов): **Экипировка** (`LoadoutRelationManager`, view-only) → **Рюкзак** (`BackpackRelationManager`; тулбар `current / [inventory_max_rows]` — max editable только на Edit; equip/discard только на Edit) → **Сумка** (`BagRelationManager`, view-only). Soft delete = бан. Clone нет. Form. Save с ростом `exp` → пороги.
+- Exception (`CharacterResource`): List/View/Edit; **Create нет**. View header — только Edit; Archive/Restore/ForceDelete — List row actions (+ bulk) и header Edit (как Equipment). Reset статов — красная кнопка в «Идентичность», visible только `operation === 'edit'`. Под формой `RelationGroup` со стеком RM (без табов): **Экипировка** (`LoadoutRelationManager`, view-only) → **Рюкзак** (`BackpackRelationManager`; тулбар `current / [inventory_max_rows]` — max editable только на Edit; equip/discard только на Edit) → **Сумка** (`BagRelationManager`; custom `records()` из `gem_pouch`; тулбар `current / [bag_max_rows]`; max / socket / discard только на Edit; канон UI — `docs/BAG.md` §5). Soft delete = бан. Clone нет. Form. Save с ростом `exp` → пороги.
 - Exception (live sessions): `FightResource` — List/View + Delete/bulk force-clear (`FightClearAction`); `canDelete` / `canDeleteAny` → `true`; Create/Edit **нет**.
 - Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/` (page/table mixins), `app/Filament/Support/` (presentation helpers, не traits), `app/Filament/Tables/Columns/`.
 - **`app/Filament/Support/` ≠ `app/Support/`**: Filament — только UI/presentation (текст ячеек, SVG, filter helpers). Domain DTO / SDK glue — в `app/Support/{Character,Equipment,Game,Gem,Random,Telegram}/`. Не смешивать.
@@ -121,9 +121,11 @@ paths:
 - Цвета через `Filament\Support\Colors\Color` (не строковые `'primary'`):
     - View → `Color::Teal` + `heroicon-o-eye` + tooltip `admin.actions.view`
     - Edit → `Color::Sky` + `heroicon-o-pencil` + tooltip `admin.actions.edit`
+    - Equip (рюкзак) / Socket (сумка) → `Color::Green` + `heroicon-o-plus-circle` (не `plus`) + tooltip `admin.actions.equip` / `socket_gem`; modal через `requiresConfirmation()`
     - Archive (soft delete) → `Color::Amber` + `Heroicon::OutlinedArchiveBox` + tooltip/modals `admin.actions.archive`
     - Restore → `Color::Green` + `heroicon-o-arrow-uturn-left` + `admin.actions.restore`
-    - Delete (force) → `Color::Red` + `heroicon-o-trash` + `admin.actions.delete`; `visible` если `trashed()` и нет inventory refs
+    - Delete (force) / Discard → `Color::Red` + `heroicon-o-trash` + `admin.actions.delete` / `discard` / `discard_gem`; `visible` для force-delete если `trashed()` и нет inventory refs
+- Сумка row actions / socket modal — детали в `docs/BAG.md` §5 (не дублировать здесь целиком).
 - Bulk: `BulkActionGroup` + `DeleteBulkAction` как **архив** (`admin.actions.archive_bulk`, amber, archive icon) — только у write-ресурсов.
 - `FightResource` bulk: hard clear через `FightClearAction` + `admin.actions.delete_bulk`, red + trash (`canDeleteAny` → `true`).
 

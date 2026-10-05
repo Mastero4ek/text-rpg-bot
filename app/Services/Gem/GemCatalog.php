@@ -115,17 +115,6 @@ final class GemCatalog
         return $raw;
     }
 
-    public function wardGold(): int
-    {
-        $raw = $this->globals()['wardGold'];
-
-        if (! is_int($raw) || $raw < 1) {
-            throw new RuntimeException('settings.gems.wardGold must be >= 1.');
-        }
-
-        return $raw;
-    }
-
     /**
      * @return array<string, GemCatalogRow>
      */

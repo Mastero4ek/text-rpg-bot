@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use InvalidArgumentException;
+use Livewire\Attributes\On;
 use Livewire\Livewire;
 
 final class BackpackRelationManager extends RelationManager
@@ -62,10 +63,14 @@ final class BackpackRelationManager extends RelationManager
         $editable = ! $component->isReadOnly();
 
         return new HtmlString(
-            view('filament.characters.backpack-capacity', [
+            view('filament.characters.capacity-toolbar', [
                 'current' => $current,
                 'max' => $component->inventoryMaxRows ?? $owner->inventory_max_rows,
                 'editable' => $editable,
+                'filledLabel' => __('admin.labels.backpack_filled'),
+                'ofLabel' => __('admin.labels.backpack_capacity_of'),
+                'capacityLabel' => __('admin.labels.backpack_capacity'),
+                'maxWireModel' => 'inventoryMaxRows',
             ])->render()
         );
     }
@@ -95,6 +100,12 @@ final class BackpackRelationManager extends RelationManager
         if ($owner instanceof Character) {
             $this->inventoryMaxRows = $owner->inventory_max_rows;
         }
+    }
+
+    #[On('character-gems-changed')]
+    public function refreshAfterCharacterGemsChanged(): void
+    {
+        $this->resetTable();
     }
 
     public function table(Table $table): Table

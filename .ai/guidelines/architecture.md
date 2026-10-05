@@ -49,7 +49,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 ## Data
 
 - `users` — Filament operators only (one seeded super-admin).
-- `characters` — players, PK `tg_id`; `inventory_max_rows` (ёмкость рюкзака); `gem_pouch` JSON.
+- `characters` — players, PK `tg_id`; `inventory_max_rows` (ёмкость рюкзака); `bag_max_rows` (ёмкость сумки); `gem_pouch` JSON.
 - `inventories` — экземпляры предметов (`item_name` snapshot, `quantity`, `created_at`, sockets…); FK `tg_id` → `characters`. **Нет** `is_equipped`.
 - `loadout_slots` — sparse экипировка (`tg_id`, `slot`, `inventory_id`); equipped не считаются в ёмкость рюкзака.
 - `fights` — one active fight per character (`tg_id` PK); session columns, not a single `data` blob. Enemy snapshot and combat `log` (already-rendered RU strings) are JSON columns.

@@ -162,7 +162,11 @@ final class InventoryService
                 return ActionResult::fail(__('errors.unequip_first'));
             }
 
-            $this->removeOneFromRow($row);
+            $moved = $this->removeOneFromRow($row);
+
+            if (! $moved->ok) {
+                return $moved;
+            }
 
             $character = $this->characters->findByTgId($character->tg_id);
 
@@ -380,9 +384,9 @@ final class InventoryService
         return $count;
     }
 
-    public function removeOne(Inventory $row): void
+    public function removeOne(Inventory $row): ActionResult
     {
-        $this->removeOneFromRow($row);
+        return $this->removeOneFromRow($row);
     }
 
     public function rowLabel(Inventory $row): string
@@ -429,19 +433,24 @@ final class InventoryService
         return $settings['inventory'];
     }
 
-    private function removeOneFromRow(Inventory $row): void
+    private function removeOneFromRow(Inventory $row): ActionResult
     {
         if ($row->quantity > 1) {
             $row->quantity -= 1;
             $row->save();
 
-            return;
+            return ActionResult::ok($this->characters->findByTgId($row->tg_id));
         }
 
-        $this->gems->moveSocketedToPouch(
-            $this->characters->findByTgId($row->tg_id),
-            $row,
-        );
+        $character = $this->characters->findByTgId($row->tg_id);
+        $moved = $this->gems->moveSocketedToPouch($character, $row);
+
+        if (! $moved->ok) {
+            return $moved;
+        }
+
         $row->delete();
+
+        return ActionResult::ok($this->characters->findByTgId($row->tg_id));
     }
 }

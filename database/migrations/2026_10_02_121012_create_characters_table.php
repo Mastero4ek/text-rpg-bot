@@ -33,7 +33,7 @@ return new class extends Migration
             $table->timestamp('last_stamina_update');
             $table->integer('stat_points')->default(3);
             $table->json('gem_pouch')->nullable();
-            $table->unsignedInteger('gem_ward_charges')->default(0);
+            $table->unsignedInteger('bag_max_rows')->default(10);
             $table->unsignedInteger('inventory_max_rows')->default(50);
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();

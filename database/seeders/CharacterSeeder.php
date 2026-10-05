@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\Gem;
 use App\Models\Inventory;
 use App\Models\LoadoutSlot;
 use App\Services\Character\CharacterService;
@@ -39,6 +40,7 @@ final class CharacterSeeder extends Seeder
             $character->save();
 
             $this->fillBackpack($inventory, $loadout, $character, $row['backpack'], $row['equip']);
+            $this->fillBag($character, $row['bag']);
         }
     }
 
@@ -76,6 +78,34 @@ final class CharacterSeeder extends Seeder
     }
 
     /**
+     * @param  list<array{gem_id: string, durability: int}>  $bag
+     */
+    private function fillBag(Character $character, array $bag): void
+    {
+        $pouch = [];
+        $addedAt = now()->toIso8601String();
+
+        foreach ($bag as $entry) {
+            if (! Gem::query()->withTrashed()->whereKey($entry['gem_id'])->exists()) {
+                throw new RuntimeException('Unknown gem for seed: ' . $entry['gem_id']);
+            }
+
+            $pouch[] = [
+                'gem_id' => $entry['gem_id'],
+                'durability' => $entry['durability'],
+                'added_at' => $addedAt,
+            ];
+        }
+
+        if (count($pouch) > $character->bag_max_rows) {
+            $character->bag_max_rows = count($pouch);
+        }
+
+        $character->gem_pouch = $pouch;
+        $character->save();
+    }
+
+    /**
      * @return list<array{
      *     tg_id: int,
      *     username: string,
@@ -85,7 +115,8 @@ final class CharacterSeeder extends Seeder
      *     silver: int,
      *     gold: int,
      *     backpack: list<string>,
-     *     equip: list<string>
+     *     equip: list<string>,
+     *     bag: list<array{gem_id: string, durability: int}>
      * }>
      */
     private function rows(): array
@@ -112,6 +143,10 @@ final class CharacterSeeder extends Seeder
                     'knuckles_0',
                     'heavy_0',
                 ],
+                'bag' => [
+                    ['gem_id' => 'ruby_0', 'durability' => 10],
+                    ['gem_id' => 'emerald_0', 'durability' => 7],
+                ],
             ],
             [
                 'tg_id' => 900002,
@@ -136,6 +171,11 @@ final class CharacterSeeder extends Seeder
                     'sword_0',
                     'mobile_0',
                     'focus_0',
+                ],
+                'bag' => [
+                    ['gem_id' => 'ruby_0', 'durability' => 10],
+                    ['gem_id' => 'sapphire_0', 'durability' => 9],
+                    ['gem_id' => 'emerald_0', 'durability' => 4],
                 ],
             ],
             [
@@ -165,6 +205,12 @@ final class CharacterSeeder extends Seeder
                     'heavy_1',
                     'mobile_1',
                     'vital_0',
+                ],
+                'bag' => [
+                    ['gem_id' => 'diamond_0', 'durability' => 10],
+                    ['gem_id' => 'ruby_0', 'durability' => 8],
+                    ['gem_id' => 'sapphire_0', 'durability' => 10],
+                    ['gem_id' => 'emerald_0', 'durability' => 6],
                 ],
             ],
         ];

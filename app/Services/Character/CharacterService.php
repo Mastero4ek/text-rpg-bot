@@ -141,13 +141,36 @@ final class CharacterService
             $character->max_stamina = $stamina;
             $character->last_stamina_update = now();
             $character->stat_points = $start['statPoints'];
-            $character->gem_ward_charges = 0;
+            $character->bag_max_rows = $this->defaultBagMaxRows();
             $character->inventory_max_rows = $this->defaultInventoryMaxRows();
             $character->arena_points = 0;
             $character->premium_until = null;
             $character->save();
 
             return $character;
+        });
+    }
+
+    public function setBagMaxRows(Character $character, int $maxRows): Character
+    {
+        if ($maxRows < 1) {
+            throw new InvalidArgumentException('Bag max rows must be >= 1.');
+        }
+
+        return DB::transaction(function () use ($character, $maxRows): Character {
+            $locked = Character::query()
+                ->whereKey($character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked === null) {
+                throw new ModelNotFoundException('Character not found.');
+            }
+
+            $locked->bag_max_rows = $maxRows;
+            $locked->save();
+
+            return $locked;
         });
     }
 
@@ -701,6 +724,27 @@ final class CharacterService
         }
 
         return $rows;
+    }
+
+    private function defaultBagMaxRows(): int
+    {
+        $settings = $this->config->settings();
+
+        if (! array_key_exists('gems', $settings) || ! is_array($settings['gems'])) {
+            throw new RuntimeException('settings.gems missing.');
+        }
+
+        $gems = $settings['gems'];
+
+        if (! array_key_exists('bagMaxRows', $gems) || ! is_int($gems['bagMaxRows'])) {
+            throw new RuntimeException('settings.gems.bagMaxRows missing.');
+        }
+
+        if ($gems['bagMaxRows'] < 1) {
+            throw new RuntimeException('settings.gems.bagMaxRows must be >= 1.');
+        }
+
+        return $gems['bagMaxRows'];
     }
 
     private function defaultInventoryMaxRows(): int

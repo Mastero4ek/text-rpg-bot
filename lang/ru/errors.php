@@ -20,6 +20,7 @@ return [
     'item_not_in_shop' => 'Нет в магазине',
     'not_in_inventory' => 'Нет в рюкзаке',
     'inventory_full' => 'Рюкзак полон.',
+    'bag_full' => 'Сумка полна.',
     'unequip_first' => 'Сначала сними вещь.',
     'cannot_sell' => 'Это нельзя продать.',
     'nick_invalid' => 'Ник: :nickMin–:nickMax символов (буквы, цифры, пробел, _ -). Напиши имя ещё раз.',

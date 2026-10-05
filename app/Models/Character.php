@@ -35,7 +35,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property CarbonInterface $last_stamina_update
  * @property int $stat_points
  * @property list<mixed>|null $gem_pouch
- * @property int $gem_ward_charges
+ * @property int $bag_max_rows
  * @property int $inventory_max_rows
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
@@ -66,7 +66,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'last_stamina_update',
     'stat_points',
     'gem_pouch',
-    'gem_ward_charges',
+    'bag_max_rows',
     'inventory_max_rows',
     'arena_points',
     'premium_until',
@@ -137,7 +137,7 @@ final class Character extends Model implements HasMedia
             'last_stamina_update' => 'datetime',
             'stat_points' => 'integer',
             'gem_pouch' => 'array',
-            'gem_ward_charges' => 'integer',
+            'bag_max_rows' => 'integer',
             'inventory_max_rows' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',

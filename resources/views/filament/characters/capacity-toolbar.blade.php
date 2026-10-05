@@ -2,6 +2,10 @@
     'current',
     'max',
     'editable' => false,
+    'filledLabel',
+    'ofLabel',
+    'capacityLabel',
+    'maxWireModel',
 ])
 
 <div class="fi-backpack-capacity">
@@ -13,12 +17,12 @@
             type="number"
             :value="$current"
             disabled
-            :aria-label="__('admin.labels.backpack_filled')"
+            :aria-label="$filledLabel"
         />
     </x-filament::input.wrapper>
 
     <span class="fi-backpack-capacity-sep">
-        {{ __('admin.labels.backpack_capacity_of') }}
+        {{ $ofLabel }}
     </span>
 
     @if ($editable)
@@ -27,8 +31,8 @@
                 type="number"
                 min="1"
                 step="1"
-                wire:model.blur="inventoryMaxRows"
-                :aria-label="__('admin.labels.backpack_capacity')"
+                wire:model.blur="{{ $maxWireModel }}"
+                :aria-label="$capacityLabel"
             />
         </x-filament::input.wrapper>
     @else
@@ -40,7 +44,7 @@
                 type="number"
                 :value="$max"
                 disabled
-                :aria-label="__('admin.labels.backpack_capacity')"
+                :aria-label="$capacityLabel"
             />
         </x-filament::input.wrapper>
     @endif

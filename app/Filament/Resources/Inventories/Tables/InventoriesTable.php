@@ -278,7 +278,7 @@ final class InventoriesTable
     private static function equipAction(): Action
     {
         return Action::make('equip')
-            ->icon('heroicon-o-plus')
+            ->icon('heroicon-o-plus-circle')
             ->color(Color::Green)
             ->label('')
             ->tooltip(__('admin.actions.equip.label'))

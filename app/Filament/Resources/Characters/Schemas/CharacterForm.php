@@ -224,6 +224,8 @@ final class CharacterForm
                             ->minValue(0),
                         DateTimePicker::make('premium_until')
                             ->label(__('admin.labels.premium_until'))
+                            ->displayFormat('d.m.Y H:i')
+                            ->seconds(false)
                             ->native(false),
                     ]),
             ]);

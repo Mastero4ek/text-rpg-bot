@@ -19,8 +19,7 @@ it('seeds gem catalog into the database', function (): void {
         ->and($catalog->find('diamond_0')->inShop)->toBeFalse()
         ->and($catalog->find('diamond_0')->mf->antiDodge)->toBe(4)
         ->and($catalog->breakChanceOnLose())->toBe(40)
-        ->and($catalog->unsocketSilver())->toBe(5)
-        ->and($catalog->wardGold())->toBe(2);
+        ->and($catalog->unsocketSilver())->toBe(5);
 });
 
 it('lists only enabled shop gems', function (): void {

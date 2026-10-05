@@ -13,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\On;
 
 final class LoadoutRelationManager extends RelationManager
 {
@@ -50,6 +51,12 @@ final class LoadoutRelationManager extends RelationManager
     public function isReadOnly(): bool
     {
         return true;
+    }
+
+    #[On('character-gems-changed')]
+    public function refreshAfterCharacterGemsChanged(): void
+    {
+        $this->dispatch('$refresh');
     }
 
     public function table(Table $table): Table

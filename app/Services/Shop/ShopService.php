@@ -113,7 +113,11 @@ final class ShopService
             $def = $this->catalog->findItem($row->item_id);
             $payout = $this->inventory->sellPayout($row);
 
-            $this->inventory->removeOne($row);
+            $removed = $this->inventory->removeOne($row);
+
+            if (! $removed->ok) {
+                return $removed;
+            }
 
             if ($payout > 0) {
                 $locked = Character::query()
