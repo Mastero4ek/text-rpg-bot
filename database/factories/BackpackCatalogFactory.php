@@ -33,7 +33,6 @@ final class BackpackCatalogFactory extends Factory
             'item_type' => TypeEnum::WEAPON,
             'slot' => SlotEnum::RIGHT_HAND,
             'profile' => ProfileEnum::KNIFE,
-            'in_shop' => true,
             'enabled' => true,
             'price' => 50,
             'currency' => CurrencyEnum::SILVER,

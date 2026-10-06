@@ -13,6 +13,7 @@ pest()->beforeEach(function (): void {
     $this->seed(Database\Seeders\BackpackCatalogSeeder::class);
     $this->seed(Database\Seeders\BagCatalogSeeder::class);
     $this->seed(Database\Seeders\EnemyCatalogSeeder::class);
+    $this->seed(Database\Seeders\CitySeeder::class);
 })->in('Feature');
 
 require_once __DIR__ . '/Helpers.php';

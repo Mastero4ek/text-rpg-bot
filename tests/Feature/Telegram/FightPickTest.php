@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\OnboardingStepEnum;
+use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -17,21 +19,20 @@ beforeEach(function (): void {
     ]);
 });
 
-it('lists only enabled in_fight_menu enemies with kind labels', function (): void {
+it('lists only enabled forest enemies with city pivot', function (): void {
     $p = characters()->createDraft(7401);
     $p->onboarding_step = OnboardingStepEnum::DONE;
     $p->level = 4;
-    $p->save();
+    $p = placeInCity($p, City::KEY_YASEN);
 
     EnemyCatalog::factory()->create([
         'catalog_id' => 'hidden_mob',
         'name' => 'Скрытый',
         'enabled' => true,
-        'in_fight_menu' => false,
     ]);
 
-    $update = fightCallback($p->tg_id, 'menu:fight');
-    app(FightHandler::class)->handleCallback(
+    $update = fightCallback($p->tg_id, 'city:forest');
+    app(CityHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -56,7 +57,7 @@ it('lists only enabled in_fight_menu enemies with kind labels', function (): voi
 it('starts training fight by catalog_id', function (): void {
     $p = characters()->createDraft(7402);
     $p->onboarding_step = OnboardingStepEnum::DONE;
-    $p->save();
+    $p = placeInCity($p, City::KEY_YASEN);
 
     $update = fightCallback($p->tg_id, 'fight:start:chance_wanderer');
     app(FightHandler::class)->handleCallback(

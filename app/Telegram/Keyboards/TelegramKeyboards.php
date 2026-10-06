@@ -8,6 +8,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
 
@@ -18,18 +19,117 @@ final class TelegramKeyboards
      */
     public static function mainMenu(): array
     {
+        return self::backToCity();
+    }
+
+    /**
+     * @return array{keyboard: list<list<array{text: string}>>, resize_keyboard: true}
+     */
+    public static function personalReply(): array
+    {
+        return [
+            'keyboard' => [[
+                ['text' => __('menu.profile')],
+                ['text' => __('menu.inv')],
+                ['text' => __('menu.stats')],
+            ]],
+            'resize_keyboard' => true,
+        ];
+    }
+
+    /**
+     * @return array{remove_keyboard: true}
+     */
+    public static function removeReply(): array
+    {
+        return ['remove_keyboard' => true];
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function cityServices(City $city): array
+    {
+        $rows = [];
+
+        if ($city->has_shop) {
+            $rows[] = [self::cb(__('menu.shop'), 'city:shop')];
+        }
+
+        if ($city->has_smith) {
+            $rows[] = [self::cb(__('menu.smith'), 'city:smith')];
+        }
+
+        if ($city->has_hospital) {
+            $rows[] = [self::cb(__('menu.hospital'), 'city:hospital')];
+        }
+
+        if ($city->has_portal) {
+            $rows[] = [self::cb(__('menu.portal'), 'city:portal')];
+        }
+
+        if ($city->has_arena) {
+            $rows[] = [self::cb(__('menu.arena'), 'city:arena')];
+        }
+
+        if ($city->has_forest) {
+            $rows[] = [self::cb(__('menu.forest'), 'city:forest')];
+        }
+
+        if ($city->has_training) {
+            $rows[] = [self::cb(__('menu.training'), 'city:training')];
+        }
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function backToCity(): array
+    {
         return self::inline([
-            [self::cb(__('menu.profile'), 'menu:profile')],
-            [
-                self::cb(__('menu.backpack'), 'menu:inv'),
-                self::cb(__('menu.bag'), 'menu:bag'),
-            ],
-            [self::cb(__('menu.gear'), 'menu:gear')],
-            [self::cb(__('menu.shop'), 'menu:shop')],
-            [self::cb(__('menu.smith'), 'menu:smith')],
-            [self::cb(__('menu.fight'), 'menu:fight')],
-            [self::cb(__('menu.stats'), 'menu:stats')],
+            [self::cb(__('menu.back'), 'menu:home')],
         ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function inventoryHub(): array
+    {
+        return self::inline([
+            [self::cb(__('menu.backpack'), 'menu:inv')],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+            [self::cb(__('menu.gear'), 'menu:gear')],
+            [self::cb(__('menu.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @param  iterable<int, City>  $targets
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function portalTargets(iterable $targets): array
+    {
+        $rows = [];
+
+        foreach ($targets as $target) {
+            if ($target->portal_cost_silver > 0) {
+                $text = __('city.portal_row', [
+                    'name' => $target->name,
+                    'cost' => $target->portal_cost_silver,
+                ]);
+            } else {
+                $text = __('city.portal_row_free', ['name' => $target->name]);
+            }
+
+            $rows[] = [self::cb($text, 'portal:' . $target->id)];
+        }
+
+        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+
+        return self::inline($rows);
     }
 
     /**
@@ -86,7 +186,7 @@ final class TelegramKeyboards
     }
 
     /**
-     * @param  list<string>  $cities
+     * @param  list<City>  $cities
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
     public static function city(array $cities): array
@@ -94,7 +194,7 @@ final class TelegramKeyboards
         $rows = [];
 
         foreach ($cities as $city) {
-            $rows[] = [self::cb($city, 'ob:city:' . $city)];
+            $rows[] = [self::cb($city->name, 'ob:city:' . $city->key)];
         }
 
         return self::inline($rows);
@@ -146,15 +246,18 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function noviceShop(ShopCatalog $shop, int $potionPrice): array
+    public static function noviceShop(ShopCatalog $shop, int $potionPrice, City $city): array
     {
         $rows = [];
 
-        foreach ($shop->noviceWeapons() as $weapon) {
-            $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
+        if ($city->has_shop) {
+            foreach ($shop->noviceWeapons() as $weapon) {
+                $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
+            }
+
+            $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
         }
 
-        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
         $rows[] = [self::cb(__('onboarding.btn_claim_club'), 'ob:claim_club')];
 
         return self::inline($rows);

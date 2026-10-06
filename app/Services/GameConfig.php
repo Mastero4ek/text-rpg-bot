@@ -61,6 +61,31 @@ final class GameConfig
     }
 
     /**
+     * @return array{exp: int, silver: int}
+     */
+    public function trainingReward(): array
+    {
+        if (! array_key_exists('training', $this->settings) || ! is_array($this->settings['training'])) {
+            throw new RuntimeException('settings.training missing.');
+        }
+
+        $row = $this->settings['training'];
+
+        if (! array_key_exists('exp', $row) || ! is_int($row['exp'])) {
+            throw new RuntimeException('settings.training.exp missing.');
+        }
+
+        if (! array_key_exists('silver', $row) || ! is_int($row['silver'])) {
+            throw new RuntimeException('settings.training.silver missing.');
+        }
+
+        return [
+            'exp' => $row['exp'],
+            'silver' => $row['silver'],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function loadJson(string $filename): array

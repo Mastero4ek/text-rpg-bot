@@ -12,7 +12,7 @@ use App\Models\Enemy\EnemyDrop;
 
 it('grants bag item at 100 percent from snapshot', function (): void {
     $p = characters()->createDraft(7301);
-    $catalog = EnemyCatalog::factory()->create(['in_fight_menu' => false]);
+    $catalog = EnemyCatalog::factory()->create();
     EnemyDrop::factory()->create([
         'enemy_catalog_id' => $catalog->catalog_id,
         'bag_catalog_id' => 'heal_0',
@@ -28,7 +28,7 @@ it('grants bag item at 100 percent from snapshot', function (): void {
 
 it('skips drop at 0 percent', function (): void {
     $p = characters()->createDraft(7302);
-    $catalog = EnemyCatalog::factory()->create(['in_fight_menu' => false]);
+    $catalog = EnemyCatalog::factory()->create();
     EnemyDrop::factory()->create([
         'enemy_catalog_id' => $catalog->catalog_id,
         'bag_catalog_id' => 'heal_0',
@@ -47,7 +47,7 @@ it('skips drop when bag is full', function (): void {
     $p->save();
     grantGem($p, 'ruby_0', 1);
 
-    $catalog = EnemyCatalog::factory()->create(['in_fight_menu' => false]);
+    $catalog = EnemyCatalog::factory()->create();
     EnemyDrop::factory()->create([
         'enemy_catalog_id' => $catalog->catalog_id,
         'bag_catalog_id' => 'heal_0',
@@ -63,7 +63,7 @@ it('skips drop when bag is full', function (): void {
 
 it('rolls several drop rows independently', function (): void {
     $p = characters()->createDraft(7304);
-    $catalog = EnemyCatalog::factory()->create(['in_fight_menu' => false]);
+    $catalog = EnemyCatalog::factory()->create();
     EnemyDrop::factory()->create([
         'enemy_catalog_id' => $catalog->catalog_id,
         'bag_catalog_id' => 'heal_0',

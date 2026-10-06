@@ -8,6 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
+use App\Filament\Support\CityCatalogField;
 use App\Models\Bag\BagCatalog;
 use Closure;
 use Filament\Forms\Components\Hidden;
@@ -126,8 +127,6 @@ final class BagCatalogForm
                                 Toggle::make('enabled')
                                     ->label(__('admin.labels.enabled'))
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.gem_enabled')),
-                                Toggle::make('in_shop')
-                                    ->label(__('admin.labels.in_shop')),
                             ])
                                 ->columns(3),
                         ]),
@@ -165,6 +164,8 @@ final class BagCatalogForm
                     ->columnSpanFull()
                     ->collapsed()
                     ->schema([
+                        CityCatalogField::make()
+                            ->columnSpan(2),
                         Select::make('currency')
                             ->label(__('admin.labels.currency'))
                             ->options(CurrencyEnum::class)

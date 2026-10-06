@@ -8,6 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
+use App\Models\City;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use App\Support\Gem\GemDef;
 use App\Support\Mf;
@@ -17,6 +18,7 @@ use Database\Factories\BagCatalogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use RuntimeException;
 use Spatie\MediaLibrary\HasMedia;
@@ -27,7 +29,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property BagKindEnum $kind
  * @property string $name
  * @property string|null $description
- * @property bool $in_shop
  * @property bool $enabled
  * @property int $price
  * @property CurrencyEnum $currency
@@ -49,7 +50,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'kind',
     'name',
     'description',
-    'in_shop',
     'enabled',
     'price',
     'currency',
@@ -91,6 +91,19 @@ final class BagCatalog extends Model implements HasMedia
         return self::nextCatalogIdForPrefix(mb_strtolower($profile->value));
     }
 
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function cities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_bag_catalog',
+            'bag_catalog_id',
+            'city_id',
+        );
+    }
+
     public function isReferenced(): bool
     {
         return BagItem::query()
@@ -126,7 +139,7 @@ final class BagCatalog extends Model implements HasMedia
             $this->description,
             $this->price,
             $this->currency,
-            $this->in_shop,
+            $this->cities->isNotEmpty(),
             $this->enabled,
             $this->max_durability,
             new Mf(
@@ -160,7 +173,7 @@ final class BagCatalog extends Model implements HasMedia
             $this->effect_value,
             $this->price,
             $this->currency,
-            $this->in_shop,
+            $this->cities->isNotEmpty(),
             $this->enabled,
         );
     }
@@ -232,7 +245,6 @@ final class BagCatalog extends Model implements HasMedia
     {
         return [
             'kind' => BagKindEnum::class,
-            'in_shop' => 'boolean',
             'enabled' => 'boolean',
             'price' => 'integer',
             'currency' => CurrencyEnum::class,

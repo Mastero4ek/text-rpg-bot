@@ -6,6 +6,7 @@ namespace App\Actions\Character;
 
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Models\Character;
+use App\Models\City;
 use App\Models\User;
 use App\Services\OnboardingService;
 use App\Support\ActionResult;
@@ -17,9 +18,9 @@ final class CharacterSetLocationAction
         private readonly OnboardingService $onboarding,
     ) {}
 
-    public function handle(Character $character, string $location): ActionResult
+    public function handle(Character $character, string $cityKey): ActionResult
     {
-        $result = $this->onboarding->setLocation($character, $location);
+        $result = $this->onboarding->setLocation($character, $cityKey);
 
         if (! $result->ok || ! $result->character instanceof Character) {
             return $result;
@@ -38,13 +39,15 @@ final class CharacterSetLocationAction
             return;
         }
 
-        if ($character->username === null || $character->location === null) {
+        $character->loadMissing('city');
+
+        if ($character->username === null || ! $character->city instanceof City) {
             return;
         }
 
         $url = e(CharacterResource::getUrl('view', ['record' => $character], isAbsolute: false));
         $nick = e($character->username);
-        $location = e($character->location);
+        $location = e($character->city->name);
 
         Notification::make()
             ->title(__('admin.notifications.character_appeared.title'))

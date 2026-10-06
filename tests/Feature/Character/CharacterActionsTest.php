@@ -72,10 +72,10 @@ it('set location notifies admin in database', function (): void {
     $p->save();
 
     $city = onboarding()->cities()[0];
-    $res = app(CharacterSetLocationAction::class)->handle($p, $city);
+    $res = app(CharacterSetLocationAction::class)->handle($p, $city->key);
 
     expect($res->ok)->toBeTrue()
-        ->and($res->character->location)->toBe($city);
+        ->and($res->character->city_id)->toBe($city->id);
 
     $this->assertDatabaseHas('notifications', [
         'notifiable_type' => User::class,
@@ -86,7 +86,7 @@ it('set location notifies admin in database', function (): void {
     expect($row)->not->toBeNull()
         ->and($row->data['title'])->toBe(__('admin.notifications.character_appeared.title'))
         ->and($row->data['body'])->toContain('NotifyHero')
-        ->and($row->data['body'])->toContain($city);
+        ->and($row->data['body'])->toContain($city->name);
 });
 
 it('set location failure does not notify', function (): void {

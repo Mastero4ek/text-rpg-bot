@@ -6,6 +6,7 @@ namespace App\Quest;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Services\Backpack\BackpackService;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
@@ -34,8 +35,16 @@ final class StatsQuest
 
     public function text(Character $character): string
     {
+        $character->loadMissing('birthCity');
+
+        if ($character->birthCity instanceof City) {
+            $cityName = $character->birthCity->name;
+        } else {
+            $cityName = '-';
+        }
+
         return __('onboarding.stats_quest', [
-            'city' => $character->location,
+            'city' => $cityName,
             'points' => $character->stat_points,
             'str' => $character->strength,
             'agi' => $character->agility,

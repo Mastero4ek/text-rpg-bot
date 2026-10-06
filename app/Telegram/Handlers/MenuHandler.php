@@ -26,6 +26,7 @@ use App\Services\Backpack\RepairService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
+use App\Services\Fight\FightService;
 use App\Services\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Gem\GemMfText;
@@ -37,6 +38,7 @@ final class MenuHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly FightService $fights,
         private readonly BackpackService $backpack,
         private readonly BagService $bag,
         private readonly BagCatalog $bagCatalog,
@@ -65,8 +67,14 @@ final class MenuHandler
             return;
         }
 
-        if ($data === 'menu:profile' || $data === 'menu:home') {
-            $responder->edit($this->characters->profileText($player), TelegramKeyboards::mainMenu());
+        if ($data === 'menu:profile') {
+            $responder->edit($this->characters->profileText($player), TelegramKeyboards::backToCity());
+
+            return;
+        }
+
+        if ($data === 'inv:hub') {
+            $responder->edit(__('menu.inventory'), TelegramKeyboards::inventoryHub());
 
             return;
         }
@@ -269,6 +277,48 @@ final class MenuHandler
         if ($data === 'stat:reset_yes') {
             $this->statsReset($responder, $player);
         }
+    }
+
+    public function handleText(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = $this->requireDone($update, $responder);
+
+        if (! $player instanceof Character) {
+            return;
+        }
+
+        if ($this->fights->exists($player->tg_id)) {
+            return;
+        }
+
+        $text = $update->text();
+
+        if ($text === __('menu.profile')) {
+            $responder->reply($this->characters->profileText($player), TelegramKeyboards::backToCity());
+
+            return;
+        }
+
+        if ($text === __('menu.inv')) {
+            $responder->reply(__('menu.inventory'), TelegramKeyboards::inventoryHub());
+
+            return;
+        }
+
+        if ($text === __('menu.stats')) {
+            $responder->reply(
+                $this->characters->statsScreenText($player),
+                TelegramKeyboards::statsScreen(
+                    $player->stat_points,
+                    $this->characters->statResetGoldCost(),
+                ),
+            );
+        }
+    }
+
+    public function showSmith(TelegramResponder $responder, Character $player): void
+    {
+        $this->smithScreen($responder, $player);
     }
 
     private function canonicalCallback(string $data): string

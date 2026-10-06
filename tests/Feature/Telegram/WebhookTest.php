@@ -81,7 +81,7 @@ it('starts tutorial fight from intro callback', function (): void {
 
     $player = onboarding()->ensurePlayer(4244);
     $player = onboarding()->setNick($player, 'IntroFighter')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0])->character;
+    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
 
     $payload = [
         'update_id' => 12,
@@ -117,7 +117,7 @@ it('resumes tutorial fight wizard step on /start', function (): void {
 
     $player = onboarding()->ensurePlayer(4245);
     $player = onboarding()->setNick($player, 'ResumeAtk')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0])->character;
+    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::ATTACK;
     $fight->player_stance = StanceEnum::ATTACK;
@@ -152,7 +152,7 @@ it('resumes tutorial defend step on /start', function (): void {
 
     $player = onboarding()->ensurePlayer(4246);
     $player = onboarding()->setNick($player, 'ResumeDef')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0])->character;
+    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::DEFEND;
@@ -183,7 +183,7 @@ it('resumes tutorial second defend excluding first zone on /start', function ():
 
     $player = onboarding()->ensurePlayer(4247);
     $player = onboarding()->setNick($player, 'ResumeShield')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0])->character;
+    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::DEFEND_SECOND;
     $fight->player_stance = StanceEnum::DEFEND;
@@ -224,7 +224,7 @@ it('resumes tutorial second defend excluding first zone on /start', function ():
 it('falls back to intro when tutorial fight row is missing', function (): void {
     $player = onboarding()->ensurePlayer(4248);
     $player = onboarding()->setNick($player, 'NoFight')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0])->character;
+    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
     $player->onboarding_step = OnboardingStepEnum::TUTORIAL_FIGHT;
     $player->save();
 

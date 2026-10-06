@@ -10,6 +10,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
+use App\Queries\City\CityQuery;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
@@ -35,6 +36,7 @@ final class ShopHandler
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
         private readonly BackpackSellAction $sellItem,
+        private readonly CityQuery $cityQuery,
     ) {}
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
@@ -48,7 +50,7 @@ final class ShopHandler
         }
 
         if ($data === 'menu:shop') {
-            $this->shopScreen($responder, $player);
+            $this->show($responder, $player);
 
             return;
         }
@@ -154,6 +156,58 @@ final class ShopHandler
         }
     }
 
+    public function show(TelegramResponder $responder, Character $player): void
+    {
+        if ($player->city_id === null) {
+            $responder->reply(__('errors.no_shop'), null);
+
+            return;
+        }
+
+        $allowed = $this->cityQuery->backpackShopCatalogIds($player->city_id);
+        $weapons = [];
+
+        foreach ($this->shop->weaponsForMode('full') as $weapon) {
+            if (! in_array($weapon->itemId, $allowed, true)) {
+                continue;
+            }
+
+            $weapons[] = $weapon;
+        }
+
+        $wearables = [];
+
+        foreach ($this->shop->shopGear() as $item) {
+            if (! in_array($item->itemId, $allowed, true)) {
+                continue;
+            }
+
+            $wearables[] = $item;
+        }
+
+        foreach ($this->shop->shopJewelry() as $jewelry) {
+            if (! in_array($jewelry->itemId, $allowed, true)) {
+                continue;
+            }
+
+            $wearables[] = $jewelry;
+        }
+
+        $responder->edit(
+            __('shop.balance', [
+                'silver' => $player->silver,
+                'current' => $this->backpack->rowCount($player->tg_id),
+                'max' => $this->backpack->maxRows($player),
+            ]),
+            TelegramKeyboards::fullShop(
+                $weapons,
+                $wearables,
+                $this->bagCatalog->potionPrice(),
+                $this->bagCatalog->staminaPotionPrice(),
+            ),
+        );
+    }
+
     private function currencyMark(CurrencyEnum $currency): string
     {
         if ($currency === CurrencyEnum::GOLD) {
@@ -227,7 +281,7 @@ final class ShopHandler
             'mark' => $mark,
         ]), null);
 
-        $this->shopScreen($responder, $res->character);
+        $this->show($responder, $res->character);
     }
 
     private function sellConfirmScreen(TelegramResponder $responder, Character $player, int $rowId): void
@@ -317,7 +371,7 @@ final class ShopHandler
 
         $buttons[] = [[
             'text' => __('menu.shop'),
-            'callback_data' => 'menu:shop',
+            'callback_data' => 'city:shop',
         ]];
 
         if ($hasSellable) {
@@ -330,28 +384,5 @@ final class ShopHandler
         }
 
         $responder->edit($text, ['inline_keyboard' => $buttons]);
-    }
-
-    private function shopScreen(TelegramResponder $responder, Character $player): void
-    {
-        $wearables = $this->shop->shopGear();
-
-        foreach ($this->shop->shopJewelry() as $jewelry) {
-            $wearables[] = $jewelry;
-        }
-
-        $responder->edit(
-            __('shop.balance', [
-                'silver' => $player->silver,
-                'current' => $this->backpack->rowCount($player->tg_id),
-                'max' => $this->backpack->maxRows($player),
-            ]),
-            TelegramKeyboards::fullShop(
-                $this->shop->weaponsForMode('full'),
-                $wearables,
-                $this->bagCatalog->potionPrice(),
-                $this->bagCatalog->staminaPotionPrice(),
-            ),
-        );
     }
 }

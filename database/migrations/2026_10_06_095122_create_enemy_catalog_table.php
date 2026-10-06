@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->boolean('enabled')->default(true);
-            $table->boolean('in_fight_menu')->default(false);
             $table->unsignedInteger('level')->nullable();
             $table->unsignedInteger('strength')->nullable();
             $table->unsignedInteger('agility')->nullable();
@@ -36,7 +35,7 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['enabled', 'in_fight_menu']);
+            $table->index('enabled');
         });
 
         Schema::create('enemy_drops', function (Blueprint $table) {

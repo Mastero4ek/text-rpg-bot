@@ -35,7 +35,8 @@ it('can edit character and applies experience thresholds on exp growth', functio
     ])
         ->fillForm([
             'username' => 'EditHero',
-            'location' => $city,
+            'birth_city_id' => $city->id,
+            'city_id' => $city->id,
             'exp' => 200,
             'level' => 0,
             'stat_points' => 0,
@@ -59,7 +60,7 @@ it('can edit character and applies experience thresholds on exp growth', functio
     expect($fresh->exp)->toBe(200)
         ->and($fresh->level)->toBe(1)
         ->and($fresh->stat_points)->toBe(6)
-        ->and($fresh->location)->toBe($city);
+        ->and($fresh->city_id)->toBe($city->id);
 });
 
 it('rejects forbidden nick on edit', function (): void {

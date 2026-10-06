@@ -7,6 +7,8 @@ namespace App\Services\Shop;
 use App\Enums\Economy\CurrencyEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
+use App\Models\City;
+use App\Queries\City\CityQuery;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
@@ -22,6 +24,7 @@ final class ShopService
         private readonly BagService $bag,
         private readonly BagCatalog $bagCatalog,
         private readonly ShopCatalog $catalog,
+        private readonly CityQuery $cityQuery,
     ) {}
 
     public function buyWeapon(int $tgId, string $catalogId): ActionResult
@@ -53,6 +56,16 @@ final class ShopService
 
             if ($character === null) {
                 return ActionResult::fail(__('common.press_start'));
+            }
+
+            $shopGate = $this->requireShopCity($character);
+
+            if ($shopGate instanceof ActionResult) {
+                return $shopGate;
+            }
+
+            if (! $this->cityQuery->backpackInCityShop($shopGate->id, $catalogId)) {
+                return ActionResult::fail(__('errors.item_not_in_shop'));
             }
 
             if (! $this->catalog->isShopMerchandise($catalogId)) {
@@ -159,6 +172,16 @@ final class ShopService
                 return ActionResult::fail($this->notEnoughMessage($potion->currency));
             }
 
+            $shopGate = $this->requireShopCity($character);
+
+            if ($shopGate instanceof ActionResult) {
+                return $shopGate;
+            }
+
+            if (! $this->cityQuery->bagInCityShop($shopGate->id, $catalogId)) {
+                return ActionResult::fail(__('errors.potion_unavailable'));
+            }
+
             if (! $this->bag->canAcceptPotion($character, $catalogId)) {
                 return ActionResult::fail(__('errors.bag_full'));
             }
@@ -202,5 +225,20 @@ final class ShopService
         }
 
         return __('errors.not_enough_silver');
+    }
+
+    private function requireShopCity(Character $character): ActionResult|City
+    {
+        if ($character->city_id === null) {
+            return ActionResult::fail(__('errors.no_shop'));
+        }
+
+        $city = City::query()->find($character->city_id);
+
+        if (! $city instanceof City || ! $city->enabled || ! $city->has_shop) {
+            return ActionResult::fail(__('errors.no_shop'));
+        }
+
+        return $city;
     }
 }

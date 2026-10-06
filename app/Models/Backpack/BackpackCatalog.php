@@ -10,6 +10,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Models\City;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
 use App\Support\Mf;
@@ -18,6 +19,7 @@ use Database\Factories\BackpackCatalogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -29,7 +31,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property TypeEnum $item_type
  * @property SlotEnum|null $slot
  * @property ProfileEnum|null $profile
- * @property bool $in_shop
  * @property bool $enabled
  * @property int $price
  * @property CurrencyEnum $currency
@@ -63,7 +64,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'item_type',
     'slot',
     'profile',
-    'in_shop',
     'enabled',
     'price',
     'currency',
@@ -133,6 +133,19 @@ final class BackpackCatalog extends Model implements HasMedia
         }
 
         return $prefix . '_' . ($max + 1);
+    }
+
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function cities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_backpack_catalog',
+            'backpack_catalog_id',
+            'city_id',
+        );
     }
 
     public function isReferencedByBackpack(): bool
@@ -246,7 +259,6 @@ final class BackpackCatalog extends Model implements HasMedia
             'item_type' => TypeEnum::class,
             'slot' => SlotEnum::class,
             'profile' => ProfileEnum::class,
-            'in_shop' => 'boolean',
             'enabled' => 'boolean',
             'price' => 'integer',
             'currency' => CurrencyEnum::class,

@@ -10,6 +10,7 @@ use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Services\CharacterService;
 use App\Services\Fight\FightRoundService;
@@ -110,6 +111,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
 
         $this->finishLose(
             $telegram,
+            $fights,
             $clearFight,
             $characters,
             $fightWear,
@@ -163,6 +165,22 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return;
         }
 
+        if ($this->isHallFight($fights, $fight)) {
+            $this->finishHallWin(
+                $telegram,
+                $clearFight,
+                $characters,
+                $config,
+                $player,
+                $fight,
+                $text,
+                $chatId,
+                $messageId,
+            );
+
+            return;
+        }
+
         $broken = $fightWear->handleAfterWin($player, $fight->pierce_count);
         $player = $characters->findByTgId($player->tg_id);
         $brokeSuffix = $this->brokenGearSuffix($broken);
@@ -193,6 +211,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
 
     private function finishLose(
         TelegramClient $telegram,
+        FightService $fights,
         FightClearAction $clearFight,
         CharacterService $characters,
         BackpackApplyFightWearAction $fightWear,
@@ -228,6 +247,19 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return;
         }
 
+        if ($this->isHallFight($fights, $fight)) {
+            $this->finishHallLose(
+                $telegram,
+                $clearFight,
+                $player,
+                $text,
+                $chatId,
+                $messageId,
+            );
+
+            return;
+        }
+
         $broken = $fightWear->handleAfterLose($player, $fight->pierce_count);
         $gemBroken = $breakGems->handle($player);
         $player = $characters->findByTgId($player->tg_id);
@@ -247,6 +279,76 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
                 TelegramKeyboards::mainMenu(),
             );
         }
+    }
+
+    private function finishHallWin(
+        TelegramClient $telegram,
+        FightClearAction $clearFight,
+        CharacterService $characters,
+        GameConfig $config,
+        Character $player,
+        Fight $fight,
+        string $text,
+        ?int $chatId,
+        ?int $messageId,
+    ): void {
+        $reward = $config->trainingReward();
+        $characters->addExpSilver($player, $reward['exp'], $reward['silver']);
+        $player = $characters->findByTgId($player->tg_id);
+        $player->current_hp = max(1, min($fight->player_hp, $characters->maxHp($player)));
+        $player->current_stamina = $characters->clampStamina(
+            $fight->player_stamina,
+            $characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $clearFight->handle($player->tg_id);
+
+        if ($chatId !== null && $messageId !== null) {
+            $telegram->editMessageText(
+                $chatId,
+                $messageId,
+                $text . __('combat.win', [
+                    'exp' => $reward['exp'],
+                    'silver' => $reward['silver'],
+                ]),
+                TelegramKeyboards::mainMenu(),
+            );
+        }
+    }
+
+    private function finishHallLose(
+        TelegramClient $telegram,
+        FightClearAction $clearFight,
+        Character $player,
+        string $text,
+        ?int $chatId,
+        ?int $messageId,
+    ): void {
+        $player->current_hp = 0;
+        $player->last_hp_update = now();
+        $player->current_stamina = 0;
+        $player->last_stamina_update = now();
+        $player->save();
+        $clearFight->handle($player->tg_id);
+
+        if ($chatId !== null && $messageId !== null) {
+            $telegram->editMessageText(
+                $chatId,
+                $messageId,
+                $text . __('combat.lose'),
+                TelegramKeyboards::mainMenu(),
+            );
+        }
+    }
+
+    private function isHallFight(FightService $fights, Fight $fight): bool
+    {
+        if ($fight->tutorial) {
+            return false;
+        }
+
+        return $fights->enemy($fight)->catalogId === EnemyCatalog::TUTORIAL_CATALOG_ID;
     }
 
     /**

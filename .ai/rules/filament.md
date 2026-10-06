@@ -10,6 +10,7 @@ paths:
 - MVP resources are **read-only**: `canCreate` / `canEdit` / `canDelete` → `false`. No Create/Edit pages.
 - Exception (roadmap **1.0**): full **CRUD каталогов** `BackpackCatalogResource` + `BagCatalogResource` — Create / Edit / View / Archive / Delete, поля баланса + art через **`spatie/laravel-medialibrary`** (`HasMedia`, коллекция `image`). Telegram без отправки art до отдельного подэтапа.
 - Exception (`CharacterResource`): List/View/Edit; **Create нет**. View header — только Edit; Archive/Restore/ForceDelete — List row actions (+ bulk) и header Edit (как BackpackCatalog). Reset статов — красная кнопка в «Идентичность», visible только `operation === 'edit'`. Под формой `RelationGroup` со стеком RM (без табов): **Экипировка** (`LoadoutRelationManager`; custom `records()` по всем `gameplayEquipSlots`; unequip/discard только на Edit; канон UI — `docs/EQUIPMENT.md` §7) → **Рюкзак** (`BackpackRelationManager`; тулбар `current / [backpack_max_rows]` — max editable только на Edit; equip/discard только на Edit) → **Сумка** (`BagRelationManager`; `bag_items` loose; тулбар `current / [bag_max_rows]`; max / socket / discard только на Edit; **без unsocket**; канон UI — `docs/BAG.md` §5). Soft delete = бан. Clone нет. Form. Save с ростом `exp` → пороги.
+- Exception (`CityCatalogResource`): full CRUD + soft-archive. View/Edit: под формой `RelationGroup` **Персонажи** (`CharactersRelationManager`; `city_id`; тулбар `current / [characters_max_rows]` default **100**, max editable только на Edit; таблица как Characters List без колонки города; View/Edit → CharacterResource). Soft-archive с живыми FK — кнопка видна, submit скрыт, modal «сначала переведи N».
 - Exception (live sessions): `FightResource` — List/View + Delete/bulk force-clear (`FightClearAction`); `canDelete` / `canDeleteAny` → `true`; Create/Edit **нет**.
 - Structure: `Resources/{Plural}/{Entity}Resource.php` + `Pages/` + `Schemas/*Form.php` + `Tables/`. Shared: `app/Filament/Concerns/` (page/table mixins), `app/Filament/Support/` (presentation helpers, не traits), `app/Filament/Tables/Columns/`.
 - **`app/Filament/Support/` ≠ `app/Support/`**: Filament — только UI/presentation (текст ячеек, SVG, filter helpers). Domain DTO / SDK glue — в `app/Support/{Character,Equipment,Game,Gem,Bag,Random,Telegram}/`. Не смешивать.
@@ -40,7 +41,7 @@ paths:
 ### Edit (`EditRecord`)
 
 - `use HasFormActionsBetween`.
-- `Character` Edit: form actions **под** RelationManager инвентаря (`hasFormWrapper=false` + `content`: form → RM → actions). Остальные Edit — actions в footer формы как обычно.
+- `Character` Edit: form actions **под** RelationManager инвентаря (`hasFormWrapper=false` + `content`: form → RM → actions). `CityCatalog` Edit — то же (form → персонажи RM → actions). Остальные Edit — actions в footer формы как обычно.
 - Header **без** View: Архивировать / Восстановить / Удалить (порядок: restore перед force-delete).
 - Архивировать = `DeleteAction` + labels из `admin.actions.archive.*`, `->color('warning')`, **без** иконки на header-кнопке.
 - Удалить = `ForceDeleteAction` + `admin.actions.delete.*`, `->visible` только если `trashed()` и нет inventory refs.
@@ -79,6 +80,7 @@ paths:
 - `defaultSort(...)` на осмысленной колонке.
 - Eager-load через `modifyQueryUsing` (`with(...)`), без N+1.
 - Labels только `__('admin.labels.*')`.
+- Пустая таблица: `emptyStateHeading` + `emptyStateDescription` из `admin.empty.*` (эталон рюкзак/сумка). Дефолт Filament «Не найдено {Model}» запрещён.
 
 ### Колонки
 
@@ -143,14 +145,14 @@ paths:
 
 - Schema: `->columns(1)`.
 - Каждая `Section`: `->columnSpanFull()` + collapsible + `->icon(Heroicon::Outlined…)`. Первая ключевая (identity) — `->collapsible()` открыта; остальные — `->collapsed()`.
-- Navigation sort (после Dashboard): Characters `1` → BackpackCatalog `2` → BagCatalog `3` → EnemyCatalog `4` → Fights `5`. Инстансы рюкзака/сумки — только `RelationGroup` на Character (`LoadoutRelationManager` / `BackpackRelationManager` / `BagRelationManager`, collapsed-секции без табов); отдельного Inventory resource **нет**. `FightResource` — live-сессии: List/View + Delete (`FightClearAction` force-clear); Create/Edit **нет**.
-- Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаги `enabled`+`in_shop` (ряд `columns(3)`), справа art/description. `BagCatalogForm`: `kind` (GEM/POTION) live; профиль disabled пока kind не выбран; GEM: `type` (лейбл «Профиль») + секция прочность + MF; POTION: `profile` (`HEAL` UI «Здоровье» / `STAMINA`) + `effect_value`. `catalog_id` — `Hidden`, автоген на create. Нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier`. Поиск по name в List также матчит `catalog_id`.
+- Navigation sort (после Dashboard): CityCatalog `1` → BackpackCatalog `2` → BagCatalog `3` → EnemyCatalog `4` → Characters `5` → Fights `6`. Инстансы рюкзака/сумки — только `RelationGroup` на Character (`LoadoutRelationManager` / `BackpackRelationManager` / `BagRelationManager`, collapsed-секции без табов); отдельного Inventory resource **нет**. `FightResource` — live-сессии: List/View + Delete (`FightClearAction` force-clear); Create/Edit **нет**.
+- Identity: две `Group` в `->columns(2)` — слева название/тип+профиль+слот (ряд `columns(3)`)/флаг `enabled`, справа art/description. `BagCatalogForm`: `kind` (GEM/POTION) live; профиль disabled пока kind не выбран; GEM: `type` (лейбл «Профиль») + секция прочность + MF; POTION: `profile` (`HEAL` UI «Здоровье» / `STAMINA`) + `effect_value`. `catalog_id` — `Hidden`, автоген на create. Нет `vip_only` / `effect_type` / `allowed_gem_types` / `admin_note` / `tier`. Поиск по name в List также матчит `catalog_id`.
 - Requirements: `req_level` / `req_strength` / `req_agility` / `req_instinct` / `req_vitality` (`columns(5)`).
 - `item_type` → `live()`: фильтрует options `slot` / `profile` через `forType`; при смене типа **сбрасывает** profile+slot (без автоподстановки дефолтов). Оружие: каталожный слот всегда `RIGHT_HAND` (поле слота скрыто) + 6 классов `KNUCKLES`/`KNIFE`/`AXE`/`HAMMER`/`CLUB`/`SWORD` (**без** `SPEAR`/`TWO_HAND`; LH для ножа/кастета — runtime через `equipToSlot`); броня: HELMET/ARMOR/PANTS/BOOTS/GLOVES/SHIELD + MOBILE/HEAVY/WARD; украшение: AMULET/RING_1/RING_2 + FOCUS/CHARM/VITAL. Зелья — `BagCatalogForm`, не слот POCKET. Слот и профиль disabled пока тип не выбран.
 - Зонная `armor` только HELMET/ARMOR/PANTS/BOOTS (GLOVES/SHIELD → 0, поле скрыто).
 - Характеристики (`backpack_catalog_combat`): секция `visible` только когда выбран `item_type`. Поля по типу: WEAPON → `weapon_damage_min`+`weapon_damage_max`+MF; ARMOR → `stat_bonus`+MF (+`armor` на зонных слотах); JEWELRY → `stat_bonus`+MF. При смене типа лишние статы **сбрасываются в пусто** (`null`), не в `0`. Зелья — в `BagCatalogForm`, не здесь.
 - Create: **без** `->default(...)` на полях формы (пусто до ввода админа). NOT NULL инты при save → `0` в `BackpackCatalog::saving`.
 - Прочность: `max_durability` / износ / `repair_tier`; `gem_slots` только WEAPON/ARMOR; `repairable` на следующей строке (без default).
-- Экономика — **последняя** секция формы (`currency`+`price`, без default). `BagCatalogForm`: identity → economy.
+- Экономика — **последняя** секция формы (`currency`+`price`+`cities`, без default). `BagCatalogForm`: identity → (прочность GEM) → economy. Витрина = `enabled` + pivot городов, флага `in_shop` нет.
 - Поля create/edit: `->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.*'))` — на view иконка скрыта (`operation === 'view'` → `null`).
 - В остальных секциях поля гридить `->columns(2)` (или явную сетку секции); сами секции всегда одна колонка, не side-by-side.

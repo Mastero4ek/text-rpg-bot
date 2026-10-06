@@ -92,15 +92,13 @@ it('creates ruby emerald sapphire and diamond via filament form', function (): v
         ->fillForm(gemForm([
             'name' => 'Кастомный алмаз',
             'type' => GemTypeEnum::DIAMOND->value,
-            'in_shop' => false,
             'mf_anti_dodge' => 9,
             'mf_crit' => null,
         ]))
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(BagCatalog::query()->findOrFail($diamondId)->mf_anti_dodge)->toBe(9)
-        ->and(BagCatalog::query()->findOrFail($diamondId)->in_shop)->toBeFalse();
+    expect(BagCatalog::query()->findOrFail($diamondId)->mf_anti_dodge)->toBe(9);
 });
 
 it('uploads spatie media art on create', function (): void {
@@ -153,7 +151,6 @@ it('deletes restores and force deletes via edit page actions', function (): void
     $gem = BagCatalog::factory()->create([
         'catalog_id' => 'temp_ruby',
         'name' => 'Временный рубин',
-        'in_shop' => false,
     ]);
 
     livewire(EditBagCatalog::class, [
@@ -198,11 +195,6 @@ it('filters gem table by profile and shop flags', function (): void {
 
     livewire(ListBagCatalog::class)
         ->filterTable('profile_display', GemTypeEnum::RUBY->value)
-        ->assertCanSeeTableRecords([$ruby])
-        ->assertCanNotSeeTableRecords([$diamond]);
-
-    livewire(ListBagCatalog::class)
-        ->filterTable('in_shop', true)
         ->assertCanSeeTableRecords([$ruby])
         ->assertCanNotSeeTableRecords([$diamond]);
 });
@@ -267,7 +259,6 @@ function gemForm(array $overrides): array
         'kind' => BagKindEnum::GEM->value,
         'type' => GemTypeEnum::RUBY->value,
         'enabled' => true,
-        'in_shop' => true,
         'currency' => CurrencyEnum::SILVER->value,
         'price' => 25,
         'max_durability' => 10,

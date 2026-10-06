@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('kind')->default(BagKindEnum::GEM->value);
             $table->string('name');
             $table->text('description')->nullable();
-            $table->boolean('in_shop')->default(false);
             $table->boolean('enabled')->default(true);
             $table->unsignedInteger('price')->default(0);
             $table->string('currency')->default(CurrencyEnum::SILVER->value);
@@ -32,7 +31,7 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['kind', 'enabled', 'in_shop']);
+            $table->index(['kind', 'enabled']);
         });
     }
 

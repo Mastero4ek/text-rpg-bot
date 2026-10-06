@@ -7,7 +7,6 @@ namespace App\Filament\Resources\Characters\Schemas;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Models\Character;
 use App\Services\CharacterService;
-use App\Services\GameConfig;
 use App\Support\NickValidator;
 use Closure;
 use Filament\Actions\Action;
@@ -23,7 +22,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
-use RuntimeException;
 
 final class CharacterForm
 {
@@ -85,11 +83,18 @@ final class CharacterForm
                                             }
                                         };
                                     }),
-                                Select::make('location')
-                                    ->label(__('admin.labels.location'))
-                                    ->options(self::locationOptions())
+                                Select::make('birth_city_id')
+                                    ->label(__('admin.labels.birth_city'))
+                                    ->relationship('birthCity', 'name')
                                     ->native(false)
-                                    ->searchable(),
+                                    ->searchable()
+                                    ->preload(),
+                                Select::make('city_id')
+                                    ->label(__('admin.labels.city'))
+                                    ->relationship('city', 'name')
+                                    ->native(false)
+                                    ->searchable()
+                                    ->preload(),
                             ])
                                 ->columns(2),
                             Group::make([
@@ -243,30 +248,5 @@ final class CharacterForm
 
             return Heroicon::OutlinedQuestionMarkCircle;
         };
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function locationOptions(): array
-    {
-        $onboarding = app(GameConfig::class)->onboarding();
-
-        if (! array_key_exists('cityKeys', $onboarding) || ! is_array($onboarding['cityKeys'])) {
-            throw new RuntimeException('onboarding.cityKeys missing.');
-        }
-
-        $options = [];
-
-        foreach ($onboarding['cityKeys'] as $key) {
-            if (! is_string($key)) {
-                throw new RuntimeException('Invalid city key.');
-            }
-
-            $name = __('onboarding.cities.' . $key);
-            $options[$name] = $name;
-        }
-
-        return $options;
     }
 }

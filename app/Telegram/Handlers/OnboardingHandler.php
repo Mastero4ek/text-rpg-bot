@@ -11,6 +11,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
@@ -37,6 +38,7 @@ final class OnboardingHandler
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
         private readonly FightService $fights,
+        private readonly CityHandler $city,
     ) {}
 
     public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
@@ -45,12 +47,13 @@ final class OnboardingHandler
 
         if ($player->onboarding_step === OnboardingStepEnum::DONE) {
             $player = $this->characters->applyRegen($player);
-            $responder->reply(
+            $this->city->sendHome(
+                $responder,
+                $player,
                 __('onboarding.welcome_back', [
                     'name' => $player->username,
                     'profile' => $this->characters->profileText($player),
                 ]),
-                TelegramKeyboards::mainMenu(),
             );
 
             return;
@@ -154,7 +157,7 @@ final class OnboardingHandler
                     'nickMin' => $nick['min'],
                     'nickMax' => $nick['max'],
                 ]),
-                null,
+                TelegramKeyboards::removeReply(),
             );
 
             return;
@@ -196,7 +199,7 @@ final class OnboardingHandler
         if ($player->onboarding_step === OnboardingStepEnum::QUEST_SHOP) {
             $responder->reply(
                 __('onboarding.shop_prompt', ['silver' => $player->silver]),
-                TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
+                TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice(), $this->requireCity($player)),
             );
 
             return;
@@ -270,9 +273,18 @@ final class OnboardingHandler
             return;
         }
 
+        $chosen = $res->character;
+        $chosen->loadMissing('city');
+
+        if ($chosen->city instanceof City) {
+            $cityLabel = $chosen->city->name;
+        } else {
+            $cityLabel = $cityName;
+        }
+
         $responder->edit(
             __('onboarding.city_chosen', [
-                'city' => $cityName,
+                'city' => $cityLabel,
                 'intro' => $this->onboarding->introText(),
             ]),
             TelegramKeyboards::intro(),
@@ -376,7 +388,7 @@ final class OnboardingHandler
                 'silverReward' => $reward['silver'],
                 'silver' => $res->character->silver,
             ]),
-            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
+            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice(), $this->requireCity($player)),
         );
     }
 
@@ -396,12 +408,13 @@ final class OnboardingHandler
             return;
         }
 
-        $responder->edit(
+        $this->city->sendHome(
+            $responder,
+            $res->character,
             __('onboarding.graduated_buy', [
                 'level' => $this->graduateLevel(),
                 'profile' => $this->characters->profileText($res->character),
             ]),
-            TelegramKeyboards::mainMenu(),
         );
     }
 
@@ -421,12 +434,13 @@ final class OnboardingHandler
             return;
         }
 
-        $responder->edit(
+        $this->city->sendHome(
+            $responder,
+            $res->character,
             __('onboarding.graduated_claim', [
                 'level' => $this->graduateLevel(),
                 'profile' => $this->characters->profileText($res->character),
             ]),
-            TelegramKeyboards::mainMenu(),
         );
     }
 
@@ -454,7 +468,7 @@ final class OnboardingHandler
                 ),
                 'silver' => $res->character->silver,
             ]),
-            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
+            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice(), $this->requireCity($player)),
         );
     }
 
@@ -476,6 +490,17 @@ final class OnboardingHandler
         }
 
         return ['min' => $nick['min'], 'max' => $nick['max']];
+    }
+
+    private function requireCity(Character $player): City
+    {
+        $player->loadMissing('city');
+
+        if (! $player->city instanceof City) {
+            throw new RuntimeException('Onboarding city missing.');
+        }
+
+        return $player->city;
     }
 
     /**

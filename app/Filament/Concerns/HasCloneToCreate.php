@@ -69,10 +69,29 @@ trait HasCloneToCreate
      */
     private function cloneFormData(): array
     {
-        return Arr::except(
-            $this->getRecord()->attributesToArray(),
+        $record = $this->getRecord();
+        $data = Arr::except(
+            $record->attributesToArray(),
             $this->getCloneExcludedAttributes(),
         );
+
+        if (! method_exists($record, 'cities')) {
+            return $data;
+        }
+
+        $record->loadMissing('cities');
+        $related = $record->getRelation('cities');
+        $ids = [];
+
+        if ($related instanceof \Illuminate\Database\Eloquent\Collection) {
+            foreach ($related as $city) {
+                $ids[] = $city->getKey();
+            }
+        }
+
+        $data['cities'] = $ids;
+
+        return $data;
     }
 
     private function cloneSessionKey(): string

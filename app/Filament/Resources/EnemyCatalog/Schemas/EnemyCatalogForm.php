@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\EnemyCatalog\Schemas;
 
 use App\Enums\Enemy\EnemyKindEnum;
+use App\Filament\Support\CityCatalogField;
 use App\Models\Bag\BagCatalog;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\CombatService;
@@ -76,9 +77,6 @@ final class EnemyCatalogForm
                                 Toggle::make('enabled')
                                     ->label(__('admin.labels.enabled'))
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.enabled')),
-                                Toggle::make('in_fight_menu')
-                                    ->label(__('admin.labels.in_fight_menu'))
-                                    ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.in_fight_menu')),
                             ])->columns(3),
                         ]),
                         Group::make([
@@ -93,6 +91,15 @@ final class EnemyCatalogForm
                                 ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description'))
                                 ->rows(3),
                         ]),
+                    ]),
+                Section::make(__('admin.sections.enemy_catalog_location'))
+                    ->icon(Heroicon::OutlinedMapPin)
+                    ->columns(4)
+                    ->columnSpanFull()
+                    ->collapsed()
+                    ->schema([
+                        CityCatalogField::make()
+                            ->columnSpan(2),
                     ]),
                 Section::make(__('admin.sections.enemy_catalog_kind'))
                     ->icon(Heroicon::OutlinedBolt)
