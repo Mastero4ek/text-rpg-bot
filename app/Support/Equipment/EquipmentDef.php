@@ -9,7 +9,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Support\Game\Mf;
+use App\Support\Mf;
 
 final readonly class EquipmentDef
 {

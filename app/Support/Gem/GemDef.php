@@ -6,7 +6,7 @@ namespace App\Support\Gem;
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Support\Game\Mf;
+use App\Support\Mf;
 
 final readonly class GemDef
 {

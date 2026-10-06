@@ -10,7 +10,7 @@ use App\Filament\Resources\BackpackCatalog\Pages\ListBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Pages\ViewBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Schemas\BackpackCatalogForm;
 use App\Filament\Resources\BackpackCatalog\Tables\BackpackCatalogTable;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;

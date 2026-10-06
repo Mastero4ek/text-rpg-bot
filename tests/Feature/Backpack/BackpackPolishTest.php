@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Services\Bag\BagService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;

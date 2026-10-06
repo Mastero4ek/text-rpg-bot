@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;

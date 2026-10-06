@@ -7,7 +7,7 @@ namespace App\Filament\Resources\Characters\Tables;
 use App\Actions\Character\CharacterDeleteAction;
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Models\Character;
-use App\Services\Game\GameConfig;
+use App\Services\GameConfig;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;

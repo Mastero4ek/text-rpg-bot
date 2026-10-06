@@ -59,7 +59,7 @@ it('equip weapon and armor', function (): void {
 
 it('fight create and clear', function (): void {
     $p = characters()->createDraft(5003);
-    $enemy = combat()->makeWoodenSoldier();
+    $enemy = woodenSoldier($p);
     $fight = fights()->createTutorial($p, $enemy);
 
     expect($fight->tutorial)->toBeTrue()

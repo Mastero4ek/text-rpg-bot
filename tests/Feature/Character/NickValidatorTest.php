@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Support\Character\NickValidator;
+use App\Support\NickValidator;
 
 it('accepts valid latin and cyrillic nicks', function (): void {
     $validator = app(NickValidator::class);

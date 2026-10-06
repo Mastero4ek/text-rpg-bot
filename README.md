@@ -23,7 +23,7 @@ composer dev
 
 Админка: `/` → `/admin` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
 
-Домен: [`docs/`](docs/README.md) — персонаж, экипировка, рюкзак, сумка.
+Домен: [`docs/`](docs/README.md) — персонаж, экипировка, рюкзак, сумка, мобы.
 
 ## Prod
 

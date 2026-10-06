@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Models\Character;
-use App\Services\Onboarding\OnboardingService;
-use App\Support\Game\ActionResult;
+use App\Services\OnboardingService;
+use App\Support\ActionResult;
 
 final class CharacterSetNickAction
 {

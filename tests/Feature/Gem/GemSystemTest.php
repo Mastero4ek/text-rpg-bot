@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\BackpackCatalog;
-use App\Models\BagCatalog;
+use App\Models\Backpack\BackpackCatalog;
+use App\Models\Bag\BagCatalog;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Support\Random\FakeRandomSource;

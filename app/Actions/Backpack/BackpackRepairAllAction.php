@@ -6,7 +6,7 @@ namespace App\Actions\Backpack;
 
 use App\Models\Character;
 use App\Services\Backpack\RepairService;
-use App\Support\Game\ActionResult;
+use App\Support\ActionResult;
 
 final class BackpackRepairAllAction
 {

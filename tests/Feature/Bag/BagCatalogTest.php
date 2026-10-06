@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use Database\Seeders\BagCatalogSeeder;
 use Illuminate\Support\Facades\Cache;

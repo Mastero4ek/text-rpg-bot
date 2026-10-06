@@ -6,7 +6,7 @@ namespace App\Filament\Resources\BackpackCatalog\Tables;
 
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Filament\Support\EquipmentTypeProfileFilters;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;

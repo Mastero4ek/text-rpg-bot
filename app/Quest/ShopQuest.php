@@ -9,12 +9,12 @@ use App\Models\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
-use App\Services\Game\GameConfig;
+use App\Services\CharacterService;
+use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
+use App\Support\ActionResult;
 use App\Support\Equipment\EquipmentDef;
-use App\Support\Game\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 

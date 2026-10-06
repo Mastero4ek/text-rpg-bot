@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;

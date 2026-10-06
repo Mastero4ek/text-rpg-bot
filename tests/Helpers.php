@@ -4,24 +4,27 @@ declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Models\BackpackItem;
-use App\Models\BagItem;
+use App\Models\Backpack\BackpackItem;
+use App\Models\Bag\BagItem;
 use App\Models\Character;
+use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Backpack\RepairService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
+use App\Services\CharacterService;
+use App\Services\CombatService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightService;
-use App\Services\Game\GameConfig;
-use App\Services\Onboarding\OnboardingService;
+use App\Services\GameConfig;
+use App\Services\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
-use App\Support\Game\ActionResult;
-use App\Support\Game\Fighter;
-use App\Support\Game\Mf;
+use App\Support\ActionResult;
+use App\Support\Combat\Fighter;
+use App\Support\Enemy;
+use App\Support\Mf;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
 
@@ -83,6 +86,23 @@ function onboarding(): OnboardingService
 function combat(): CombatService
 {
     return app(CombatService::class);
+}
+
+function enemies(): EnemyService
+{
+    return app(EnemyService::class);
+}
+
+function enemyFromCatalog(string $catalogId, Character $character): Enemy
+{
+    $catalog = EnemyCatalog::query()->findOrFail($catalogId);
+
+    return enemies()->makeFromCatalog($catalog, $character);
+}
+
+function woodenSoldier(Character $character): Enemy
+{
+    return enemyFromCatalog(EnemyCatalog::TUTORIAL_CATALOG_ID, $character);
 }
 
 function giveStarterKnuckles(int $tgId): BackpackItem

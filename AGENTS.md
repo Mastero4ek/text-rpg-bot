@@ -21,7 +21,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Services** (`app/Services/`) — orchestration; may call several actions.
 - **Actions** (`app/Actions/`) — one class per state change (`handle()`). Game-rule failures return an `ActionResult` DTO (`ok`, `error?` via `__()`, `character?`); do not throw for expected “cannot do that”.
 - **Queries** (`app/Queries/`) — read-side builders.
-- **Models** (`app/Models/`) — Eloquent relationships only, no domain logic.
+- **Models** (`app/Models/`) — Eloquent relationships only, no domain logic. Подпапки по домену при ≥2 файлах (`Backpack/`, `Bag/`, `Enemy/`); одиночные модели в корне.
 - **Enums** (`app/Enums/`) — onboarding steps, stats, combat zones, etc.
 - **Quests** (`app/Quest/`) — one class per quest.
 - **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
@@ -38,14 +38,15 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 | What | Where |
 |------|-------|
 | Telegram handlers / keyboards | `app/Telegram/` |
-| Services | `app/Services/{Domain}/{Entity}Service.php` |
+| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`; иначе корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quest/` |
-| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
+| Models | `app/Models/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Enemy/`; иначе корень) |
+| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Enemy/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
 | Filament presentation helpers | `app/Filament/Support/` (не путать с `app/Support/`) |
-| Domain / SDK glue | `app/Support/{Character,Equipment,Game,Gem,Bag,Random,Telegram}/` |
+| Domain / SDK glue | `app/Support/` (подпапки при ≥2 файлах: `Combat/`, `Equipment/`, `Gem/`, `Random/`, `Telegram/`; иначе корень) |
 | Game config JSON | `resources/configs/` |
 | UI translations | `lang/ru/` |
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Services\Bag\BagCatalog;
-use App\Services\Game\GameConfig;
+use App\Services\Bag\BagCatalog as BagCatalogService;
+use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Random\PhpRandomSource;
 use App\Support\Random\RandomSourceContract;
@@ -18,7 +18,7 @@ final class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(GameConfig::class);
         $this->app->singleton(ShopCatalog::class);
-        $this->app->singleton(BagCatalog::class);
+        $this->app->singleton(BagCatalogService::class);
         $this->app->singleton(RandomSourceContract::class, PhpRandomSource::class);
     }
 

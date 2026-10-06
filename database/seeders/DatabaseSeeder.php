@@ -17,6 +17,7 @@ final class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             BackpackCatalogSeeder::class,
             BagCatalogSeeder::class,
+            EnemyCatalogSeeder::class,
             CharacterSeeder::class,
             FightSeeder::class,
         ]);

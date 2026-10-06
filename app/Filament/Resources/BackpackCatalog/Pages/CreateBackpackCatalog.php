@@ -9,7 +9,7 @@ use App\Filament\Concerns\HasCloneToCreate;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
 use App\Filament\Resources\BackpackCatalog\Schemas\BackpackCatalogForm;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateBackpackCatalog extends CreateRecord

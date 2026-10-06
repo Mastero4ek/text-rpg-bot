@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Backpack;
 
 use App\Enums\Equipment\TypeEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\LoadoutSlot;
-use App\Services\Character\CharacterService;
-use App\Services\Game\GameConfig;
+use App\Services\CharacterService;
+use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\ActionResult;
+use App\Support\ActionResult;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;

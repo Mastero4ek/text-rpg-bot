@@ -8,7 +8,7 @@ use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Services\Fight\FightRoundService;
-use App\Support\Game\Mf;
+use App\Support\Mf;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
@@ -62,7 +62,7 @@ it('schedules turn timeout job on fight create', function (): void {
     Bus::fake();
 
     $p = characters()->createDraft(9101);
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
 
     expect($fight->player_max_stamina)->toBe(combat()->maxStamina($p->strength))
         ->and($fight->player_stamina)->toBe($fight->player_max_stamina)
@@ -82,7 +82,7 @@ it('resolveSkip applies timeout log and enemy hit without player attack', functi
     $p->username = 'SkipMe';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
@@ -115,7 +115,7 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
     $p->username = 'SkipStance';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->player_attack = PlayerAttackEnum::HEAD;
@@ -156,7 +156,7 @@ it('timeout job no-ops when turn_seq is stale', function (): void {
     ]);
 
     $p = characters()->createDraft(9103);
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $staleSeq = $fight->turn_seq;
     $fight->turn_deadline_at = now()->subSecond();
     $fight->turn_seq = $staleSeq + 1;

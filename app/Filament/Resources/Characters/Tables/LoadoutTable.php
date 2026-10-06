@@ -18,7 +18,7 @@ use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Support\BackpackDurabilityText;
 use App\Filament\Support\BackpackEquipPreviewHtml;
 use App\Filament\Support\GemSocketSlots;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\LoadoutService;

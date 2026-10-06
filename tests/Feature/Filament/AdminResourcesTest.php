@@ -11,7 +11,7 @@ use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Resources\Fights\Pages\ListFights;
 use App\Filament\Resources\Fights\Pages\ViewFight;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Fight;
 use App\Models\User;
 use App\Services\Bag\BagService;
@@ -503,7 +503,7 @@ it('lists and views live fights', function (): void {
     $character->username = 'FightAdmin';
     $character->save();
 
-    $fight = fights()->createTraining($character, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($character, woodenSoldier($character));
 
     livewire(ListFights::class)
         ->assertOk()
@@ -528,7 +528,7 @@ it('clears a live fight from admin view', function (): void {
     $character->username = 'FightClear';
     $character->save();
 
-    $fight = fights()->createTraining($character, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($character, woodenSoldier($character));
 
     livewire(ViewFight::class, [
         'record' => $fight->getKey(),

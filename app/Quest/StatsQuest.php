@@ -7,10 +7,10 @@ namespace App\Quest;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Backpack\BackpackService;
-use App\Services\Character\CharacterService;
-use App\Services\Game\GameConfig;
+use App\Services\CharacterService;
+use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Game\ActionResult;
+use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 

@@ -30,7 +30,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     expect($heal)->toBeInt()
         ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(1);
 
-    $fight = fights()->createTraining($p->fresh(), combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p->fresh(), woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;
@@ -70,7 +70,7 @@ it('drinks heal potion instead of attacking', function (): void {
 
     $heal = bagCatalog()->potionHeal();
 
-    $fight = fights()->createTraining($p->fresh(), combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p->fresh(), woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;
@@ -108,7 +108,7 @@ it('win persists hp at least one even if session hp is zero', function (): void 
     $p->username = 'WinFloor';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 0;
     $fight->enemy = $enemy;
@@ -147,7 +147,7 @@ it('lose persists zero hp and zero stamina', function (): void {
     $p->current_stamina = 40;
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->player_hp = 1;
     $fight->player_stamina = 33;
     $fight->tg_chat_id = $p->tg_id;

@@ -46,7 +46,7 @@ it('drains attacker and defender stamina on a clean exchange', function (): void
     $p->username = 'StaminaHero';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;
@@ -85,7 +85,7 @@ it('adds attacker extra drain on pierce and defender extra on dodge', function (
     $p->username = 'PierceDrain';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;
@@ -144,7 +144,7 @@ it('keeps player stamina on skip while enemy spends for the free hit', function 
     $p->username = 'IdleDrain';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['stamina'] = 60;
     $enemy['maxStamina'] = 60;

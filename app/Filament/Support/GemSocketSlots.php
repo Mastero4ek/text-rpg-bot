@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Support;
 
 use App\Enums\Bag\BagKindEnum;
-use App\Models\BackpackItem;
-use App\Models\BagCatalog;
+use App\Models\Backpack\BackpackItem;
+use App\Models\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 
 final class GemSocketSlots

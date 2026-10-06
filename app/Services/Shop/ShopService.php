@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Shop;
 
 use App\Enums\Economy\CurrencyEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
-use App\Support\Game\ActionResult;
+use App\Services\CharacterService;
+use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 
 final class ShopService

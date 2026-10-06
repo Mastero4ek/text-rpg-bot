@@ -11,7 +11,7 @@ use App\Filament\Resources\BackpackCatalog\Pages\CreateBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Pages\EditBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Pages\ListBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Pages\ViewBackpackCatalog;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Backpack\BackpackDiscardAction;
 use App\Actions\Backpack\BackpackDiscardEquippedAction;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Services\Bag\BagService;
 
 it('discards unequipped gear and destroys socketed gems', function (): void {

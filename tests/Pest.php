@@ -12,6 +12,7 @@ pest()->extend(TestCase::class)
 pest()->beforeEach(function (): void {
     $this->seed(Database\Seeders\BackpackCatalogSeeder::class);
     $this->seed(Database\Seeders\BagCatalogSeeder::class);
+    $this->seed(Database\Seeders\EnemyCatalogSeeder::class);
 })->in('Feature');
 
 require_once __DIR__ . '/Helpers.php';
