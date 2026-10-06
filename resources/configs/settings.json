@@ -45,7 +45,7 @@
             "drainExtraOnDodge": 3
         },
         "damage": {
-            "base": 8,
+            "base": 6,
             "statMultiplier": 2,
             "varianceMin": 0.85,
             "varianceRange": 0.3
@@ -105,7 +105,7 @@
             "exp": 0
         },
         "maxHp": {
-            "perVitality": 6
+            "perVitality": 20
         },
         "regen": {
             "tickSeconds": 10,
