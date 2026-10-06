@@ -12,7 +12,7 @@ use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Actions\Character\CharacterSetLocationAction;
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
@@ -121,7 +121,7 @@ it('delete action clears fight inventory and force deletes', function (): void {
     $p->username = 'Doomed';
     $p->save();
     backpack()->addItem($p->tg_id, 'knife_0');
-    fights()->createTraining($p, combat()->makeWoodenSoldier());
+    fights()->createTraining($p, woodenSoldier($p));
 
     expect(BackpackItem::query()->where('tg_id', $p->tg_id)->exists())->toBeTrue()
         ->and($p->fight()->exists())->toBeTrue();

@@ -7,8 +7,8 @@ namespace App\Actions\Character;
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Models\Character;
 use App\Models\User;
-use App\Services\Onboarding\OnboardingService;
-use App\Support\Game\ActionResult;
+use App\Services\OnboardingService;
+use App\Support\ActionResult;
 use Filament\Notifications\Notification;
 
 final class CharacterSetLocationAction

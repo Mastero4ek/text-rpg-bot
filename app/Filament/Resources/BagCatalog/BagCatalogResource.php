@@ -10,7 +10,7 @@ use App\Filament\Resources\BagCatalog\Pages\ListBagCatalog;
 use App\Filament\Resources\BagCatalog\Pages\ViewBagCatalog;
 use App\Filament\Resources\BagCatalog\Schemas\BagCatalogForm;
 use App\Filament\Resources\BagCatalog\Tables\BagCatalogTable;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;

@@ -6,9 +6,9 @@ namespace App\Filament\Resources\Characters\Schemas;
 
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Models\Character;
-use App\Services\Character\CharacterService;
-use App\Services\Game\GameConfig;
-use App\Support\Character\NickValidator;
+use App\Services\CharacterService;
+use App\Services\GameConfig;
+use App\Support\NickValidator;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;

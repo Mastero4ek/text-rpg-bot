@@ -7,10 +7,10 @@ namespace App\Quest;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
-use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
+use App\Services\CharacterService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightService;
-use App\Services\Game\GameConfig;
+use App\Services\GameConfig;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -30,7 +30,7 @@ final class TutorialQuest
     public function __construct(
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
-        private readonly CombatService $combat,
+        private readonly EnemyService $enemies,
         private readonly FightService $fights,
     ) {}
 
@@ -42,7 +42,10 @@ final class TutorialQuest
     public function start(Character $character): Fight
     {
         return DB::transaction(function () use ($character): Fight {
-            $soldier = $this->combat->makeWoodenSoldier();
+            $soldier = $this->enemies->makeFromCatalog(
+                $this->enemies->tutorialCatalog(),
+                $character,
+            );
             $fight = $this->fights->createTutorial($character, $soldier);
             $character->onboarding_step = OnboardingStepEnum::TUTORIAL_FIGHT;
             $character->save();

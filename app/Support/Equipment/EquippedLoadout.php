@@ -6,8 +6,8 @@ namespace App\Support\Equipment;
 
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Models\BackpackItem;
-use App\Support\Game\Mf;
+use App\Models\Backpack\BackpackItem;
+use App\Support\Mf;
 
 final readonly class EquippedLoadout
 {

@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use Illuminate\Database\Seeder;
 

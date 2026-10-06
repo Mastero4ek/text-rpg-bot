@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Backpack;
 
-use App\Models\BackpackCatalog;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackCatalog;
+use App\Models\Backpack\BackpackItem;
 
 final class BackpackCatalogSyncNamesAction
 {

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Equipment\RepairEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 
 it('keeps ordinary smith from repairing vip-tier gear', function (): void {
     $equipment = BackpackCatalog::query()->findOrFail('knife_0');

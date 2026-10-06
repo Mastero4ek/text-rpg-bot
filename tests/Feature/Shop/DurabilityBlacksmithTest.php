@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Equipment\SlotEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Services\Backpack\LoadoutService;
 
 it('copies max durability onto inventory rows', function (): void {

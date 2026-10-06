@@ -6,7 +6,7 @@ use App\Actions\Backpack\BackpackEquipToSlotAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Models\LoadoutSlot;
 use App\Quest\ShopQuest;
 

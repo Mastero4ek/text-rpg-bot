@@ -6,7 +6,7 @@ namespace App\Filament\Resources\BagCatalog\Pages;
 
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\BagCatalog\BagCatalogResource;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;

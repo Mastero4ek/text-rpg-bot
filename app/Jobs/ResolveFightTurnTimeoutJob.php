@@ -6,16 +6,16 @@ namespace App\Jobs;
 
 use App\Actions\Backpack\BackpackApplyFightWearAction;
 use App\Actions\Bag\BagGemBreakOnLoseAction;
+use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
-use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
+use App\Services\CharacterService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
-use App\Services\Game\GameConfig;
-use App\Services\Onboarding\OnboardingService;
+use App\Services\GameConfig;
+use App\Services\OnboardingService;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramClient;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -38,7 +38,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         FightStatusFormatter $fightStatus,
         TelegramClient $telegram,
         CharacterService $characters,
-        CombatService $combat,
+        EnemyApplyWinLootAction $winLoot,
         BackpackApplyFightWearAction $fightWear,
         BagGemBreakOnLoseAction $breakGems,
         OnboardingService $onboarding,
@@ -94,7 +94,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
                 $fights,
                 $clearFight,
                 $characters,
-                $combat,
+                $winLoot,
                 $fightWear,
                 $onboarding,
                 $config,
@@ -128,7 +128,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         FightService $fights,
         FightClearAction $clearFight,
         CharacterService $characters,
-        CombatService $combat,
+        EnemyApplyWinLootAction $winLoot,
         BackpackApplyFightWearAction $fightWear,
         OnboardingService $onboarding,
         GameConfig $config,
@@ -167,8 +167,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         $player = $characters->findByTgId($player->tg_id);
         $brokeSuffix = $this->brokenGearSuffix($broken);
         $enemy = $fights->enemy($fight);
-        $reward = $combat->pveRewards($enemy->level);
-        $characters->addExpSilver($player, $reward['exp'], $reward['silver']);
+        $loot = $winLoot->handle($player, $enemy);
         $player = $characters->findByTgId($player->tg_id);
         $player->current_hp = max(1, min($fight->player_hp, $characters->maxHp($player)));
         $player->current_stamina = $characters->clampStamina(
@@ -184,9 +183,9 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
                 $chatId,
                 $messageId,
                 $text . __('combat.win', [
-                    'exp' => $reward['exp'],
-                    'silver' => $reward['silver'],
-                ]) . $brokeSuffix,
+                    'exp' => $loot['exp'],
+                    'silver' => $loot['silver'],
+                ]) . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
                 TelegramKeyboards::mainMenu(),
             );
         }
@@ -248,6 +247,18 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
                 TelegramKeyboards::mainMenu(),
             );
         }
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function dropSuffix(array $names): string
+    {
+        if ($names === []) {
+            return '';
+        }
+
+        return __('combat.drop', ['names' => implode(', ', $names)]);
     }
 
     /**

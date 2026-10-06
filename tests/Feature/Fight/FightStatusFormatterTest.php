@@ -12,7 +12,7 @@ it('includes player and enemy stamina bars in fight status', function (): void {
     $p->username = 'BarHero';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->player_stamina = 48;
     $fight->player_max_stamina = 60;
     $enemy = $fight->enemy;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Shop;
 
 use App\Services\Shop\ShopService;
-use App\Support\Game\ActionResult;
+use App\Support\ActionResult;
 
 final class ShopBuyPotionAction
 {

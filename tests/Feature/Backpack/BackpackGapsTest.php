@@ -8,7 +8,7 @@ use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
@@ -218,7 +218,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
     $p->username = 'PierceUi';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;

@@ -10,7 +10,7 @@ use App\Enums\Gem\GemTypeEnum;
 use App\Filament\Concerns\HasCloneToCreate;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\BagCatalog\BagCatalogResource;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateBagCatalog extends CreateRecord

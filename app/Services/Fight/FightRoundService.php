@@ -13,14 +13,14 @@ use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
-use App\Support\Bag\PotionDef;
+use App\Services\CharacterService;
+use App\Services\CombatService;
+use App\Support\Combat\Fighter;
+use App\Support\Combat\HitResult;
+use App\Support\Enemy;
 use App\Support\Equipment\EquippedLoadout;
-use App\Support\Game\Enemy;
-use App\Support\Game\Fighter;
-use App\Support\Game\HitResult;
-use App\Support\Game\Mf;
+use App\Support\Mf;
+use App\Support\PotionDef;
 use Illuminate\Support\Facades\DB;
 
 final class FightRoundService
@@ -90,6 +90,23 @@ final class FightRoundService
 
         $enemyAtk = $this->combat->randomZone();
         $enemyDef = $this->combat->randomZone();
+        $enemyAtkSecond = $enemyAtk;
+        $enemyDefSecond = $enemyDef;
+
+        if ($enemy->attackSlots >= 2) {
+            $enemyAtkSecond = $this->combat->randomZone();
+        }
+
+        if ($enemy->blockSlots >= 2) {
+            $enemyDefSecond = $this->combat->randomZone();
+        }
+
+        $enemyDefendZones = [$enemyDef];
+
+        if ($enemy->blockSlots >= 2) {
+            $enemyDefendZones[] = $enemyDefSecond;
+        }
+
         $loadout = $this->loadoutAfterDrop($fresh);
         $logs = [];
 
@@ -161,7 +178,7 @@ final class FightRoundService
                 ),
                 $enemy->toFighter(),
                 ZoneEnum::from($fight->player_attack->value),
-                [$enemyDef],
+                $enemyDefendZones,
             );
             $enemy = $this->applyHitToEnemy($enemy, $mainHit);
             $fight = $this->applyHitToPlayerAttacker($fight, $mainHit);
@@ -189,7 +206,7 @@ final class FightRoundService
                     ),
                     $enemy->toFighter(),
                     ZoneEnum::from($fight->player_attack_second->value),
-                    [$enemyDef],
+                    $enemyDefendZones,
                 );
                 $enemy = $this->applyHitToEnemy($enemy, $offHit);
                 $fight = $this->applyHitToPlayerAttacker($fight, $offHit);
@@ -227,6 +244,23 @@ final class FightRoundService
                 if ($hitBack->pierced) {
                     $fight->pierce_count += 1;
                 }
+
+                if ($fight->player_hp > 0 && $enemy->attackSlots >= 2) {
+                    $offHitBack = $this->combat->calculateHit(
+                        $enemy->toOffHandFighter(),
+                        $you,
+                        $enemyAtkSecond,
+                        $this->playerDefendZones($fight),
+                    );
+                    $fight->player_hp = max(0, $fight->player_hp - $offHitBack->dmg);
+                    $enemy = $this->applyHitToEnemyAttacker($enemy, $offHitBack);
+                    $fight = $this->applyHitToPlayerDefender($fight, $offHitBack);
+                    $logs[] = $offHitBack->logLine;
+
+                    if ($offHitBack->pierced) {
+                        $fight->pierce_count += 1;
+                    }
+                }
             }
         } elseif ($enemy->currentHp > 0 && $skip) {
             $you = $this->playerFighterWithStance(
@@ -251,6 +285,22 @@ final class FightRoundService
 
             if ($hitBack->pierced) {
                 $fight->pierce_count += 1;
+            }
+
+            if ($fight->player_hp > 0 && $enemy->attackSlots >= 2) {
+                $offHitBack = $this->combat->calculateHit(
+                    $enemy->toOffHandFighter(),
+                    $you,
+                    $enemyAtkSecond,
+                    [],
+                );
+                $fight->player_hp = max(0, $fight->player_hp - $offHitBack->dmg);
+                $enemy = $this->applyHitToEnemyAttacker($enemy, $offHitBack);
+                $logs[] = $offHitBack->logLine;
+
+                if ($offHitBack->pierced) {
+                    $fight->pierce_count += 1;
+                }
             }
         }
 

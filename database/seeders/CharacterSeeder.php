@@ -6,15 +6,15 @@ namespace Database\Seeders;
 
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackItem;
-use App\Models\BagItem;
+use App\Models\Backpack\BackpackItem;
+use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
+use App\Services\CharacterService;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 

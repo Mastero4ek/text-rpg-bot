@@ -9,7 +9,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Services\Shop\ShopCatalog;
 use Illuminate\Database\Seeder;
 

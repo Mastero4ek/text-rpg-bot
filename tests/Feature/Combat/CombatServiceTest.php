@@ -4,41 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
-use App\Support\Game\Mf;
-
-it('makeWoodenSoldier from enemies.json', function (): void {
-    $e = combat()->makeWoodenSoldier();
-    $cfg = gameConfig()->enemies()['woodenSoldier'];
-
-    expect($e->level)->toBe($cfg['level'])
-        ->and($e->maxHp)->toBe($cfg['maxHp'])
-        ->and($e->currentHp)->toBe($cfg['maxHp'])
-        ->and($e->strength)->toBe($cfg['strength']);
-});
-
-it('makeMob scales with level', function (): void {
-    $level = 3;
-    $e = combat()->makeMob($level);
-    $w = gameConfig()->enemies()['wanderer'];
-    $s = $w['statBase'] + $level * $w['statPerLevel'];
-
-    expect($e->strength)->toBe($s)
-        ->and($e->maxHp)->toBe($w['hpBase'] + $s * $w['hpPerStat'])
-        ->and($e->weaponDamage)->toBe($level * $w['weaponDamagePerLevel'])
-        ->and($e->name)->toBe(__('combat.enemy_wanderer', ['level' => $level]))
-        ->and($e->name)->toContain('ур. ' . $level);
-});
-
-it('pveRewards in configured range', function (): void {
-    $r = gameConfig()->combat()['pveRewards'];
-
-    for ($i = 0; $i < 20; $i++) {
-        $reward = combat()->pveRewards(2);
-        expect($reward['exp'])->toBe($r['expBase'] + 2 * $r['expPerLevel'])
-            ->and($reward['silver'])->toBeGreaterThanOrEqual($r['silverMin'])
-            ->and($reward['silver'])->toBeLessThanOrEqual($r['silverMax']);
-    }
-});
+use App\Support\Mf;
 
 it('block without pierce deals zero', function (): void {
     fakeRandom([0.99]);

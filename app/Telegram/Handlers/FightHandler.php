@@ -6,6 +6,7 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Backpack\BackpackApplyFightWearAction;
 use App\Actions\Bag\BagGemBreakOnLoseAction;
+use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
@@ -14,15 +15,16 @@ use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
-use App\Services\Character\CharacterService;
-use App\Services\Combat\CombatService;
+use App\Services\CharacterService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
-use App\Services\Game\GameConfig;
-use App\Services\Onboarding\OnboardingService;
+use App\Services\GameConfig;
+use App\Services\OnboardingService;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -34,13 +36,14 @@ final class FightHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
-        private readonly CombatService $combat,
+        private readonly EnemyService $enemies,
         private readonly FightClearAction $clearFight,
         private readonly FightService $fights,
         private readonly FightRoundService $rounds,
         private readonly BagService $bag,
         private readonly BackpackApplyFightWearAction $fightWear,
         private readonly BagGemBreakOnLoseAction $breakGems,
+        private readonly EnemyApplyWinLootAction $winLoot,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
         private readonly GameConfig $config,
@@ -83,7 +86,7 @@ final class FightHandler
             return;
         }
 
-        if (preg_match('/^fight:start:(soldier|mob)$/', $data, $m) === 1) {
+        if (preg_match('/^fight:start:(.+)$/', $data, $m) === 1) {
             $this->startFight($update, $responder, $m[1]);
         }
     }
@@ -386,10 +389,19 @@ final class FightHandler
             return;
         }
 
-        $responder->edit(__('combat.pick_enemy'), TelegramKeyboards::fightPick($player->level));
+        $buttons = [];
+
+        foreach ($this->enemies->fightMenuCatalogs() as $catalog) {
+            $buttons[] = [
+                'text' => $this->enemies->menuLabel($catalog, $player),
+                'catalog_id' => $catalog->catalog_id,
+            ];
+        }
+
+        $responder->edit(__('combat.pick_enemy'), TelegramKeyboards::fightPick($buttons));
     }
 
-    private function startFight(TelegramUpdate $update, TelegramResponder $responder, string $kind): void
+    private function startFight(TelegramUpdate $update, TelegramResponder $responder, string $catalogId): void
     {
         $player = $this->requireDone($update, $responder);
 
@@ -403,12 +415,15 @@ final class FightHandler
             return;
         }
 
-        if ($kind === 'soldier') {
-            $enemy = $this->combat->makeWoodenSoldier();
-        } else {
-            $enemy = $this->combat->makeMob($player->level);
+        $catalog = $this->enemies->findForFightMenu($catalogId);
+
+        if (! $catalog instanceof EnemyCatalog) {
+            $responder->reply(__('errors.enemy_not_found'), null);
+
+            return;
         }
 
+        $enemy = $this->enemies->makeFromCatalog($catalog, $player);
         $fight = $this->fights->createTraining($player, $enemy);
         $messageId = $responder->reply(
             $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
@@ -462,8 +477,7 @@ final class FightHandler
             $player = $this->characters->findByTgId($player->tg_id);
             $brokeSuffix = $this->brokenGearSuffix($broken);
             $enemy = $this->fights->enemy($fight);
-            $reward = $this->combat->pveRewards($enemy->level);
-            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
+            $loot = $this->winLoot->handle($player, $enemy);
             $player = $this->characters->findByTgId($player->tg_id);
             $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
             $player->current_stamina = $this->characters->clampStamina(
@@ -475,9 +489,9 @@ final class FightHandler
             $this->clearFight->handle($player->tg_id);
             $responder->edit(
                 $text . __('combat.win', [
-                    'exp' => $reward['exp'],
-                    'silver' => $reward['silver'],
-                ]) . $brokeSuffix,
+                    'exp' => $loot['exp'],
+                    'silver' => $loot['silver'],
+                ]) . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
                 TelegramKeyboards::mainMenu(),
             );
 
@@ -542,6 +556,18 @@ final class FightHandler
         }
 
         return __('combat.gear_broke', ['names' => implode(', ', $broken)]);
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function dropSuffix(array $names): string
+    {
+        if ($names === []) {
+            return '';
+        }
+
+        return __('combat.drop', ['names' => implode(', ', $names)]);
     }
 
     /**

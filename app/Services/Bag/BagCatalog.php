@@ -6,10 +6,10 @@ namespace App\Services\Bag;
 
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Models\BagCatalog as BagCatalogModel;
-use App\Services\Game\GameConfig;
-use App\Support\Bag\PotionDef;
+use App\Models\Bag\BagCatalog as BagCatalogModel;
+use App\Services\GameConfig;
 use App\Support\Gem\GemDef;
+use App\Support\PotionDef;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;

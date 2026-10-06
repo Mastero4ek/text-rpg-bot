@@ -6,7 +6,7 @@ namespace App\Actions\Bag;
 
 use App\Models\Character;
 use App\Services\Bag\BagService;
-use App\Support\Game\ActionResult;
+use App\Support\ActionResult;
 
 final class BagGemSocketAction
 {

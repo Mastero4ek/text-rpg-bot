@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Bag\BagKindEnum;
 use App\Filament\Resources\Characters\Tables\BagTable;
-use App\Models\BagItem;
+use App\Models\Bag\BagItem;
 
 it('builds bag table rows from loose bag items and catalog', function (): void {
     $character = characters()->createDraft(9120);

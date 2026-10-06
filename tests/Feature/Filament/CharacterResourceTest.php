@@ -123,7 +123,7 @@ it('archives restores and force deletes from edit page', function (): void {
     $character->username = 'ArchiveHero';
     $character->save();
     backpack()->addItem($character->tg_id, 'knife_0');
-    fights()->createTraining($character, combat()->makeWoodenSoldier());
+    fights()->createTraining($character, woodenSoldier($character));
 
     livewire(EditCharacter::class, [
         'record' => $character->getKey(),

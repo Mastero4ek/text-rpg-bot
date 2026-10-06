@@ -7,7 +7,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
@@ -138,7 +138,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::DEFEND;
     $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::HEAD;
@@ -201,7 +201,7 @@ it('resolves after one defend zone without shield', function (): void {
     $p->username = 'NoShield';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::CHEST;

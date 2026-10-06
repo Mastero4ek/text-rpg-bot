@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Character;
 
-use App\Models\BackpackItem;
-use App\Models\BagItem;
+use App\Models\Backpack\BackpackItem;
+use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Services\Fight\FightService;
 use Illuminate\Support\Facades\DB;

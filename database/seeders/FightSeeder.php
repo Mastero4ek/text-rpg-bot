@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Character;
+use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
-use App\Services\Combat\CombatService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightService;
-use App\Support\Game\Enemy;
+use App\Support\Enemy;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Bus;
 use RuntimeException;
@@ -24,7 +25,7 @@ final class FightSeeder extends Seeder
         $this->purgeLegacyFighters();
 
         $fights = app(FightService::class);
-        $combat = app(CombatService::class);
+        $enemies = app(EnemyService::class);
 
         foreach ($this->rows() as $row) {
             $character = Character::query()->find($row['tg_id']);
@@ -35,7 +36,7 @@ final class FightSeeder extends Seeder
                 );
             }
 
-            $enemy = $this->enemy($combat, $row['enemy']);
+            $enemy = $this->enemy($enemies, $character, $row['enemy']);
             $fight = $fights->createTraining($character, $enemy);
             $fight->log = $this->logLines(
                 (string) $character->username,
@@ -70,16 +71,20 @@ final class FightSeeder extends Seeder
         ];
     }
 
-    private function enemy(CombatService $combat, string $key): Enemy
+    private function enemy(EnemyService $enemies, Character $character, string $key): Enemy
     {
         if ($key === 'woodenSoldier') {
-            return $combat->makeWoodenSoldier();
+            return $enemies->makeFromCatalog($enemies->tutorialCatalog(), $character);
         }
 
         if (str_starts_with($key, 'wanderer:')) {
-            $level = (int) mb_substr($key, mb_strlen('wanderer:'));
+            $catalog = EnemyCatalog::query()->find('chance_wanderer');
 
-            return $combat->makeMob($level);
+            if (! $catalog instanceof EnemyCatalog) {
+                throw new RuntimeException('Wanderer enemy catalog is missing.');
+            }
+
+            return $enemies->makeFromCatalog($catalog, $character);
         }
 
         throw new RuntimeException('Unknown seed enemy key: ' . $key);

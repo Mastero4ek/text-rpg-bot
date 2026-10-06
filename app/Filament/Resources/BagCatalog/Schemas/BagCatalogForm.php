@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use Closure;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;

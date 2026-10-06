@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Models\Character;
-use App\Services\Character\CharacterService;
-use App\Support\Game\ActionResult;
+use App\Services\CharacterService;
+use App\Support\ActionResult;
 
 final class CharacterSpendStatPointAction
 {

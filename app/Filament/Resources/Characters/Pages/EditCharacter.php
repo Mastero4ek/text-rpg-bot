@@ -8,7 +8,7 @@ use App\Actions\Character\CharacterDeleteAction;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Models\Character;
-use App\Services\Character\CharacterService;
+use App\Services\CharacterService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;

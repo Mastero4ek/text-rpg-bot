@@ -9,7 +9,7 @@ use App\Filament\Resources\BagCatalog\Pages\CreateBagCatalog;
 use App\Filament\Resources\BagCatalog\Pages\EditBagCatalog;
 use App\Filament\Resources\BagCatalog\Pages\ListBagCatalog;
 use App\Filament\Resources\BagCatalog\Pages\ViewBagCatalog;
-use App\Models\BagCatalog;
+use App\Models\Bag\BagCatalog;
 use App\Models\User;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use Filament\Actions\DeleteAction;

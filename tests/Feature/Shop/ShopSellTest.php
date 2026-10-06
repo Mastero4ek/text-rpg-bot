@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Actions\Backpack\BackpackSellAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\BackpackCatalog;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackCatalog;
+use App\Models\Backpack\BackpackItem;
 
 it('sells unequipped gear for half price scaled by durability', function (): void {
     $p = characters()->createDraft(6101);

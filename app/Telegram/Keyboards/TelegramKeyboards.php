@@ -190,15 +190,20 @@ final class TelegramKeyboards
     }
 
     /**
+     * @param  list<array{text: string, catalog_id: string}>  $enemies
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function fightPick(int $playerLevel): array
+    public static function fightPick(array $enemies): array
     {
-        return self::inline([
-            [self::cb(__('combat.btn_soldier'), 'fight:start:soldier')],
-            [self::cb(__('combat.btn_wanderer', ['level' => $playerLevel]), 'fight:start:mob')],
-            [self::cb(__('menu.back'), 'menu:home')],
-        ]);
+        $rows = [];
+
+        foreach ($enemies as $enemy) {
+            $rows[] = [self::cb($enemy['text'], 'fight:start:' . $enemy['catalog_id'])];
+        }
+
+        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+
+        return self::inline($rows);
     }
 
     /**

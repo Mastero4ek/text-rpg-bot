@@ -1,7 +1,7 @@
 @php
     use App\Filament\Support\GemSocketSlots;
     use App\Filament\Support\ResourceSvg;
-    use App\Models\BackpackItem;
+    use App\Models\Backpack\BackpackItem;
 
     $record = $getRecord();
     $slots = $record instanceof BackpackItem ? GemSocketSlots::forBackpackItem($record) : [];

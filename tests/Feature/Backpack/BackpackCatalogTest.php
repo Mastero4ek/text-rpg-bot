@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Models\BackpackCatalog;
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackCatalog;
+use App\Models\Backpack\BackpackItem;
 use Database\Seeders\BackpackCatalogSeeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -92,7 +92,7 @@ it('blocks force delete when item exists in backpack', function (): void {
 it('combat potion heal reads effect_value from bag catalog', function (): void {
     expect(combat()->potionHeal())->toBe(40);
 
-    $potion = App\Models\BagCatalog::query()->findOrFail('heal_0');
+    $potion = App\Models\Bag\BagCatalog::query()->findOrFail('heal_0');
     $potion->effect_value = 55;
     $potion->save();
 

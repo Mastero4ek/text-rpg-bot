@@ -46,7 +46,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
     $p = giveAndEquipStarterKnuckles($p);
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->step = FightStepEnum::ATTACK;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->save();
@@ -119,7 +119,7 @@ it('resolves two player hits with split hand damage', function (): void {
         ->and($loadout->offHandDamageMin)->toBe($off->weaponDamageMin)
         ->and($loadout->offHandDamageMax)->toBe($off->weaponDamageMax);
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 500;
     $enemy['maxHp'] = 500;
@@ -154,7 +154,7 @@ it('keeps single attack step without left hand even at level 1', function (): vo
     $p->level = 5;
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->step = FightStepEnum::ATTACK;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->save();

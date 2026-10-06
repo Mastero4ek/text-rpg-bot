@@ -6,7 +6,7 @@ namespace App\Services\Shop;
 
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\BackpackCatalog;
+use App\Models\Backpack\BackpackCatalog;
 use App\Support\Equipment\EquipmentCatalogRow;
 use App\Support\Equipment\EquipmentDef;
 use Illuminate\Support\Collection;

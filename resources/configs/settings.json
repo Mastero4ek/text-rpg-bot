@@ -82,9 +82,7 @@
         },
         "pveRewards": {
             "expBase": 20,
-            "expPerLevel": 5,
-            "silverMin": 10,
-            "silverMax": 20
+            "expPerLevel": 5
         }
     },
     "character": {

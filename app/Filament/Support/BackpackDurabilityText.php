@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Support;
 
-use App\Models\BackpackItem;
+use App\Models\Backpack\BackpackItem;
 
 final class BackpackDurabilityText
 {

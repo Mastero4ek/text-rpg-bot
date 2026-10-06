@@ -25,7 +25,7 @@ it('timeout job edits fight message and continues after skip', function (): void
     $p->username = 'JobContinue';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 42;
     $fight->turn_deadline_at = now()->subSecond();
@@ -63,7 +63,7 @@ it('timeout job finishes win when enemy is already down on skip', function (): v
     $p->username = 'JobWin';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 0;
     $fight->enemy = $enemy;
@@ -98,7 +98,7 @@ it('timeout job finishes lose when skip hit drops player hp to zero', function (
     $p->username = 'JobLose';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->player_hp = 1;
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 77;
@@ -137,7 +137,7 @@ it('lazy-resolves timed out turn before applying stance click', function (): voi
     $p->username = 'LazySkip';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
@@ -192,7 +192,7 @@ it('does not apply stance enum from timed out lazy click', function (): void {
     $p->username = 'LazyDefend';
     $p->save();
 
-    $fight = fights()->createTraining($p, combat()->makeWoodenSoldier());
+    $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 

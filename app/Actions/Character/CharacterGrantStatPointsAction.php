@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Models\Character;
-use App\Services\Character\CharacterService;
+use App\Services\CharacterService;
 use InvalidArgumentException;
 
 final class CharacterGrantStatPointsAction
