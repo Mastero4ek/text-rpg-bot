@@ -9,11 +9,11 @@ use App\Actions\Character\CharacterGrantSilverAction;
 use App\Actions\Character\CharacterGrantStatPointsAction;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Actions\Character\CharacterResetStatsForGoldAction;
-use App\Actions\Character\CharacterSetInventoryMaxRowsAction;
+use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Actions\Character\CharacterSetLocationAction;
 use App\Enums\OnboardingStepEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
 
@@ -105,12 +105,12 @@ it('set location failure does not notify', function (): void {
 it('set inventory max rows persists capacity and rejects zero', function (): void {
     $p = characters()->createDraft(1207);
 
-    $updated = app(CharacterSetInventoryMaxRowsAction::class)->handle($p, 12);
+    $updated = app(CharacterSetBackpackMaxRowsAction::class)->handle($p, 12);
 
-    expect($updated->inventory_max_rows)->toBe(12)
-        ->and($p->fresh()->inventory_max_rows)->toBe(12);
+    expect($updated->backpack_max_rows)->toBe(12)
+        ->and($p->fresh()->backpack_max_rows)->toBe(12);
 
-    expect(fn () => app(CharacterSetInventoryMaxRowsAction::class)->handle($updated, 0))
+    expect(fn () => app(CharacterSetBackpackMaxRowsAction::class)->handle($updated, 0))
         ->toThrow(InvalidArgumentException::class);
 });
 
@@ -120,15 +120,15 @@ it('delete action clears fight inventory and force deletes', function (): void {
     $p = characters()->createDraft(1206);
     $p->username = 'Doomed';
     $p->save();
-    inventory()->addItem($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
     fights()->createTraining($p, combat()->makeWoodenSoldier());
 
-    expect(Inventory::query()->where('tg_id', $p->tg_id)->exists())->toBeTrue()
+    expect(BackpackItem::query()->where('tg_id', $p->tg_id)->exists())->toBeTrue()
         ->and($p->fight()->exists())->toBeTrue();
 
     app(CharacterDeleteAction::class)->handle($p);
 
     expect(Character::withTrashed()->whereKey(1206)->exists())->toBeFalse()
-        ->and(Inventory::query()->where('tg_id', 1206)->exists())->toBeFalse()
+        ->and(BackpackItem::query()->where('tg_id', 1206)->exists())->toBeFalse()
         ->and($p->fight()->exists())->toBeFalse();
 });

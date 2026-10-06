@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Character;
 
+use App\Models\BackpackItem;
+use App\Models\BagItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Services\Fight\FightService;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +21,11 @@ final class CharacterDeleteAction
         DB::transaction(function () use ($character): void {
             $this->fights->clear($character->tg_id);
 
-            Inventory::query()
+            BagItem::query()
+                ->where('tg_id', $character->tg_id)
+                ->delete();
+
+            BackpackItem::query()
                 ->where('tg_id', $character->tg_id)
                 ->delete();
 

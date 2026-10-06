@@ -10,8 +10,8 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->beforeEach(function (): void {
-    $this->seed(Database\Seeders\EquipmentSeeder::class);
-    $this->seed(Database\Seeders\GemSeeder::class);
+    $this->seed(Database\Seeders\BackpackCatalogSeeder::class);
+    $this->seed(Database\Seeders\BagCatalogSeeder::class);
 })->in('Feature');
 
 require_once __DIR__ . '/Helpers.php';

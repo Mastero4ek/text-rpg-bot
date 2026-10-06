@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Shop;
 
 use App\Enums\Economy\CurrencyEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Services\Backpack\BackpackService;
+use App\Services\Bag\BagCatalog;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
-use App\Services\Inventory\InventoryService;
-use App\Support\Equipment\EquipmentDef;
 use App\Support\Game\ActionResult;
 use Illuminate\Support\Facades\DB;
 
@@ -17,60 +18,62 @@ final class ShopService
 {
     public function __construct(
         private readonly CharacterService $characters,
-        private readonly InventoryService $inventory,
+        private readonly BackpackService $backpack,
+        private readonly BagService $bag,
+        private readonly BagCatalog $bagCatalog,
         private readonly ShopCatalog $catalog,
     ) {}
 
-    public function buyWeapon(int $tgId, string $itemId): ActionResult
+    public function buyWeapon(int $tgId, string $catalogId): ActionResult
     {
-        if (! $this->catalog->isShopWeapon($itemId)) {
+        if (! $this->catalog->isShopWeapon($catalogId)) {
             return ActionResult::fail(__('errors.pick_train_weapon'));
         }
 
-        return $this->buyCatalogItem($tgId, $itemId);
+        return $this->buyCatalogItem($tgId, $catalogId);
     }
 
-    public function buyGear(int $tgId, string $itemId): ActionResult
+    public function buyGear(int $tgId, string $catalogId): ActionResult
     {
-        if ($this->catalog->isShopWeapon($itemId)) {
+        if ($this->catalog->isShopWeapon($catalogId)) {
             return ActionResult::fail(__('errors.item_not_in_shop'));
         }
 
-        if (! $this->catalog->isShopMerchandise($itemId)) {
+        if (! $this->catalog->isShopMerchandise($catalogId)) {
             return ActionResult::fail(__('errors.item_not_in_shop'));
         }
 
-        return $this->buyCatalogItem($tgId, $itemId);
+        return $this->buyCatalogItem($tgId, $catalogId);
     }
 
-    public function buyCatalogItem(int $tgId, string $itemId): ActionResult
+    public function buyCatalogItem(int $tgId, string $catalogId): ActionResult
     {
-        return DB::transaction(function () use ($tgId, $itemId): ActionResult {
+        return DB::transaction(function () use ($tgId, $catalogId): ActionResult {
             $character = Character::query()->find($tgId);
 
             if ($character === null) {
                 return ActionResult::fail(__('common.press_start'));
             }
 
-            if (! $this->catalog->isShopMerchandise($itemId)) {
+            if (! $this->catalog->isShopMerchandise($catalogId)) {
                 return ActionResult::fail(__('errors.item_not_in_shop'));
             }
 
-            $def = $this->catalog->findItem($itemId);
+            $def = $this->catalog->findItem($catalogId);
 
-            if ($this->inventory->owns($tgId, $itemId)) {
+            if ($this->backpack->owns($tgId, $catalogId)) {
                 return ActionResult::fail(__('errors.already_owned'));
             }
 
-            if ($this->inventory->isFull($character)) {
+            if ($this->backpack->isFull($character)) {
                 return ActionResult::fail(__('errors.inventory_full'));
             }
 
-            if (! $this->debitPrice($tgId, $def)) {
+            if (! $this->debitPrice($tgId, $def->currency, $def->price)) {
                 return ActionResult::fail($this->notEnoughMessage($def->currency));
             }
 
-            $this->inventory->addItem($tgId, $itemId);
+            $this->backpack->addItem($tgId, $catalogId);
 
             return ActionResult::okWithDef(
                 $this->characters->findByTgId($tgId),
@@ -81,19 +84,19 @@ final class ShopService
 
     public function buyPotion(int $tgId): ActionResult
     {
-        return $this->buyShopPotion($tgId, $this->catalog->shopPotionId());
+        return $this->buyShopPotion($tgId, $this->bagCatalog->shopPotionId());
     }
 
     public function buyStaminaPotion(int $tgId): ActionResult
     {
-        return $this->buyShopPotion($tgId, $this->catalog->shopStaminaPotionId());
+        return $this->buyShopPotion($tgId, $this->bagCatalog->shopStaminaPotionId());
     }
 
-    public function sell(Character $character, int $inventoryRowId): ActionResult
+    public function sell(Character $character, int $backpackItemId): ActionResult
     {
-        return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
-                ->where('id', $inventoryRowId)
+        return DB::transaction(function () use ($character, $backpackItemId): ActionResult {
+            $row = BackpackItem::query()
+                ->where('id', $backpackItemId)
                 ->where('tg_id', $character->tg_id)
                 ->lockForUpdate()
                 ->first();
@@ -106,14 +109,14 @@ final class ShopService
                 return ActionResult::fail(__('errors.unequip_first'));
             }
 
-            if (! $this->catalog->hasItem($row->item_id)) {
+            if (! $this->catalog->hasItem($row->catalog_id)) {
                 return ActionResult::fail(__('errors.cannot_sell'));
             }
 
-            $def = $this->catalog->findItem($row->item_id);
-            $payout = $this->inventory->sellPayout($row);
+            $def = $this->catalog->findItem($row->catalog_id);
+            $payout = $this->backpack->sellPayout($row);
 
-            $removed = $this->inventory->removeOne($row);
+            $removed = $this->backpack->removeOne($row);
 
             if (! $removed->ok) {
                 return $removed;
@@ -145,49 +148,49 @@ final class ShopService
         });
     }
 
-    private function buyShopPotion(int $tgId, string $itemId): ActionResult
+    private function buyShopPotion(int $tgId, string $catalogId): ActionResult
     {
-        return DB::transaction(function () use ($tgId, $itemId): ActionResult {
-            $def = $this->catalog->findItem($itemId);
+        return DB::transaction(function () use ($tgId, $catalogId): ActionResult {
+            $potion = $this->bagCatalog->findPotion($catalogId);
 
             $character = Character::query()->find($tgId);
 
             if ($character === null) {
-                return ActionResult::fail($this->notEnoughMessage($def->currency));
+                return ActionResult::fail($this->notEnoughMessage($potion->currency));
             }
 
-            if (! $this->inventory->canAcceptItem($character, $itemId)) {
-                return ActionResult::fail(__('errors.inventory_full'));
+            if (! $this->bag->canAcceptPotion($character, $catalogId)) {
+                return ActionResult::fail(__('errors.bag_full'));
             }
 
-            if (! $this->debitPrice($tgId, $def)) {
-                return ActionResult::fail($this->notEnoughMessage($def->currency));
+            if (! $this->debitPrice($tgId, $potion->currency, $potion->price)) {
+                return ActionResult::fail($this->notEnoughMessage($potion->currency));
             }
 
-            $this->inventory->addItem($tgId, $def->itemId);
+            $this->bag->addPotion($tgId, $potion->catalogId);
 
-            return ActionResult::okWithDef(
+            return ActionResult::okWithPotion(
                 $this->characters->findByTgId($tgId),
-                $def,
+                $potion,
             );
         });
     }
 
-    private function debitPrice(int $tgId, EquipmentDef $def): bool
+    private function debitPrice(int $tgId, CurrencyEnum $currency, int $price): bool
     {
-        if ($def->currency === CurrencyEnum::GOLD) {
+        if ($currency === CurrencyEnum::GOLD) {
             $updated = Character::query()
                 ->where('tg_id', $tgId)
-                ->where('gold', '>=', $def->price)
-                ->decrement('gold', $def->price);
+                ->where('gold', '>=', $price)
+                ->decrement('gold', $price);
 
             return $updated > 0;
         }
 
         $updated = Character::query()
             ->where('tg_id', $tgId)
-            ->where('silver', '>=', $def->price)
-            ->decrement('silver', $def->price);
+            ->where('silver', '>=', $price)
+            ->decrement('silver', $price);
 
         return $updated > 0;
     }

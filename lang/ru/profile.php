@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
     'card' => "👤 :name\n🏙 :city · ур. :level\n❤️ :hp/:maxHp · 💚 :stamina/:maxStamina · 🪙 :silver · 🥇 :gold · 🧪 :potions\n⭐ опыт: :exp\n\nСила: :str\nЛовкость: :agi\nИнстинкт: :inst\nЖизнь: :vit",
+    'bag_potion_row' => '🧪 :name (:quantity/:max)',
+    'bag_potion_card' => "🧪 :name\nКоличество: :quantity/:max\nЭффект: :effect",
     'free_points' => 'Свободно очков: :points',
     'gear_heading' => 'Снаряжение:',
     'gear_header' => ":name (ур. :level)\nHP: :hp/:maxHp | Серебро: :silver",

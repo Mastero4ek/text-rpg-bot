@@ -11,12 +11,10 @@ use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Resources\Fights\Pages\ListFights;
 use App\Filament\Resources\Fights\Pages\ViewFight;
-use App\Filament\Resources\Inventories\Pages\ViewInventory;
-use App\Models\Character;
+use App\Models\BackpackItem;
 use App\Models\Fight;
-use App\Models\Inventory;
 use App\Models\User;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\Bus;
@@ -45,12 +43,12 @@ it('lists and views characters', function (): void {
         ]);
 });
 
-it('shows inventory on character view and opens item view', function (): void {
+it('shows backpack on character view', function (): void {
     $character = characters()->createDraft(9102);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $item = Inventory::query()
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $item = BackpackItem::query()
         ->where('tg_id', $character->tg_id)
-        ->where('item_id', 'knife_0')
+        ->where('catalog_id', 'knife_0')
         ->firstOrFail();
 
     livewire(ViewCharacter::class, [
@@ -67,20 +65,11 @@ it('shows inventory on character view and opens item view', function (): void {
     ])
         ->assertOk()
         ->assertCanSeeTableRecords([$item]);
-
-    livewire(ViewInventory::class, [
-        'record' => $item->getKey(),
-    ])
-        ->assertOk()
-        ->assertSchemaStateSet([
-            'tg_id' => 9102,
-            'item_id' => 'knife_0',
-        ]);
 });
 
 it('updates backpack capacity from edit relation manager', function (): void {
     $character = characters()->createDraft(9105);
-    $character->inventory_max_rows = 50;
+    $character->backpack_max_rows = 50;
     $character->save();
 
     livewire(BackpackRelationManager::class, [
@@ -91,12 +80,12 @@ it('updates backpack capacity from edit relation manager', function (): void {
         ->set('inventoryMaxRows', 7)
         ->assertSet('inventoryMaxRows', 7);
 
-    expect($character->fresh()->inventory_max_rows)->toBe(7);
+    expect($character->fresh()->backpack_max_rows)->toBe(7);
 });
 
 it('rejects invalid backpack capacity on edit relation manager', function (): void {
     $character = characters()->createDraft(9106);
-    $character->inventory_max_rows = 50;
+    $character->backpack_max_rows = 50;
     $character->save();
 
     livewire(BackpackRelationManager::class, [
@@ -108,15 +97,15 @@ it('rejects invalid backpack capacity on edit relation manager', function (): vo
         ->assertSet('inventoryMaxRows', 50)
         ->assertNotified(__('admin.actions.set_inventory_max_rows.invalid'));
 
-    expect($character->fresh()->inventory_max_rows)->toBe(50);
+    expect($character->fresh()->backpack_max_rows)->toBe(50);
 });
 
 it('discards backpack item from edit relation manager action', function (): void {
     $character = characters()->createDraft(9107);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $item = Inventory::query()
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $item = BackpackItem::query()
         ->where('tg_id', $character->tg_id)
-        ->where('item_id', 'knife_0')
+        ->where('catalog_id', 'knife_0')
         ->firstOrFail();
 
     livewire(BackpackRelationManager::class, [
@@ -128,23 +117,22 @@ it('discards backpack item from edit relation manager action', function (): void
         ->assertNotified(__('admin.actions.discard.notification'))
         ->assertDispatched('character-gems-changed');
 
-    expect(Inventory::query()->whereKey($item->id)->exists())->toBeFalse();
+    expect(BackpackItem::query()->whereKey($item->id)->exists())->toBeFalse();
 });
 
-it('moves socketed gems to bag when discarding backpack item', function (): void {
+it('destroys socketed gems when discarding backpack item', function (): void {
     $character = characters()->createDraft(9143);
-    $character->gem_pouch = gemPouch('ruby_0', 8);
-    $character->save();
+    $character = grantGemDurability($character, 'ruby_0', 8);
 
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
-    $socket = app(GemService::class)->socket($character, $knife->id, 0);
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
+    $socket = socketGem($character, $knife, 'ruby_0');
     expect($socket->ok)->toBeTrue();
     $character = $socket->character;
     $knife->refresh();
 
-    expect(app(GemService::class)->pouch($character))->toBe([])
-        ->and(app(GemService::class)->socketedGemIds($knife))->toBe(['ruby_0']);
+    expect(bag()->looseGems($character))->toHaveCount(0)
+        ->and(app(BagService::class)->socketedGemIds($knife))->toBe(['ruby_0']);
 
     livewire(BackpackRelationManager::class, [
         'ownerRecord' => $character,
@@ -156,32 +144,18 @@ it('moves socketed gems to bag when discarding backpack item', function (): void
         ->assertDispatched('character-gems-changed');
 
     $character = $character->fresh();
-    $pouch = app(GemService::class)->pouch($character);
 
-    expect(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
-        ->and($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
-        ->and($pouch[0]['durability'])->toBe(8);
-
-    $stale = Character::query()->findOrFail($character->tg_id);
-    $stale->gem_pouch = [];
-
-    livewire(BagRelationManager::class, [
-        'ownerRecord' => $stale,
-        'pageClass' => EditCharacter::class,
-    ])
-        ->assertOk()
-        ->assertDontSee('Рубин ученика')
-        ->call('refreshAfterExternalChange')
-        ->assertSee('Рубин ученика');
+    expect(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(bag()->looseGems($character))->toHaveCount(0)
+        ->and(hasLooseGem($character, 'ruby_0'))->toBeFalse();
 });
 
 it('equips backpack item into loadout from edit relation manager', function (): void {
     $character = characters()->createDraft(9108);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $item = Inventory::query()
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $item = BackpackItem::query()
         ->where('tg_id', $character->tg_id)
-        ->where('item_id', 'knife_0')
+        ->where('catalog_id', 'knife_0')
         ->firstOrFail();
 
     livewire(BackpackRelationManager::class, [
@@ -197,13 +171,13 @@ it('equips backpack item into loadout from edit relation manager', function (): 
         ->assertDispatched('character-vitals-changed');
 
     expect($item->fresh()->isEquipped())->toBeTrue()
-        ->and(inventory()->rowCount($character->tg_id))->toBe(0);
+        ->and(backpack()->rowCount($character->tg_id))->toBe(0);
 });
 
 it('lists all loadout slots on character relation manager', function (): void {
     $character = characters()->createDraft(9135);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     livewire(LoadoutRelationManager::class, [
@@ -219,11 +193,11 @@ it('lists all loadout slots on character relation manager', function (): void {
 
 it('unequips loadout item from edit relation manager', function (): void {
     $character = characters()->createDraft(9136);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
-    expect(inventory()->rowCount($character->tg_id))->toBe(0);
+    expect(backpack()->rowCount($character->tg_id))->toBe(0);
 
     livewire(LoadoutRelationManager::class, [
         'ownerRecord' => $character,
@@ -236,13 +210,13 @@ it('unequips loadout item from edit relation manager', function (): void {
         ->assertDispatched('character-loadout-changed');
 
     expect($knife->fresh()->isEquipped())->toBeFalse()
-        ->and(inventory()->rowCount($character->tg_id))->toBe(1);
+        ->and(backpack()->rowCount($character->tg_id))->toBe(1);
 });
 
 it('does not register unequip action on loadout view relation manager', function (): void {
     $character = characters()->createDraft(9137);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     livewire(LoadoutRelationManager::class, [
@@ -255,15 +229,15 @@ it('does not register unequip action on loadout view relation manager', function
 
 it('rejects unequip from loadout when backpack is full', function (): void {
     $character = characters()->createDraft(9138);
-    $character->inventory_max_rows = 1;
+    $character->backpack_max_rows = 1;
     $character->save();
 
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
-    inventory()->addItem($character->tg_id, 'axe_0');
+    backpack()->addItem($character->tg_id, 'axe_0');
 
-    expect(inventory()->isFull($character))->toBeTrue();
+    expect(backpack()->isFull($character))->toBeTrue();
 
     livewire(LoadoutRelationManager::class, [
         'ownerRecord' => $character->fresh(),
@@ -274,13 +248,13 @@ it('rejects unequip from loadout when backpack is full', function (): void {
         ->assertNotified(__('errors.inventory_full'));
 
     expect($knife->fresh()->isEquipped())->toBeTrue()
-        ->and(inventory()->rowCount($character->tg_id))->toBe(1);
+        ->and(backpack()->rowCount($character->tg_id))->toBe(1);
 });
 
 it('shows unequip stat preview in loadout confirmation modal', function (): void {
     $character = characters()->createDraft(9139);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     livewire(LoadoutRelationManager::class, [
@@ -305,15 +279,15 @@ it('hides unequip action on empty loadout slots', function (): void {
 
 it('discards equipped item from loadout edit relation manager', function (): void {
     $character = characters()->createDraft(9141);
-    $character->inventory_max_rows = 1;
+    $character->backpack_max_rows = 1;
     $character->save();
 
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
-    inventory()->addItem($character->tg_id, 'axe_0');
+    backpack()->addItem($character->tg_id, 'axe_0');
 
-    expect(inventory()->isFull($character))->toBeTrue();
+    expect(backpack()->isFull($character))->toBeTrue();
 
     livewire(LoadoutRelationManager::class, [
         'ownerRecord' => $character->fresh(),
@@ -326,14 +300,14 @@ it('discards equipped item from loadout edit relation manager', function (): voi
         ->assertDispatched('character-gems-changed')
         ->assertDispatched('character-vitals-changed');
 
-    expect(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
-        ->and(inventory()->rowCount($character->tg_id))->toBe(1);
+    expect(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(backpack()->rowCount($character->tg_id))->toBe(1);
 });
 
 it('does not register discard action on loadout view relation manager', function (): void {
     $character = characters()->createDraft(9142);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     livewire(LoadoutRelationManager::class, [
@@ -346,10 +320,10 @@ it('does not register discard action on loadout view relation manager', function
 
 it('hides equipped items from backpack relation manager', function (): void {
     $character = characters()->createDraft(9109);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    inventory()->addItem($character->tg_id, 'axe_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
-    $axe = inventory()->findOwned($character->tg_id, 'axe_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'axe_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
+    $axe = backpack()->findOwned($character->tg_id, 'axe_0');
     loadout()->equip($character, $knife->id);
 
     livewire(BackpackRelationManager::class, [
@@ -396,8 +370,7 @@ it('rejects invalid bag capacity on edit relation manager', function (): void {
 
 it('lists pouch gems on bag relation manager', function (): void {
     $character = characters()->createDraft(9112);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    $character = grantGem($character, 'ruby_0', 1);
 
     livewire(BagRelationManager::class, [
         'ownerRecord' => $character,
@@ -409,49 +382,49 @@ it('lists pouch gems on bag relation manager', function (): void {
 
 it('discards pouch gem from edit bag relation manager', function (): void {
     $character = characters()->createDraft(9113);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    $character = grantGem($character, 'ruby_0', 1);
+    $gem = looseGem($character, 'ruby_0');
 
     livewire(BagRelationManager::class, [
         'ownerRecord' => $character,
         'pageClass' => EditCharacter::class,
     ])
         ->assertOk()
-        ->callAction(TestAction::make('discard')->table('0'))
+        ->callAction(TestAction::make('discard')->table((string) $gem->id))
         ->assertNotified(__('admin.actions.discard_gem.notification'));
 
-    expect(app(GemService::class)->pouch($character->fresh()))->toBe([]);
+    expect(bag()->looseGems($character->fresh()))->toHaveCount(0);
 });
 
 it('sockets pouch gem into equipment from edit bag relation manager', function (): void {
     $character = characters()->createDraft(9114);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    $character = grantGem($character, 'ruby_0', 1);
+    $gem = looseGem($character, 'ruby_0');
 
     $character = giveAndEquipStarterKnuckles($character);
-    $knuckles = inventory()->findOwned($character->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($character->tg_id, shopCatalog()->starterKnucklesId());
 
     livewire(BagRelationManager::class, [
         'ownerRecord' => $character,
         'pageClass' => EditCharacter::class,
     ])
         ->assertOk()
-        ->callAction(TestAction::make('socket')->table('0'), data: [
-            'inventory_id' => $knuckles->id,
+        ->callAction(TestAction::make('socket')->table((string) $gem->id), data: [
+            'backpack_item_id' => $knuckles->id,
         ])
         ->assertNotified(__('admin.actions.socket_gem.notification'))
         ->assertDispatched('character-gems-changed');
 
     $character = $character->fresh();
 
-    expect(app(GemService::class)->pouch($character))->toBe([])
-        ->and(app(GemService::class)->socketedGemIds($knuckles->fresh()))->toBe(['ruby_0']);
+    expect(bag()->looseGems($character))->toHaveCount(0)
+        ->and(app(BagService::class)->socketedGemIds($knuckles->fresh()))->toBe(['ruby_0']);
 });
 
 it('refreshes loadout sockets after socketed gems change externally', function (): void {
     $character = characters()->createDraft(9144);
     $character = giveAndEquipStarterKnuckles($character);
-    $knuckles = inventory()->findOwned($character->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($character->tg_id, shopCatalog()->starterKnucklesId());
 
     $loadout = livewire(LoadoutRelationManager::class, [
         'ownerRecord' => $character,
@@ -460,9 +433,8 @@ it('refreshes loadout sockets after socketed gems change externally', function (
         ->assertOk()
         ->assertDontSee('Рубин ученика');
 
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
-    $socket = app(GemService::class)->socket($character, $knuckles->id, 0);
+    $character = grantGem($character, 'ruby_0', 1);
+    $socket = socketGem($character, $knuckles, 'ruby_0');
     expect($socket->ok)->toBeTrue();
 
     $loadout
@@ -495,33 +467,33 @@ it('refreshes current hp on edit form when vitals change event fires', function 
 
 it('shows no free sockets message when socketing without targets', function (): void {
     $character = characters()->createDraft(9115);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    $character = grantGem($character, 'ruby_0', 1);
+    $gem = looseGem($character, 'ruby_0');
 
     livewire(BagRelationManager::class, [
         'ownerRecord' => $character,
         'pageClass' => EditCharacter::class,
     ])
         ->assertOk()
-        ->mountAction(TestAction::make('socket')->table('0'))
+        ->mountAction(TestAction::make('socket')->table((string) $gem->id))
         ->assertMountedActionModalSee(__('admin.actions.socket_gem.no_targets'));
 
-    expect(app(GemService::class)->pouch($character->fresh()))->toHaveCount(1);
+    expect(bag()->looseGems($character->fresh()))->toHaveCount(1);
 });
 
 it('hides bag mutation actions on view relation manager', function (): void {
     $character = characters()->createDraft(9116);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    $character = grantGem($character, 'ruby_0', 1);
+    $gem = looseGem($character, 'ruby_0');
 
     livewire(BagRelationManager::class, [
         'ownerRecord' => $character,
         'pageClass' => ViewCharacter::class,
     ])
         ->assertOk()
-        ->assertActionDoesNotExist(TestAction::make('discard')->table('0'))
-        ->assertActionDoesNotExist(TestAction::make('socket')->table('0'))
-        ->assertActionVisible(TestAction::make('view')->table('0'));
+        ->assertActionDoesNotExist(TestAction::make('discard')->table((string) $gem->id))
+        ->assertActionDoesNotExist(TestAction::make('socket')->table((string) $gem->id))
+        ->assertActionVisible(TestAction::make('view')->table((string) $gem->id));
 });
 
 it('lists and views live fights', function (): void {

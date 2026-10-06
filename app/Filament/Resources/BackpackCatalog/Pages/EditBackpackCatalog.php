@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\BackpackCatalog\Pages;
+
+use App\Filament\Concerns\HasFormActionsBetween;
+use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
+use App\Filament\Resources\BackpackCatalog\Schemas\BackpackCatalogForm;
+use App\Models\BackpackCatalog;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Colors\Color;
+
+final class EditBackpackCatalog extends EditRecord
+{
+    use HasFormActionsBetween;
+
+    protected static string $resource = BackpackCatalogResource::class;
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return BackpackCatalogForm::sanitizeCatalogFieldsForType($data);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            DeleteAction::make()
+                ->label(__('admin.actions.archive.label'))
+                ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.archive.modal_heading', [
+                    'label' => $record->name,
+                ]))
+                ->modalSubmitActionLabel(__('admin.actions.archive.modal_submit'))
+                ->successNotificationTitle(__('admin.actions.archive.notification'))
+                ->color(Color::Amber),
+            RestoreAction::make()
+                ->label(__('admin.actions.restore.label'))
+                ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.restore.modal_heading', [
+                    'label' => $record->name,
+                ]))
+                ->modalSubmitActionLabel(__('admin.actions.restore.modal_submit'))
+                ->color(Color::Green)
+                ->successNotificationTitle(__('admin.actions.restore.notification')),
+            ForceDeleteAction::make()
+                ->label(__('admin.actions.delete.label'))
+                ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.delete.modal_heading', [
+                    'label' => $record->name,
+                ]))
+                ->modalSubmitActionLabel(__('admin.actions.delete.modal_submit'))
+                ->successNotificationTitle(__('admin.actions.delete.notification'))
+                ->visible(fn (BackpackCatalog $record): bool => $record->trashed() && ! $record->isReferencedByBackpack()),
+        ];
+    }
+}

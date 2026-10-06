@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Game;
 
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Support\Bag\PotionDef;
 use App\Support\Equipment\EquipmentDef;
 
 final readonly class ActionResult
@@ -14,27 +15,33 @@ final readonly class ActionResult
         public bool $ok,
         public ?string $error,
         public ?Character $character,
-        public ?Inventory $item,
+        public ?BackpackItem $item,
         public ?EquipmentDef $def,
+        public ?PotionDef $potion,
     ) {}
 
     public static function fail(string $error): self
     {
-        return new self(false, $error, null, null, null);
+        return new self(false, $error, null, null, null, null);
     }
 
     public static function ok(Character $character): self
     {
-        return new self(true, null, $character, null, null);
+        return new self(true, null, $character, null, null, null);
     }
 
     public static function okWithDef(Character $character, EquipmentDef $def): self
     {
-        return new self(true, null, $character, null, $def);
+        return new self(true, null, $character, null, $def, null);
     }
 
-    public static function okWithItem(Character $character, Inventory $item): self
+    public static function okWithItem(Character $character, BackpackItem $item): self
     {
-        return new self(true, null, $character, $item, null);
+        return new self(true, null, $character, $item, null, null);
+    }
+
+    public static function okWithPotion(Character $character, PotionDef $potion): self
+    {
+        return new self(true, null, $character, null, null, $potion);
     }
 }

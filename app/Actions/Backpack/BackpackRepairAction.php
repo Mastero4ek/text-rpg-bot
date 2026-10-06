@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\Backpack;
+
+use App\Models\Character;
+use App\Services\Backpack\RepairService;
+use App\Support\Game\ActionResult;
+
+final class BackpackRepairAction
+{
+    public function __construct(
+        private readonly RepairService $repair,
+    ) {}
+
+    public function handle(Character $character, int $backpackItemId): ActionResult
+    {
+        return $this->repair->repair($character, $backpackItemId);
+    }
+}

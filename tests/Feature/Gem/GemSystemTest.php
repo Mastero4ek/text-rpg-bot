@@ -2,131 +2,125 @@
 
 declare(strict_types=1);
 
-use App\Models\Equipment;
-use App\Models\Gem;
-use App\Services\Gem\GemService;
-use App\Services\Inventory\LoadoutService;
+use App\Models\BackpackCatalog;
+use App\Models\BagCatalog;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
 
-it('buys gem into pouch and sockets mf into loadout', function (): void {
+it('buys gem into bag and sockets mf into loadout', function (): void {
     $p = characters()->createDraft(8301);
     $p->silver = 100;
     $p->save();
 
-    $buy = app(GemService::class)->buy($p, 'ruby_0');
+    $buy = app(BagService::class)->buy($p, 'ruby_0');
     expect($buy->ok)->toBeTrue();
     $p = $buy->character;
-    $pouch = app(GemService::class)->pouch($p);
-    expect($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
-        ->and($pouch[0]['durability'])->toBe(10);
+    expect(bag()->looseGems($p))->toHaveCount(1)
+        ->and(looseGem($p, 'ruby_0')->durability)->toBe(10);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    expect(app(GemService::class)->gemSlotCount($knuckles))->toBe(1);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    expect(app(BagService::class)->gemSlotCount($knuckles))->toBe(1);
 
     $before = app(LoadoutService::class)->forCharacter($p);
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
+    $socket = socketGem($p, $knuckles, 'ruby_0');
     expect($socket->ok)->toBeTrue();
     $p = $socket->character;
 
     $after = app(LoadoutService::class)->forCharacter($p);
     expect($after->mf->crit)->toBe($before->mf->crit + 4)
-        ->and(app(GemService::class)->pouch($p))->toBe([]);
+        ->and(bag()->looseGems($p))->toHaveCount(0);
 });
 
-it('unsockets gem back to pouch for silver and keeps durability', function (): void {
+it('does not allow unsocketing a socketed gem', function (): void {
     $p = characters()->createDraft(8302);
     $p->silver = 50;
-    $p->gem_pouch = gemPouch('emerald_0', 7);
     $p->save();
+    $p = grantGemDurability($p, 'emerald_0', 7);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = socketGem($p, $knuckles, 'emerald_0');
     expect($socket->ok)->toBeTrue();
     $p = $socket->character;
-
-    $unsocket = app(GemService::class)->unsocket($p, $knuckles->id, 0);
-    expect($unsocket->ok)->toBeTrue();
-    $p = $unsocket->character;
     $knuckles->refresh();
-    $pouch = app(GemService::class)->pouch($p);
 
-    expect(app(GemService::class)->socketedGemIds($knuckles))->toBe([])
-        ->and($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('emerald_0')
-        ->and($pouch[0]['durability'])->toBe(7)
-        ->and($p->silver)->toBe(45);
+    $gem = bag()->socketedInstances($knuckles)->first();
+    expect($gem)->not->toBeNull();
+
+    $discard = app(BagService::class)->discardLoose($p, $gem->id);
+
+    expect($discard->ok)->toBeFalse()
+        ->and($discard->error)->toBe(__('errors.gem_socketed'))
+        ->and(app(BagService::class)->socketedGemIds($knuckles->fresh()))->toBe(['emerald_0'])
+        ->and(bag()->looseGems($p->fresh()))->toHaveCount(0);
 });
 
 it('destroys socketed gem when durability reaches zero on lose', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.0]));
 
     $p = characters()->createDraft(8303);
-    $p->gem_pouch = gemPouch('sapphire_0', 1);
-    $p->save();
+    $p = grantGemDurability($p, 'sapphire_0', 1);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = socketGem($p, $knuckles, 'sapphire_0');
     expect($socket->ok)->toBeTrue();
 
-    $broken = app(GemService::class)->breakSocketedOnLose($socket->character);
+    $broken = app(BagService::class)->breakSocketedOnLose($socket->character);
     $knuckles->refresh();
 
     expect($broken)->toContain('Сапфир ученика')
-        ->and(app(GemService::class)->socketedInstances($knuckles))->toBe([]);
+        ->and(app(BagService::class)->socketedInstances($knuckles))->toHaveCount(0);
 });
 
 it('wears socketed gem durability without destroying when above one', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.0]));
 
     $p = characters()->createDraft(8308);
-    $p->gem_pouch = gemPouch('ruby_0', 10);
-    $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 10);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
-    $broken = app(GemService::class)->breakSocketedOnLose($socket->character);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = socketGem($p, $knuckles, 'ruby_0');
+    $broken = app(BagService::class)->breakSocketedOnLose($socket->character);
     $knuckles->refresh();
-    $instances = app(GemService::class)->socketedInstances($knuckles);
+    $instances = app(BagService::class)->socketedInstances($knuckles);
 
     expect($broken)->toBe([])
         ->and($instances)->toHaveCount(1)
-        ->and($instances[0]['gem_id'])->toBe('ruby_0')
-        ->and($instances[0]['durability'])->toBe(9);
+        ->and($instances->first()->catalog_id)->toBe('ruby_0')
+        ->and($instances->first()->durability)->toBe(9);
 });
 
 it('keeps gem when break roll misses', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99]));
 
     $p = characters()->createDraft(8304);
-    $p->gem_pouch = gemPouch('ruby_0', 10);
-    $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 10);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
-    $broken = app(GemService::class)->breakSocketedOnLose($socket->character);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = socketGem($p, $knuckles, 'ruby_0');
+    $broken = app(BagService::class)->breakSocketedOnLose($socket->character);
     $knuckles->refresh();
-    $instances = app(GemService::class)->socketedInstances($knuckles);
+    $instances = app(BagService::class)->socketedInstances($knuckles);
 
     expect($broken)->toBe([])
         ->and($instances)->toHaveCount(1)
-        ->and($instances[0]['gem_id'])->toBe('ruby_0')
-        ->and($instances[0]['durability'])->toBe(10);
+        ->and($instances->first()->catalog_id)->toBe('ruby_0')
+        ->and($instances->first()->durability)->toBe(10);
 });
 
 it('repairs all damaged gear for gold', function (): void {
     $p = characters()->createDraft(8305);
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    inventory()->addItem($p->tg_id, 'mobile_1');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'mobile_1');
 
-    $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
-    $boots = inventory()->findOwned($p->tg_id, 'mobile_1');
+    $cap = backpack()->findOwned($p->tg_id, 'mobile_0');
+    $boots = backpack()->findOwned($p->tg_id, 'mobile_1');
     $cap->durability = 10;
     $cap->save();
     $boots->durability = 10;
@@ -153,99 +147,94 @@ it('repairs all damaged gear for gold', function (): void {
 
 it('applies extra durability loss after lose', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8306));
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $knuckles->durability = 5;
     $knuckles->save();
 
     loadout()->applyFightWearAfterLose($p, 0);
     $knuckles->refresh();
 
-    $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
+    $loss = BackpackCatalog::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
     $extra = gameConfig()->settings()['wear']['extraLossOnLose'];
     expect($knuckles->durability)->toBe(5 - $loss - $extra);
 });
 
 it('does not socket gems into jewelry', function (): void {
     $p = characters()->createDraft(8307);
-    $p->gem_pouch = gemPouch('ruby_0');
-    $p->save();
+    $p = grantGem($p, 'ruby_0', 1);
 
-    inventory()->addItem($p->tg_id, 'focus_0');
-    $ring = inventory()->findOwned($p->tg_id, 'focus_0');
+    backpack()->addItem($p->tg_id, 'focus_0');
+    $ring = backpack()->findOwned($p->tg_id, 'focus_0');
+    $gem = looseGem($p, 'ruby_0');
 
-    expect(app(GemService::class)->gemSlotCount($ring))->toBe(0);
-    expect(app(GemService::class)->socket($p, $ring->id, 0)->ok)->toBeFalse();
+    expect(app(BagService::class)->gemSlotCount($ring))->toBe(0);
+    expect(app(BagService::class)->socket($p, $ring->id, $gem->id)->ok)->toBeFalse();
 });
 
 it('rejects buy and socket for disabled gem', function (): void {
-    $gem = Gem::query()->findOrFail('ruby_0');
+    $p = characters()->createDraft(8309);
+    $p->silver = 100;
+    $p->save();
+    $p = grantGem($p, 'ruby_0', 1);
+
+    $gem = BagCatalog::query()->findOrFail('ruby_0');
     $gem->enabled = false;
     $gem->save();
 
-    $p = characters()->createDraft(8309);
-    $p->silver = 100;
-    $p->gem_pouch = gemPouch('ruby_0');
-    $p->save();
-
-    expect(app(GemService::class)->buy($p, 'ruby_0')->ok)->toBeFalse();
+    expect(app(BagService::class)->buy($p, 'ruby_0')->ok)->toBeFalse();
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    expect(app(GemService::class)->socket($p, $knuckles->id, 0)->ok)->toBeFalse();
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $loose = looseGem($p, 'ruby_0');
+
+    expect(app(BagService::class)->socket($p, $knuckles->id, $loose->id)->ok)->toBeFalse();
 });
 
-it('discards a gem from pouch by index and reindexes remaining entries', function (): void {
+it('discards a loose gem by bag item id', function (): void {
     $p = characters()->createDraft(8311);
-    $p->gem_pouch = [
-        ['gem_id' => 'ruby_0', 'durability' => 3],
-        ['gem_id' => 'emerald_0', 'durability' => 8],
-        ['gem_id' => 'sapphire_0', 'durability' => 5],
-    ];
-    $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 3);
+    $p = grantGemDurability($p, 'emerald_0', 8);
+    $p = grantGemDurability($p, 'sapphire_0', 5);
 
-    $discard = app(GemService::class)->discardFromPouch($p, 1);
+    $emerald = looseGem($p, 'emerald_0');
+    $discard = app(BagService::class)->discardLoose($p, $emerald->id);
 
     expect($discard->ok)->toBeTrue();
-
-    $pouch = app(GemService::class)->pouch($discard->character);
-
-    expect($pouch)->toHaveCount(2)
-        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
-        ->and($pouch[0]['durability'])->toBe(3)
-        ->and($pouch[1]['gem_id'])->toBe('sapphire_0')
-        ->and($pouch[1]['durability'])->toBe(5);
+    expect(bag()->looseGems($discard->character))->toHaveCount(2)
+        ->and(hasLooseGem($discard->character, 'ruby_0'))->toBeTrue()
+        ->and(hasLooseGem($discard->character, 'sapphire_0'))->toBeTrue()
+        ->and(hasLooseGem($discard->character, 'emerald_0'))->toBeFalse();
 });
 
-it('rejects discarding a gem index that is not in the pouch', function (): void {
+it('rejects discarding a missing bag item', function (): void {
     $p = characters()->createDraft(8312);
-    $p->gem_pouch = gemPouch('ruby_0');
-    $p->save();
+    $p = grantGem($p, 'ruby_0', 1);
 
-    $discard = app(GemService::class)->discardFromPouch($p, 4);
+    $discard = app(BagService::class)->discardLoose($p, 9_999_999);
 
     expect($discard->ok)->toBeFalse()
-        ->and($discard->error)->toBe(__('errors.gem_not_in_pouch'))
-        ->and(app(GemService::class)->pouch($p->fresh()))->toHaveCount(1);
+        ->and($discard->error)->toBe(__('errors.item_not_found'))
+        ->and(bag()->looseGems($p->fresh()))->toHaveCount(1);
 });
 
-it('sockets by pouch index when pouch has duplicate gem ids', function (): void {
+it('sockets a specific bag gem when bag has duplicate catalog ids', function (): void {
     $p = characters()->createDraft(8310);
-    $p->gem_pouch = [
-        ['gem_id' => 'ruby_0', 'durability' => 3],
-        ['gem_id' => 'ruby_0', 'durability' => 10],
-    ];
-    $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 3);
+    $p = grantGemDurability($p, 'ruby_0', 10);
+
+    $first = bag()->looseGems($p)->first();
+    expect($first->durability)->toBe(3);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = bag()->socket($p, $knuckles->id, $first->id);
     expect($socket->ok)->toBeTrue();
 
     $knuckles->refresh();
-    $pouch = app(GemService::class)->pouch($socket->character);
-    $socketed = app(GemService::class)->socketedInstances($knuckles);
+    $loose = bag()->looseGems($socket->character);
+    $socketed = bag()->socketedInstances($knuckles);
 
-    expect($socketed[0]['durability'])->toBe(3)
-        ->and($pouch)->toHaveCount(1)
-        ->and($pouch[0]['durability'])->toBe(10);
+    expect($socketed->first()->durability)->toBe(3)
+        ->and($loose)->toHaveCount(1)
+        ->and($loose->first()->durability)->toBe(10);
 });

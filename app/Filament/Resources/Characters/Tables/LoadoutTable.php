@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Tables;
 
-use App\Actions\Inventory\InventoryDiscardEquippedAction;
-use App\Actions\Inventory\InventoryUnequipAction;
+use App\Actions\Backpack\BackpackDiscardEquippedAction;
+use App\Actions\Backpack\BackpackUnequipAction;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
-use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Support\BackpackDurabilityText;
+use App\Filament\Support\BackpackEquipPreviewHtml;
 use App\Filament\Support\GemSocketSlots;
-use App\Filament\Support\InventoryDurabilityText;
-use App\Filament\Support\InventoryEquipPreviewHtml;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Models\LoadoutSlot;
-use App\Services\Inventory\LoadoutService;
+use App\Services\Backpack\LoadoutService;
 use App\Services\Shop\ShopCatalog;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -44,7 +44,7 @@ final class LoadoutTable
                 ->color(Color::Teal)
                 ->label('')
                 ->tooltip(__('admin.actions.view.label'))
-                ->url(fn (array $record): string => EquipmentResource::getUrl('view', [
+                ->url(fn (array $record): string => BackpackCatalogResource::getUrl('view', [
                     'record' => $record['item_id'],
                 ]))
                 ->visible(fn (array $record): bool => is_string($record['item_id']) && $record['in_catalog']),
@@ -94,7 +94,7 @@ final class LoadoutTable
             ->filters([])
             ->recordActions($recordActions)
             ->recordUrl(fn (array $record): ?string => is_string($record['item_id']) && $record['in_catalog']
-                ? EquipmentResource::getUrl('view', [
+                ? BackpackCatalogResource::getUrl('view', [
                     'record' => $record['item_id'],
                 ])
                 : null)
@@ -151,11 +151,11 @@ final class LoadoutTable
 
         $slots = LoadoutSlot::query()
             ->where('tg_id', $character->tg_id)
-            ->with(['inventory.equipment.media'])
+            ->with(['backpackItem.catalog.media'])
             ->get();
 
         foreach ($slots as $loadoutSlot) {
-            $bySlot[$loadoutSlot->slot->value] = $loadoutSlot->inventory;
+            $bySlot[$loadoutSlot->slot->value] = $loadoutSlot->backpackItem;
         }
 
         $shop = app(ShopCatalog::class);
@@ -164,11 +164,11 @@ final class LoadoutTable
         foreach (SlotEnum::gameplayEquipSlots() as $slot) {
             $inventory = null;
 
-            if (array_key_exists($slot->value, $bySlot) && $bySlot[$slot->value] instanceof Inventory) {
+            if (array_key_exists($slot->value, $bySlot) && $bySlot[$slot->value] instanceof BackpackItem) {
                 $inventory = $bySlot[$slot->value];
             }
 
-            if (! $inventory instanceof Inventory) {
+            if (! $inventory instanceof BackpackItem) {
                 $rows[] = self::emptyRow($slot);
 
                 continue;
@@ -176,12 +176,12 @@ final class LoadoutTable
 
             $imageUrl = null;
             $profile = null;
-            $inCatalog = $shop->hasItem($inventory->item_id);
+            $inCatalog = $shop->hasItem($inventory->catalog_id);
 
             if ($inCatalog) {
-                $profile = $shop->findItem($inventory->item_id)->profile;
+                $profile = $shop->findItem($inventory->catalog_id)->profile;
 
-                $equipment = $inventory->equipment;
+                $equipment = $inventory->catalog;
 
                 if ($equipment !== null) {
                     $url = $equipment->getFirstMediaUrl('image');
@@ -196,15 +196,15 @@ final class LoadoutTable
                 'slot' => $slot->value,
                 'slot_label' => $slot->getLabel(),
                 'inventory_id' => $inventory->id,
-                'item_id' => $inventory->item_id,
+                'item_id' => $inventory->catalog_id,
                 'in_catalog' => $inCatalog,
                 'equipped' => true,
                 'item_name' => $inventory->item_name,
                 'item_type' => $inventory->item_type,
                 'profile' => $profile,
                 'image_url' => $imageUrl,
-                'socket_slots' => GemSocketSlots::forInventory($inventory),
-                'durability' => InventoryDurabilityText::format($inventory),
+                'socket_slots' => GemSocketSlots::forBackpackItem($inventory),
+                'durability' => BackpackDurabilityText::format($inventory),
             ];
         }
 
@@ -233,7 +233,7 @@ final class LoadoutTable
                 }
 
                 $owner = self::ownerFromLivewire($livewire, $character);
-                $result = app(InventoryDiscardEquippedAction::class)->handle($owner, $inventoryId);
+                $result = app(BackpackDiscardEquippedAction::class)->handle($owner, $inventoryId);
 
                 if (! $result->ok) {
                     Notification::make()
@@ -377,7 +377,7 @@ final class LoadoutTable
                 }
 
                 $owner = self::ownerFromLivewire($livewire, $character);
-                $result = app(InventoryUnequipAction::class)->handle($owner, $inventoryId);
+                $result = app(BackpackUnequipAction::class)->handle($owner, $inventoryId);
 
                 if (! $result->ok) {
                     Notification::make()
@@ -403,16 +403,16 @@ final class LoadoutTable
             return new HtmlString(e(__('errors.item_not_found')));
         }
 
-        $inventory = Inventory::query()
+        $inventory = BackpackItem::query()
             ->where('id', $inventoryId)
             ->where('tg_id', $character->tg_id)
             ->first();
 
-        if (! $inventory instanceof Inventory) {
+        if (! $inventory instanceof BackpackItem) {
             return new HtmlString(e(__('errors.item_not_found')));
         }
 
-        return InventoryEquipPreviewHtml::format(
+        return BackpackEquipPreviewHtml::format(
             app(LoadoutService::class)->unequipStatChanges($character, $inventory),
         );
     }

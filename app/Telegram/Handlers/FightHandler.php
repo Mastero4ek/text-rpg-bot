@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Actions\Backpack\BackpackApplyFightWearAction;
+use App\Actions\Bag\BagGemBreakOnLoseAction;
 use App\Actions\Fight\FightClearAction;
-use App\Actions\Gem\GemBreakOnLoseAction;
-use App\Actions\Inventory\InventoryApplyFightWearAction;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
@@ -15,13 +15,13 @@ use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
 use App\Services\Onboarding\OnboardingService;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
@@ -38,9 +38,9 @@ final class FightHandler
         private readonly FightClearAction $clearFight,
         private readonly FightService $fights,
         private readonly FightRoundService $rounds,
-        private readonly InventoryService $inventory,
-        private readonly InventoryApplyFightWearAction $fightWear,
-        private readonly GemBreakOnLoseAction $breakGems,
+        private readonly BagService $bag,
+        private readonly BackpackApplyFightWearAction $fightWear,
+        private readonly BagGemBreakOnLoseAction $breakGems,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
         private readonly GameConfig $config,
@@ -508,11 +508,11 @@ final class FightHandler
 
         $attacks = [];
 
-        if ($this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0) {
+        if ($this->bag->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0) {
             $attacks[] = PlayerAttackEnum::POTION;
         }
 
-        if ($this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0) {
+        if ($this->bag->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0) {
             $attacks[] = PlayerAttackEnum::STAMINA_POTION;
         }
 
@@ -522,11 +522,11 @@ final class FightHandler
     private function canUsePotionAttack(Character $player, PlayerAttackEnum $attack): bool
     {
         if ($attack === PlayerAttackEnum::POTION) {
-            return $this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0;
+            return $this->bag->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0;
         }
 
         if ($attack === PlayerAttackEnum::STAMINA_POTION) {
-            return $this->inventory->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0;
+            return $this->bag->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0;
         }
 
         return false;

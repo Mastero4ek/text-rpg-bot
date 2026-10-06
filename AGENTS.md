@@ -9,7 +9,7 @@
   - Dev bot: long polling (`php artisan telegram:poll`) when `TELEGRAM_WEBHOOK_URL` is empty.
   - Prod bot: webhook `POST /telegram/webhook` when `TELEGRAM_WEBHOOK_URL` is set. `telegram:poll` must refuse to start. Secret token + Telegram IP allowlist.
   - `TELEGRAM_ASYNC=true` only in production (Redis queue → `ProcessTelegramUpdateJob`). Local: sync.
-- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); collapsed **Экипировка** (`loadout_slots`, Unequip на Edit) + **Рюкзак** (`inventories` unequipped) + **Сумка** (`gem_pouch`); CRUD каталогов equipment/gems; live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
+- **Filament admin** (`app/Filament/`, panel `admin` at `/admin`) — one super-admin; characters — List/View/Edit (без Create; archive на List+Edit; reset статов в форме только на Edit); collapsed **Экипировка** (`loadout_slots`, Unequip на Edit) + **Рюкзак** (`backpack_items` unequipped) + **Сумка** (`bag_items` loose); CRUD каталогов `backpack_catalog` + `bag_catalog` (`BagCatalogResource`); live `fights` — List/View + force-clear (без Create/Edit). `/` redirects to `/admin`.
 - No public landing, no Mini App in MVP, no platform widget API.
 
 ## Layer structure
@@ -42,19 +42,21 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quest/` |
-| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Equipment/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
+| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
 | Filament presentation helpers | `app/Filament/Support/` (не путать с `app/Support/`) |
-| Domain / SDK glue | `app/Support/{Character,Equipment,Game,Gem,Random,Telegram}/` |
+| Domain / SDK glue | `app/Support/{Character,Equipment,Game,Gem,Bag,Random,Telegram}/` |
 | Game config JSON | `resources/configs/` |
 | UI translations | `lang/ru/` |
 
 ## Data
 
 - `users` — Filament operators only (one seeded super-admin).
-- `characters` — players, PK `tg_id`; `inventory_max_rows` (ёмкость рюкзака); `gem_pouch` JSON.
-- `inventories` — экземпляры предметов (`item_name` snapshot, `quantity`, `created_at`, sockets…); FK `tg_id` → `characters`. **Нет** `is_equipped`.
-- `loadout_slots` — sparse экипировка (`tg_id`, `slot`, `inventory_id`); equipped не считаются в ёмкость рюкзака.
+- `characters` — players, PK `tg_id`; `backpack_max_rows` / `bag_max_rows`.
+- `backpack_catalog` — gear (WEAPON/ARMOR/JEWELRY); `bag_catalog` — potion/gem/(later charm).
+- `backpack_items` — gear instances (snapshot name/type/slot + durability); FK `tg_id` → `characters`. **Нет** `is_equipped` / `quantity` / JSON sockets.
+- `bag_items` — loose сумка + socketed gems (`backpack_item_id` host; unordered sockets; unsocket запрещён).
+- `loadout_slots` — sparse экипировка (`tg_id`, `slot`, `backpack_item_id`); equipped не считаются в ёмкость рюкзака.
 - `fights` — one active fight per character (`tg_id` PK); session columns, not a single `data` blob. Enemy snapshot and combat `log` (already-rendered RU strings) are JSON columns.
 - Nickname uniqueness: stored as typed; SQLite unique index on `LOWER(username)`.
 - HP regen: `last_hp_update` timestamp (Carbon), not a unix int.
@@ -76,6 +78,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 ## Document map
 
 - `.ai/guidelines/` — always-on agent rules; `.ai/rules/` — path-scoped rules.
+- `docs/` — канон домена: CHARACTER / EQUIPMENT / BACKPACK / BAG.
 
 ## Out of scope
 

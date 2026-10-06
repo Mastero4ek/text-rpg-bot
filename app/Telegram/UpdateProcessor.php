@@ -96,6 +96,7 @@ final class UpdateProcessor
         if (
             str_starts_with($data, 'menu:')
             || str_starts_with($data, 'inv:')
+            || str_starts_with($data, 'backpack:')
             || str_starts_with($data, 'bag:')
             || str_starts_with($data, 'gear:')
             || str_starts_with($data, 'stat:')

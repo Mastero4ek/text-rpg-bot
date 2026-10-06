@@ -7,8 +7,8 @@ namespace App\Services\Combat;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Models\Character;
+use App\Services\Bag\BagCatalog;
 use App\Services\Game\GameConfig;
-use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\Enemy;
 use App\Support\Game\Fighter;
@@ -22,7 +22,7 @@ final class CombatService
     public function __construct(
         private readonly GameConfig $config,
         private readonly RandomSourceContract $random,
-        private readonly ShopCatalog $shop,
+        private readonly BagCatalog $bagCatalog,
     ) {}
 
     /**
@@ -352,7 +352,7 @@ final class CombatService
 
     public function potionHeal(): int
     {
-        return $this->shop->potionHeal();
+        return $this->bagCatalog->potionHeal();
     }
 
     public function fighterFromPlayer(Character $character, EquippedLoadout $loadout, string $name): Fighter

@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
-use App\Actions\Inventory\InventorySellAction;
+use App\Actions\Backpack\BackpackSellAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\OnboardingStepEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagCatalog;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
@@ -25,12 +27,14 @@ final class ShopHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
-        private readonly InventoryService $inventory,
+        private readonly BackpackService $backpack,
+        private readonly BagService $bag,
+        private readonly BagCatalog $bagCatalog,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
-        private readonly InventorySellAction $sellItem,
+        private readonly BackpackSellAction $sellItem,
     ) {}
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
@@ -118,7 +122,7 @@ final class ShopHandler
 
             $responder->reply(
                 __('shop.bought_potion', [
-                    'potions' => $this->inventory->potionCountByProfile(
+                    'potions' => $this->bag->potionCountByProfile(
                         $res->character->tg_id,
                         ProfileEnum::HEAL,
                     ),
@@ -140,7 +144,7 @@ final class ShopHandler
 
             $responder->reply(
                 __('shop.bought_stamina_potion', [
-                    'potions' => $this->inventory->potionCountByProfile(
+                    'potions' => $this->bag->potionCountByProfile(
                         $res->character->tg_id,
                         ProfileEnum::STAMINA,
                     ),
@@ -187,7 +191,7 @@ final class ShopHandler
 
     private function sell(TelegramResponder $responder, Character $player, int $rowId): void
     {
-        $row = Inventory::query()
+        $row = BackpackItem::query()
             ->where('id', $rowId)
             ->where('tg_id', $player->tg_id)
             ->first();
@@ -198,14 +202,14 @@ final class ShopHandler
             return;
         }
 
-        if (! $this->shop->hasItem($row->item_id)) {
+        if (! $this->shop->hasItem($row->catalog_id)) {
             $responder->reply(__('errors.cannot_sell'), null);
 
             return;
         }
 
-        $def = $this->shop->findItem($row->item_id);
-        $payout = $this->inventory->sellPayout($row);
+        $def = $this->shop->findItem($row->catalog_id);
+        $payout = $this->backpack->sellPayout($row);
         $name = $row->item_name;
         $mark = $this->currencyMark($def->currency);
 
@@ -228,7 +232,7 @@ final class ShopHandler
 
     private function sellConfirmScreen(TelegramResponder $responder, Character $player, int $rowId): void
     {
-        $row = Inventory::query()
+        $row = BackpackItem::query()
             ->where('id', $rowId)
             ->where('tg_id', $player->tg_id)
             ->first();
@@ -239,24 +243,24 @@ final class ShopHandler
             return;
         }
 
-        if (! $this->shop->hasItem($row->item_id)) {
+        if (! $this->shop->hasItem($row->catalog_id)) {
             $responder->reply(__('errors.cannot_sell'), null);
 
             return;
         }
 
-        $def = $this->shop->findItem($row->item_id);
-        $payout = $this->inventory->sellPayout($row);
+        $def = $this->shop->findItem($row->catalog_id);
+        $payout = $this->backpack->sellPayout($row);
         $mark = $this->currencyMark($def->currency);
 
         if ($payout <= 0) {
             $text = __('shop.sell_confirm_zero', [
-                'name' => $this->inventory->rowLabel($row),
+                'name' => $this->backpack->rowLabel($row),
                 'mark' => $mark,
             ]);
         } else {
             $text = __('shop.sell_confirm', [
-                'name' => $this->inventory->rowLabel($row),
+                'name' => $this->backpack->rowLabel($row),
                 'price' => $payout,
                 'mark' => $mark,
             ]);
@@ -276,30 +280,30 @@ final class ShopHandler
 
     private function sellListScreen(TelegramResponder $responder, Character $player): void
     {
-        $rows = $this->inventory->sellableList($player->tg_id);
+        $rows = $this->backpack->sellableList($player->tg_id);
         $buttons = [];
         $hasSellable = false;
 
         foreach ($rows as $row) {
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 continue;
             }
 
             $hasSellable = true;
-            $def = $this->shop->findItem($row->item_id);
-            $payout = $this->inventory->sellPayout($row);
+            $def = $this->shop->findItem($row->catalog_id);
+            $payout = $this->backpack->sellPayout($row);
             $mark = $this->currencyMark($def->currency);
 
             if ($row->max_durability !== null && $row->durability !== null) {
                 $label = __('shop.sell_row', [
-                    'name' => $this->inventory->rowLabel($row),
+                    'name' => $this->backpack->rowLabel($row),
                     'price' => $payout,
                     'mark' => $mark,
                     'dur' => $row->durability . '/' . $row->max_durability,
                 ]);
             } else {
                 $label = __('shop.sell_row_no_dur', [
-                    'name' => $this->inventory->rowLabel($row),
+                    'name' => $this->backpack->rowLabel($row),
                     'price' => $payout,
                     'mark' => $mark,
                 ]);
@@ -318,8 +322,8 @@ final class ShopHandler
 
         if ($hasSellable) {
             $text = __('shop.sell_title', [
-                'current' => $this->inventory->rowCount($player->tg_id),
-                'max' => $this->inventory->maxRows($player),
+                'current' => $this->backpack->rowCount($player->tg_id),
+                'max' => $this->backpack->maxRows($player),
             ]);
         } else {
             $text = __('shop.sell_empty');
@@ -339,14 +343,14 @@ final class ShopHandler
         $responder->edit(
             __('shop.balance', [
                 'silver' => $player->silver,
-                'current' => $this->inventory->rowCount($player->tg_id),
-                'max' => $this->inventory->maxRows($player),
+                'current' => $this->backpack->rowCount($player->tg_id),
+                'max' => $this->backpack->maxRows($player),
             ]),
             TelegramKeyboards::fullShop(
                 $this->shop->weaponsForMode('full'),
                 $wearables,
-                $this->shop->potionPrice(),
-                $this->shop->staminaPotionPrice(),
+                $this->bagCatalog->potionPrice(),
+                $this->bagCatalog->staminaPotionPrice(),
             ),
         );
     }

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Equipment\SlotEnum;
-use App\Models\Equipment;
-use App\Services\Inventory\LoadoutService;
+use App\Models\BackpackCatalog;
+use App\Services\Backpack\LoadoutService;
 
 it('copies max durability onto inventory rows', function (): void {
     $p = characters()->createDraft(8201);
@@ -16,8 +16,8 @@ it('copies max durability onto inventory rows', function (): void {
 
 it('stops giving bonuses at zero durability and restores after repair', function (): void {
     $p = characters()->createDraft(8202);
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    $cap = backpack()->findOwned($p->tg_id, 'mobile_0');
     $eq = loadout()->equip($p, $cap->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
@@ -46,7 +46,7 @@ it('stops giving bonuses at zero durability and restores after repair', function
 
 it('applies fight wear and can break equipped gear', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8203));
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $knuckles->durability = 1;
     $knuckles->save();
 
@@ -62,12 +62,12 @@ it('applies fight wear and can break equipped gear', function (): void {
 
 it('charges repair by missing points and req_level', function (): void {
     $p = characters()->createDraft(8204);
-    inventory()->addItem($p->tg_id, 'mobile_1');
-    $boots = inventory()->findOwned($p->tg_id, 'mobile_1');
+    backpack()->addItem($p->tg_id, 'mobile_1');
+    $boots = backpack()->findOwned($p->tg_id, 'mobile_1');
     $boots->durability = $boots->max_durability - 5;
     $boots->save();
 
-    $equipment = Equipment::query()->findOrFail('mobile_1');
+    $equipment = BackpackCatalog::query()->findOrFail('mobile_1');
     $perPoint = gameConfig()->settings()['repair']['silverPerMissingPoint'];
     $reqLevel = $equipment->req_level ?? 0;
     $expected = 5 * $perPoint * ($reqLevel + 1);
@@ -87,8 +87,8 @@ it('charges repair by missing points and req_level', function (): void {
 
 it('broken shield loses second block slot', function (): void {
     $p = characters()->createDraft(8205);
-    inventory()->addItem($p->tg_id, 'heavy_1');
-    $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'heavy_1');
+    $shield = backpack()->findOwned($p->tg_id, 'heavy_1');
     $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
 
@@ -102,12 +102,12 @@ it('broken shield loses second block slot', function (): void {
 
 it('lists only damaged repairable items for the smith', function (): void {
     $p = characters()->createDraft(8206);
-    inventory()->addItem($p->tg_id, 'mobile_3');
-    $gloves = inventory()->findOwned($p->tg_id, 'mobile_3');
+    backpack()->addItem($p->tg_id, 'mobile_3');
+    $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
     $gloves->durability = 10;
     $gloves->save();
 
     $list = repair()->damagedList($p->tg_id);
     expect($list)->toHaveCount(1)
-        ->and($list->first()->item_id)->toBe('mobile_3');
+        ->and($list->first()->catalog_id)->toBe('mobile_3');
 });

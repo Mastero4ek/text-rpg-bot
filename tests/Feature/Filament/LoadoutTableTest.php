@@ -31,8 +31,8 @@ it('builds loadout rows for every gameplay slot with empty placeholders', functi
 
 it('fills equipped slot fields from inventory and catalog', function (): void {
     $character = characters()->createDraft(9131);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     $rows = LoadoutTable::keyedRowsFor($character);
@@ -69,8 +69,8 @@ it('keys loadout rows by slot value', function (): void {
 
 it('previews unequip stat deltas for equipped weapon', function (): void {
     $character = characters()->createDraft(9133);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
     $character = loadout()->equip($character, $knife->id)->character;
 
     $lines = loadout()->unequipStatChanges($character, $knife);
@@ -99,8 +99,8 @@ it('previews unequip stat deltas for equipped weapon', function (): void {
 
 it('returns no unequip stat changes note when item is not equipped', function (): void {
     $character = characters()->createDraft(9134);
-    inventory()->addItem($character->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($character->tg_id, 'knife_0');
 
     $lines = loadout()->unequipStatChanges($character, $knife);
 

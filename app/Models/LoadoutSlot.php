@@ -13,14 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $tg_id
  * @property SlotEnum $slot
- * @property int $inventory_id
+ * @property int $backpack_item_id
  * @property-read Character|null $character
- * @property-read Inventory|null $inventory
+ * @property-read BackpackItem|null $backpackItem
  */
 #[Fillable([
     'tg_id',
     'slot',
-    'inventory_id',
+    'backpack_item_id',
 ])]
 final class LoadoutSlot extends Model
 {
@@ -35,11 +35,11 @@ final class LoadoutSlot extends Model
     }
 
     /**
-     * @return BelongsTo<Inventory, $this>
+     * @return BelongsTo<BackpackItem, $this>
      */
-    public function inventory(): BelongsTo
+    public function backpackItem(): BelongsTo
     {
-        return $this->belongsTo(Inventory::class, 'inventory_id');
+        return $this->belongsTo(BackpackItem::class, 'backpack_item_id');
     }
 
     /**
@@ -50,7 +50,7 @@ final class LoadoutSlot extends Model
         return [
             'tg_id' => 'integer',
             'slot' => SlotEnum::class,
-            'inventory_id' => 'integer',
+            'backpack_item_id' => 'integer',
         ];
     }
 }
