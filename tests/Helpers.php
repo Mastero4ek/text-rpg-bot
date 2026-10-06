@@ -7,6 +7,7 @@ use App\Enums\Equipment\SlotEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
+use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
@@ -103,6 +104,21 @@ function enemyFromCatalog(string $catalogId, Character $character): Enemy
 function woodenSoldier(Character $character): Enemy
 {
     return enemyFromCatalog(EnemyCatalog::TUTORIAL_CATALOG_ID, $character);
+}
+
+function placeInCity(Character $character, string $key): Character
+{
+    $city = City::query()->where('key', $key)->first();
+
+    if (! $city instanceof City) {
+        throw new RuntimeException('Seed city missing: ' . $key);
+    }
+
+    $character->birth_city_id = $city->id;
+    $character->city_id = $city->id;
+    $character->save();
+
+    return $character;
 }
 
 function giveStarterKnuckles(int $tgId): BackpackItem

@@ -21,6 +21,13 @@
         "extraLossOnLose": 1,
         "extraLossPerPierce": 1
     },
+    "hospital": {
+        "goldCost": 1
+    },
+    "training": {
+        "exp": 0,
+        "silver": 0
+    },
     "gems": {
         "breakChanceOnLose": 40,
         "premiumBreakChanceReduce": 15

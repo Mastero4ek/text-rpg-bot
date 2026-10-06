@@ -15,8 +15,10 @@ use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
+use App\Queries\City\CityQuery;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
@@ -48,6 +50,7 @@ final class FightHandler
         private readonly OnboardingService $onboarding,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
+        private readonly CityQuery $cityQuery,
     ) {}
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
@@ -76,12 +79,6 @@ final class FightHandler
 
         if (preg_match('/^fight:def:(HEAD|CHEST|BELLY|LEGS)$/', $data, $m) === 1) {
             $this->defend($update, $responder, ZoneEnum::from($m[1]));
-
-            return;
-        }
-
-        if ($data === 'menu:fight') {
-            $this->pickEnemy($update, $responder);
 
             return;
         }
@@ -375,32 +372,6 @@ final class FightHandler
         );
     }
 
-    private function pickEnemy(TelegramUpdate $update, TelegramResponder $responder): void
-    {
-        $player = $this->requireDone($update, $responder);
-
-        if (! $player instanceof Character) {
-            return;
-        }
-
-        if ($player->current_hp <= 0) {
-            $responder->reply(__('errors.no_hp'), null);
-
-            return;
-        }
-
-        $buttons = [];
-
-        foreach ($this->enemies->fightMenuCatalogs() as $catalog) {
-            $buttons[] = [
-                'text' => $this->enemies->menuLabel($catalog, $player),
-                'catalog_id' => $catalog->catalog_id,
-            ];
-        }
-
-        $responder->edit(__('combat.pick_enemy'), TelegramKeyboards::fightPick($buttons));
-    }
-
     private function startFight(TelegramUpdate $update, TelegramResponder $responder, string $catalogId): void
     {
         $player = $this->requireDone($update, $responder);
@@ -415,7 +386,27 @@ final class FightHandler
             return;
         }
 
-        $catalog = $this->enemies->findForFightMenu($catalogId);
+        if ($player->city_id === null) {
+            $responder->reply(__('errors.no_forest'), null);
+
+            return;
+        }
+
+        $city = City::query()->find($player->city_id);
+
+        if (! $city instanceof City || ! $city->has_forest) {
+            $responder->reply(__('errors.no_forest'), null);
+
+            return;
+        }
+
+        $catalog = null;
+
+        foreach ($this->cityQuery->forestCatalogs($city->id) as $row) {
+            if ($row->catalog_id === $catalogId) {
+                $catalog = $row;
+            }
+        }
 
         if (! $catalog instanceof EnemyCatalog) {
             $responder->reply(__('errors.enemy_not_found'), null);
@@ -466,6 +457,12 @@ final class FightHandler
             $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
             $player->onboarding_step = OnboardingStepEnum::INTRO;
             $player->save();
+
+            return;
+        }
+
+        if ($this->isHallFight($fight)) {
+            $this->endHallFight($responder, $player, $fight, $won, $text);
 
             return;
         }
@@ -626,5 +623,53 @@ final class FightHandler
         }
 
         return ['exp' => $row['exp'], 'silver' => $row['silver']];
+    }
+
+    private function endHallFight(
+        TelegramResponder $responder,
+        Character $player,
+        Fight $fight,
+        bool $won,
+        string $text,
+    ): void {
+        if ($won) {
+            $reward = $this->config->trainingReward();
+            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
+            $player = $this->characters->findByTgId($player->tg_id);
+            $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+            $player->current_stamina = $this->characters->clampStamina(
+                $fight->player_stamina,
+                $this->characters->maxStamina($player),
+            );
+            $player->last_stamina_update = now();
+            $player->save();
+            $this->clearFight->handle($player->tg_id);
+            $responder->edit(
+                $text . __('combat.win', [
+                    'exp' => $reward['exp'],
+                    'silver' => $reward['silver'],
+                ]),
+                TelegramKeyboards::backToCity(),
+            );
+
+            return;
+        }
+
+        $player->current_hp = 0;
+        $player->last_hp_update = now();
+        $player->current_stamina = 0;
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+        $responder->edit($text . __('combat.lose'), TelegramKeyboards::backToCity());
+    }
+
+    private function isHallFight(Fight $fight): bool
+    {
+        if ($fight->tutorial) {
+            return false;
+        }
+
+        return $this->fights->enemy($fight)->catalogId === EnemyCatalog::TUTORIAL_CATALOG_ID;
     }
 }

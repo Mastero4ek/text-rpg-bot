@@ -52,12 +52,6 @@ final class BackpackCatalogTable
                     ->alignCenter()
                     ->placeholder('-')
                     ->sortable(),
-                IconColumn::make('in_shop')
-                    ->label(__('admin.labels.in_shop'))
-                    ->alignCenter()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->boolean(),
                 IconColumn::make('enabled')
                     ->label(__('admin.labels.enabled'))
                     ->alignCenter()
@@ -82,9 +76,6 @@ final class BackpackCatalogTable
             ->filters([
                 EquipmentTypeProfileFilters::itemType(),
                 EquipmentTypeProfileFilters::profile(),
-                TernaryFilter::make('in_shop')
-                    ->label(__('admin.labels.in_shop'))
-                    ->native(false),
                 TernaryFilter::make('enabled')
                     ->label(__('admin.labels.enabled'))
                     ->native(false),
@@ -148,6 +139,8 @@ final class BackpackCatalogTable
                         ->color(Color::Amber),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('media'));
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['media']))
+            ->emptyStateHeading(__('admin.empty.backpack_catalog.heading'))
+            ->emptyStateDescription(__('admin.empty.backpack_catalog.description'));
     }
 }

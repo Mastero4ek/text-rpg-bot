@@ -41,11 +41,6 @@ final class CharactersTable
                     ->limit(40)
                     ->tooltip(fn (Character $record): string => self::recordLabel($record))
                     ->placeholder('-'),
-                TextColumn::make('location')
-                    ->label(__('admin.labels.location'))
-                    ->sortable()
-                    ->searchable()
-                    ->placeholder('-'),
                 TextColumn::make('exp')
                     ->label(__('admin.labels.exp'))
                     ->numeric()
@@ -82,9 +77,9 @@ final class CharactersTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('location')
-                    ->label(__('admin.labels.location'))
-                    ->options(self::locationOptions())
+                SelectFilter::make('city_id')
+                    ->label(__('admin.labels.city'))
+                    ->relationship('city', 'name')
                     ->native(false),
                 SelectFilter::make('level')
                     ->label(__('admin.labels.level'))
@@ -155,7 +150,9 @@ final class CharactersTable
                         ->color(Color::Amber),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('media'));
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['media']))
+            ->emptyStateHeading(__('admin.empty.characters.heading'))
+            ->emptyStateDescription(__('admin.empty.characters.description'));
     }
 
     /**
@@ -177,31 +174,6 @@ final class CharactersTable
 
         for ($level = 0; $level <= $character['level']['max']; $level++) {
             $options[$level] = (string) $level;
-        }
-
-        return $options;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function locationOptions(): array
-    {
-        $onboarding = app(GameConfig::class)->onboarding();
-
-        if (! array_key_exists('cityKeys', $onboarding) || ! is_array($onboarding['cityKeys'])) {
-            throw new RuntimeException('onboarding.cityKeys missing.');
-        }
-
-        $options = [];
-
-        foreach ($onboarding['cityKeys'] as $key) {
-            if (! is_string($key)) {
-                throw new RuntimeException('Invalid city key.');
-            }
-
-            $name = __('onboarding.cities.' . $key);
-            $options[$name] = $name;
         }
 
         return $options;

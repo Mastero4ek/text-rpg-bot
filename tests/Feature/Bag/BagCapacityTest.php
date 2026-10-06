@@ -8,7 +8,7 @@ it('blocks buy when bag is full', function (): void {
     $p = characters()->createDraft(8401);
     $p->bag_max_rows = 1;
     $p->silver = 999;
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
     $p = grantGem($p, 'ruby_0', 1);
 
     expect(app(BagService::class)->isBagFull($p))->toBeTrue();

@@ -20,7 +20,6 @@ return new class extends Migration
             $table->string('item_type')->default(TypeEnum::WEAPON->value);
             $table->string('slot')->nullable();
             $table->string('profile')->nullable();
-            $table->boolean('in_shop')->default(false);
             $table->boolean('enabled')->default(true);
             $table->unsignedInteger('price')->default(0);
             $table->string('currency')->default(CurrencyEnum::SILVER->value);
@@ -45,7 +44,7 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['item_type', 'enabled', 'in_shop']);
+            $table->index(['item_type', 'enabled']);
             $table->index('slot');
         });
     }

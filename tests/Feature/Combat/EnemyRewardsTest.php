@@ -14,7 +14,6 @@ it('computes exp from player level and template pct', function (): void {
         'reward_exp_pct' => 50,
         'reward_silver_min' => 4,
         'reward_silver_max' => 4,
-        'in_fight_menu' => false,
     ]);
     $enemy = enemies()->makeFromCatalog($catalog, $p);
     $r = gameConfig()->combat()['pveRewards'];
@@ -30,7 +29,6 @@ it('rolls silver inside template range', function (): void {
         'reward_exp_pct' => 0,
         'reward_silver_min' => 10,
         'reward_silver_max' => 20,
-        'in_fight_menu' => false,
     ]);
     $enemy = enemies()->makeFromCatalog($catalog, $p);
 
@@ -57,7 +55,7 @@ it('tutorial win uses onboarding not pveRewards', function (): void {
     $ob = gameConfig()->onboarding();
     $p = onboarding()->ensurePlayer(7204);
     $p = onboarding()->setNick($p, 'TutWin')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0])->character;
+    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
     $p->silver = $ob['start']['silver'];
     $p->exp = $ob['start']['exp'];
     $p->save();
@@ -76,7 +74,6 @@ it('win loot action grants template silver', function (): void {
         'reward_exp_pct' => 0,
         'reward_silver_min' => 7,
         'reward_silver_max' => 7,
-        'in_fight_menu' => false,
     ]);
     $enemy = enemies()->makeFromCatalog($catalog, $p);
     $loot = app(EnemyApplyWinLootAction::class)->handle($p, $enemy);

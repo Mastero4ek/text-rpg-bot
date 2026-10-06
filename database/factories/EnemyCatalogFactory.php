@@ -26,7 +26,6 @@ final class EnemyCatalogFactory extends Factory
             'name' => fake()->words(2, true),
             'description' => null,
             'enabled' => true,
-            'in_fight_menu' => true,
             'level' => 1,
             'strength' => 5,
             'agility' => 5,

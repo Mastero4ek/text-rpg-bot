@@ -12,7 +12,7 @@ use App\Support\Random\RandomSourceContract;
 it('buys gem into bag and sockets mf into loadout', function (): void {
     $p = characters()->createDraft(8301);
     $p->silver = 100;
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
 
     $buy = app(BagService::class)->buy($p, 'ruby_0');
     expect($buy->ok)->toBeTrue();
@@ -174,7 +174,7 @@ it('does not socket gems into jewelry', function (): void {
 it('rejects buy and socket for disabled gem', function (): void {
     $p = characters()->createDraft(8309);
     $p->silver = 100;
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
     $p = grantGem($p, 'ruby_0', 1);
 
     $gem = BagCatalog::query()->findOrFail('ruby_0');

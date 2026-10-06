@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Models\Enemy;
 
 use App\Enums\Enemy\EnemyKindEnum;
+use App\Models\City;
 use Carbon\CarbonInterface;
 use Database\Factories\EnemyCatalogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -23,7 +25,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $name
  * @property string|null $description
  * @property bool $enabled
- * @property bool $in_fight_menu
  * @property int|null $level
  * @property int|null $strength
  * @property int|null $agility
@@ -51,7 +52,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'name',
     'description',
     'enabled',
-    'in_fight_menu',
     'level',
     'strength',
     'agility',
@@ -132,6 +132,19 @@ final class EnemyCatalog extends Model implements HasMedia
         return $this->hasMany(EnemyDrop::class, 'enemy_catalog_id', 'catalog_id');
     }
 
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function cities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_enemy_catalog',
+            'enemy_catalog_id',
+            'city_id',
+        );
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('image')
@@ -182,7 +195,6 @@ final class EnemyCatalog extends Model implements HasMedia
         return [
             'kind' => EnemyKindEnum::class,
             'enabled' => 'boolean',
-            'in_fight_menu' => 'boolean',
             'level' => 'integer',
             'strength' => 'integer',
             'agility' => 'integer',

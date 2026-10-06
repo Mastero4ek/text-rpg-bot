@@ -58,7 +58,7 @@ it('grants starter gem on shop quest finish', function (): void {
     $ob = gameConfig()->onboarding();
     $p = onboarding()->ensurePlayer(8606);
     $p = onboarding()->setNick($p, 'GemStart')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0])->character;
+    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
     $p = onboarding()->onTutorialWin($p);
 
     while ($p->stat_points > 0) {

@@ -9,6 +9,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Filament\Support\CityCatalogField;
 use App\Models\Backpack\BackpackCatalog;
 use Closure;
 use Filament\Forms\Components\Hidden;
@@ -89,8 +90,6 @@ final class BackpackCatalogForm
                                 Toggle::make('enabled')
                                     ->label(__('admin.labels.enabled'))
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.enabled')),
-                                Toggle::make('in_shop')
-                                    ->label(__('admin.labels.in_shop')),
                             ])
                                 ->columns(3),
                         ]),
@@ -242,6 +241,8 @@ final class BackpackCatalogForm
                     ->columnSpanFull()
                     ->collapsed()
                     ->schema([
+                        CityCatalogField::make()
+                            ->columnSpan(2),
                         Select::make('currency')
                             ->label(__('admin.labels.currency'))
                             ->options(CurrencyEnum::class)

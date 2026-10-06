@@ -101,7 +101,6 @@ it('archives restores and force deletes a regular mob', function (): void {
     $mob = EnemyCatalog::factory()->create([
         'catalog_id' => 'temp_mob',
         'name' => 'Временный моб',
-        'in_fight_menu' => false,
     ]);
 
     livewire(EditEnemyCatalog::class, [
@@ -175,7 +174,6 @@ function enemyForm(array $overrides): array
         'name' => 'Тестовый моб',
         'kind' => EnemyKindEnum::FIXED->value,
         'enabled' => true,
-        'in_fight_menu' => false,
         'level' => 1,
         'strength' => 3,
         'agility' => 3,

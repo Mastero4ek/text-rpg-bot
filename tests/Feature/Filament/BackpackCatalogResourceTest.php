@@ -136,7 +136,6 @@ it('deletes restores and force deletes via edit page actions', function (): void
     $item = BackpackCatalog::factory()->create([
         'catalog_id' => 'temp_blade',
         'name' => 'Временный клинок',
-        'in_shop' => false,
     ]);
 
     livewire(EditBackpackCatalog::class, [
@@ -195,14 +194,8 @@ it('filters equipment table by profile', function (): void {
         ->assertCanNotSeeTableRecords([$weapon]);
 });
 
-it('filters equipment table by in_shop and enabled', function (): void {
+it('filters equipment table by enabled', function (): void {
     $weapon = BackpackCatalog::query()->findOrFail('knife_0');
-    $armor = BackpackCatalog::query()->findOrFail('heavy_0');
-
-    livewire(ListBackpackCatalog::class)
-        ->filterTable('in_shop', true)
-        ->assertCanSeeTableRecords([$weapon])
-        ->assertCanNotSeeTableRecords([$armor]);
 
     $weapon->enabled = false;
     $weapon->save();
@@ -372,7 +365,6 @@ it('labels archive restore and delete actions on edit page', function (): void {
     $item = BackpackCatalog::factory()->create([
         'catalog_id' => 'label_blade',
         'name' => 'Клинок для лейблов',
-        'in_shop' => false,
     ]);
 
     livewire(EditBackpackCatalog::class, [
@@ -395,7 +387,6 @@ it('archives equipment from list table action', function (): void {
     $item = BackpackCatalog::factory()->create([
         'catalog_id' => 'table_archive_blade',
         'name' => 'Архив из таблицы',
-        'in_shop' => false,
     ]);
 
     livewire(ListBackpackCatalog::class)
@@ -409,7 +400,6 @@ it('filters archived equipment via trashed filter', function (): void {
     $archived = BackpackCatalog::factory()->create([
         'catalog_id' => 'archived_blade',
         'name' => 'В архиве',
-        'in_shop' => false,
     ]);
     $archived->delete();
 
@@ -501,7 +491,6 @@ function jewelryForm(array $overrides): array
         'weapon_damage_min' => 0,
         'weapon_damage_max' => 0,
         'stat_bonus' => 1,
-        'in_shop' => false,
     ]), $overrides);
 }
 
@@ -517,7 +506,6 @@ function weaponForm(array $overrides): array
         'item_type' => TypeEnum::WEAPON,
         'slot' => SlotEnum::RIGHT_HAND,
         'profile' => ProfileEnum::KNIFE,
-        'in_shop' => true,
         'enabled' => true,
         'price' => 10,
         'currency' => CurrencyEnum::SILVER,
@@ -547,7 +535,6 @@ function armorForm(array $overrides): array
         'weapon_damage_min' => 0,
         'weapon_damage_max' => 0,
         'stat_bonus' => 10,
-        'in_shop' => false,
     ]), $overrides);
 }
 

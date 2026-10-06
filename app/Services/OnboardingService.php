@@ -6,7 +6,9 @@ namespace App\Services;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Models\Fight;
+use App\Queries\City\CityQuery;
 use App\Quest\EquipQuest;
 use App\Quest\ShopQuest;
 use App\Quest\StatsQuest;
@@ -14,13 +16,12 @@ use App\Quest\TutorialQuest;
 use App\Support\ActionResult;
 use App\Support\NickValidator;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 final class OnboardingService
 {
     public function __construct(
-        private readonly GameConfig $config,
         private readonly CharacterService $characters,
+        private readonly CityQuery $cityQuery,
         private readonly NickValidator $nickValidator,
         public readonly TutorialQuest $tutorialQuest,
         public readonly StatsQuest $statsQuest,
@@ -29,18 +30,17 @@ final class OnboardingService
     ) {}
 
     /**
-     * @return list<string>
+     * @return list<City>
      */
     public function cities(): array
     {
-        $keys = $this->cityKeys();
-        $names = [];
+        $cities = [];
 
-        foreach ($keys as $key) {
-            $names[] = __('onboarding.cities.' . $key);
+        foreach ($this->cityQuery->enabled() as $city) {
+            $cities[] = $city;
         }
 
-        return $names;
+        return $cities;
     }
 
     public function stepHint(string $step): string
@@ -96,14 +96,17 @@ final class OnboardingService
         });
     }
 
-    public function setLocation(Character $character, string $location): ActionResult
+    public function setLocation(Character $character, string $cityKey): ActionResult
     {
-        return DB::transaction(function () use ($character, $location): ActionResult {
-            if (! in_array($location, $this->cities(), true)) {
+        return DB::transaction(function () use ($character, $cityKey): ActionResult {
+            $city = $this->cityQuery->findEnabledByKey($cityKey);
+
+            if (! $city instanceof City) {
                 return ActionResult::fail(__('errors.pick_city_button'));
             }
 
-            $character->location = $location;
+            $character->birth_city_id = $city->id;
+            $character->city_id = $city->id;
             $character->onboarding_step = OnboardingStepEnum::INTRO;
             $character->save();
 
@@ -159,29 +162,5 @@ final class OnboardingService
     public function buyNovicePotion(Character $character): ActionResult
     {
         return $this->shopQuest->buyPotion($character);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function cityKeys(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('cityKeys', $onboarding) || ! is_array($onboarding['cityKeys'])) {
-            throw new RuntimeException('onboarding.cityKeys missing.');
-        }
-
-        $keys = [];
-
-        foreach ($onboarding['cityKeys'] as $key) {
-            if (! is_string($key)) {
-                throw new RuntimeException('Invalid city key.');
-            }
-
-            $keys[] = $key;
-        }
-
-        return $keys;
     }
 }

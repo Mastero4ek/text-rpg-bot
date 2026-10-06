@@ -10,6 +10,8 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
+use App\Models\City;
+use App\Queries\City\CityQuery;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;
@@ -27,6 +29,7 @@ final class BagService
         private readonly ShopCatalog $shop,
         private readonly GameConfig $config,
         private readonly RandomSourceContract $random,
+        private readonly CityQuery $cityQuery,
     ) {}
 
     public function addPotion(int $tgId, string $catalogId): BagItem
@@ -304,6 +307,16 @@ final class BagService
             $gem = $this->catalog->findGem($catalogId);
 
             if (! $gem->enabled || ! $gem->inShop) {
+                return ActionResult::fail(__('errors.gem_not_in_shop'));
+            }
+
+            if ($character->city_id === null) {
+                return ActionResult::fail(__('errors.no_shop'));
+            }
+
+            $city = City::query()->find($character->city_id);
+
+            if (! $city instanceof City || ! $city->has_shop || ! $this->cityQuery->bagInCityShop($city->id, $catalogId)) {
                 return ActionResult::fail(__('errors.gem_not_in_shop'));
             }
 

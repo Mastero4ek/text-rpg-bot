@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
+use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
@@ -23,6 +25,7 @@ final class UpdateProcessor
         private readonly MenuHandler $menu,
         private readonly ShopHandler $shop,
         private readonly FightHandler $fight,
+        private readonly CityHandler $city,
     ) {}
 
     /**
@@ -56,7 +59,7 @@ final class UpdateProcessor
             }
 
             if ($update->isTextMessage()) {
-                $this->onboarding->handleText($update, $responder);
+                $this->routeText($update, $responder);
             }
         } catch (Throwable $e) {
             Log::error('Telegram update failed', [
@@ -94,6 +97,16 @@ final class UpdateProcessor
         }
 
         if (
+            str_starts_with($data, 'city:')
+            || str_starts_with($data, 'portal:')
+            || $data === 'menu:home'
+        ) {
+            $this->city->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (
             str_starts_with($data, 'menu:')
             || str_starts_with($data, 'inv:')
             || str_starts_with($data, 'backpack:')
@@ -104,12 +117,6 @@ final class UpdateProcessor
         ) {
             if ($data === 'menu:shop') {
                 $this->shop->handleCallback($update, $responder);
-
-                return;
-            }
-
-            if ($data === 'menu:fight') {
-                $this->fight->handleCallback($update, $responder);
 
                 return;
             }
@@ -128,5 +135,18 @@ final class UpdateProcessor
         if (str_starts_with($data, 'fight:')) {
             $this->fight->handleCallback($update, $responder);
         }
+    }
+
+    private function routeText(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $character = Character::query()->find($update->userId());
+
+        if ($character instanceof Character && $character->onboarding_step === OnboardingStepEnum::DONE) {
+            $this->menu->handleText($update, $responder);
+
+            return;
+        }
+
+        $this->onboarding->handleText($update, $responder);
     }
 }

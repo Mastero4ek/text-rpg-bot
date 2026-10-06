@@ -99,7 +99,9 @@ final class LoadoutTable
                 ])
                 : null)
             ->toolbarActions([])
-            ->headerActions([]);
+            ->headerActions([])
+            ->emptyStateHeading(__('admin.empty.loadout.heading'))
+            ->emptyStateDescription(__('admin.empty.loadout.description'));
     }
 
     /**

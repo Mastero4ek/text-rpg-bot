@@ -20,10 +20,8 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
 
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(1401));
     $p->username = 'PotionStamina';
-    $p->save();
-
     $p->silver = bagCatalog()->staminaPotionPrice();
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
     shopService()->buyStaminaPotion($p->tg_id);
 
     $heal = bagCatalog()->potionStaminaHeal();
@@ -65,7 +63,7 @@ it('drinks heal potion instead of attacking', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(1402));
     $p->username = 'PotionHeal';
     $p->silver = bagCatalog()->potionPrice();
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
     shopService()->buyPotion($p->tg_id);
 
     $heal = bagCatalog()->potionHeal();

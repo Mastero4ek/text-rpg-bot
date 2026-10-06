@@ -104,7 +104,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
 it('sells new doll wearables from shop', function (): void {
     $p = characters()->createDraft(8104);
     $p->silver = 500;
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
 
     foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'vital_0', 'knife_0'] as $itemId) {
         $buy = shopService()->buyGear($p->tg_id, $itemId);

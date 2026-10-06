@@ -47,12 +47,6 @@ final class EnemyCatalogTable
                     ->alignCenter()
                     ->placeholder('-')
                     ->sortable(),
-                IconColumn::make('in_fight_menu')
-                    ->label(__('admin.labels.in_fight_menu'))
-                    ->alignCenter()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->boolean(),
                 IconColumn::make('enabled')
                     ->label(__('admin.labels.enabled'))
                     ->alignCenter()
@@ -79,9 +73,6 @@ final class EnemyCatalogTable
                     ->label(__('admin.labels.enemy_kind'))
                     ->native(false)
                     ->options(EnemyKindEnum::class),
-                TernaryFilter::make('in_fight_menu')
-                    ->label(__('admin.labels.in_fight_menu'))
-                    ->native(false),
                 TernaryFilter::make('enabled')
                     ->label(__('admin.labels.enabled'))
                     ->native(false),
@@ -145,6 +136,8 @@ final class EnemyCatalogTable
                         ->color(Color::Amber),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('media'));
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['media']))
+            ->emptyStateHeading(__('admin.empty.enemy_catalog.heading'))
+            ->emptyStateDescription(__('admin.empty.enemy_catalog.description'));
     }
 }

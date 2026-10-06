@@ -5,7 +5,7 @@ declare(strict_types=1);
 it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p = characters()->createDraft(5001);
     $p->silver = 100;
-    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
 
     $buy = shopService()->buyWeapon($p->tg_id, 'knife_0');
     expect($buy->ok)->toBeTrue()

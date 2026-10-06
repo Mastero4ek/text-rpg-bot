@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
+use App\Models\City;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Support\ActionResult;
@@ -123,7 +124,6 @@ final class CharacterService
             $character = new Character;
             $character->tg_id = $tgId;
             $character->username = null;
-            $character->location = null;
             $character->onboarding_step = OnboardingStepEnum::NICK;
             $character->level = $start['level'];
             $character->exp = $start['exp'];
@@ -490,10 +490,12 @@ final class CharacterService
             $name = $character->username;
         }
 
-        if ($character->location === null) {
-            $city = '—';
+        $character->loadMissing('birthCity');
+
+        if ($character->birthCity instanceof City) {
+            $city = $character->birthCity->name;
         } else {
-            $city = $character->location;
+            $city = '-';
         }
 
         $lines = [

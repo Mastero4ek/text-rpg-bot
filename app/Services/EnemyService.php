@@ -11,7 +11,6 @@ use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Enemy;
 use App\Support\Mf;
-use Illuminate\Database\Eloquent\Collection;
 use RuntimeException;
 
 final class EnemyService
@@ -21,34 +20,6 @@ final class EnemyService
         private readonly LoadoutService $loadout,
         private readonly CharacterService $characters,
     ) {}
-
-    /**
-     * @return Collection<int, EnemyCatalog>
-     */
-    public function fightMenuCatalogs(): Collection
-    {
-        return EnemyCatalog::query()
-            ->where('enabled', true)
-            ->where('in_fight_menu', true)
-            ->orderBy('sort_order')
-            ->orderBy('catalog_id')
-            ->get();
-    }
-
-    public function findForFightMenu(string $catalogId): ?EnemyCatalog
-    {
-        $catalog = EnemyCatalog::query()->find($catalogId);
-
-        if (! $catalog instanceof EnemyCatalog) {
-            return null;
-        }
-
-        if (! $catalog->enabled || ! $catalog->in_fight_menu) {
-            return null;
-        }
-
-        return $catalog;
-    }
 
     public function makeFromCatalog(EnemyCatalog $catalog, Character $character): Enemy
     {

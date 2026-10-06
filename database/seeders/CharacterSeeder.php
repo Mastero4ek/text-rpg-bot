@@ -9,6 +9,7 @@ use App\Enums\OnboardingStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
+use App\Models\City;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
@@ -36,7 +37,14 @@ final class CharacterSeeder extends Seeder
             }
 
             $character->username = $row['username'];
-            $character->location = $row['location'];
+            $city = City::query()->where('key', $row['city_key'])->first();
+
+            if (! $city instanceof City) {
+                throw new RuntimeException('Seed city missing: ' . $row['city_key']);
+            }
+
+            $character->birth_city_id = $city->id;
+            $character->city_id = $city->id;
             $character->onboarding_step = OnboardingStepEnum::DONE;
             $character->level = $row['level'];
             $character->exp = $row['exp'];
@@ -124,7 +132,7 @@ final class CharacterSeeder extends Seeder
      * @return list<array{
      *     tg_id: int,
      *     username: string,
-     *     location: string,
+     *     city_key: string,
      *     level: int,
      *     exp: int,
      *     silver: int,
@@ -141,7 +149,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900001,
                 'username' => 'Серый Странник',
-                'location' => __('onboarding.cities.morion'),
+                'city_key' => City::KEY_KURGAN,
                 'level' => 0,
                 'exp' => 0,
                 'silver' => 40,
@@ -169,7 +177,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900002,
                 'username' => 'Алая Искра',
-                'location' => __('onboarding.cities.aurora'),
+                'city_key' => City::KEY_YASEN,
                 'level' => 1,
                 'exp' => 120,
                 'silver' => 85,
@@ -201,7 +209,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900003,
                 'username' => 'Каменный Щит',
-                'location' => __('onboarding.cities.balance'),
+                'city_key' => City::KEY_LIMAN,
                 'level' => 2,
                 'exp' => 340,
                 'silver' => 150,

@@ -63,7 +63,6 @@ it('scales mirror combat numbers by power_pct then stamina from strength', funct
 
     $catalog = EnemyCatalog::factory()->mirror()->create([
         'power_pct' => 130,
-        'in_fight_menu' => false,
     ]);
     $base = EnemyCatalog::factory()->mirror()->make([
         'power_pct' => 100,

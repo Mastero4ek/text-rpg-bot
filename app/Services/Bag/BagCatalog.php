@@ -90,7 +90,7 @@ final class BagCatalog
                 continue;
             }
 
-            if (! $model->enabled || ! $model->in_shop) {
+            if (! $model->enabled || $model->cities->isEmpty()) {
                 continue;
             }
 
@@ -159,7 +159,7 @@ final class BagCatalog
                 continue;
             }
 
-            if (! $model->enabled || ! $model->in_shop) {
+            if (! $model->enabled || $model->cities->isEmpty()) {
                 continue;
             }
 
@@ -217,6 +217,7 @@ final class BagCatalog
 
             foreach (
                 BagCatalogModel::query()
+                    ->with('cities')
                     ->orderBy('sort_order')
                     ->orderBy('catalog_id')
                     ->get() as $model

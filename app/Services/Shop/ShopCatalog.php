@@ -390,6 +390,7 @@ final class ShopCatalog
 
             foreach (
                 BackpackCatalog::query()
+                    ->with('cities')
                     ->orderBy('sort_order')
                     ->orderBy('catalog_id')
                     ->get() as $catalog
@@ -397,7 +398,7 @@ final class ShopCatalog
                 $rows->put($catalog->catalog_id, new EquipmentCatalogRow(
                     $catalog->toEquipmentDef(),
                     $catalog->enabled,
-                    $catalog->in_shop,
+                    $catalog->cities->isNotEmpty(),
                 ));
             }
 

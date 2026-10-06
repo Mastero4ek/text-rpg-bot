@@ -30,7 +30,6 @@ final class BagCatalogFactory extends Factory
             'kind' => BagKindEnum::GEM,
             'name' => fake()->words(2, true),
             'description' => fake()->sentence(),
-            'in_shop' => true,
             'enabled' => true,
             'price' => 25,
             'currency' => CurrencyEnum::SILVER,
@@ -76,7 +75,6 @@ final class BagCatalogFactory extends Factory
             'mf_anti_dodge' => 4,
             'mf_crit' => 0,
             'mf_anti_crit' => 0,
-            'in_shop' => false,
         ]);
     }
 
@@ -90,7 +88,6 @@ final class BagCatalogFactory extends Factory
             'type' => null,
             'max_durability' => null,
             'mf_crit' => 0,
-            'in_shop' => true,
         ]);
     }
 

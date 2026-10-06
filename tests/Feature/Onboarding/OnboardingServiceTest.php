@@ -32,11 +32,18 @@ it('setLocation only from list', function (): void {
 
     expect(onboarding()->setLocation($p, 'Nowhere')->ok)->toBeFalse();
 
+    $hidden = App\Models\City::factory()->create([
+        'name' => 'Скрытый',
+        'enabled' => false,
+    ]);
+    expect(onboarding()->setLocation($p, $hidden->key)->ok)->toBeFalse();
+
     $city = onboarding()->cities()[0];
-    $res = onboarding()->setLocation($p, $city);
+    $res = onboarding()->setLocation($p, $city->key);
 
     expect($res->ok)->toBeTrue()
-        ->and($res->character->location)->toBe($city)
+        ->and($res->character->city_id)->toBe($city->id)
+        ->and($res->character->birth_city_id)->toBe($city->id)
         ->and($res->character->onboarding_step)->toBe(OnboardingStepEnum::INTRO);
 });
 
@@ -44,7 +51,7 @@ it('tutorial fight persists and win lose', function (): void {
     $ob = gameConfig()->onboarding();
     $p = onboarding()->ensurePlayer(3004);
     $p = onboarding()->setNick($p, 'Fighter')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0])->character;
+    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
 
     $game = onboarding()->startTutorialFight($p);
     expect($game->tutorial)->toBeTrue()
@@ -66,7 +73,7 @@ it('stats equip shop free club full path', function (): void {
     $ob = gameConfig()->onboarding();
     $p = onboarding()->ensurePlayer(3005);
     $p = onboarding()->setNick($p, 'Graduate')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[1])->character;
+    $p = onboarding()->setLocation($p, onboarding()->cities()[1]->key)->character;
     $p = onboarding()->onTutorialWin($p);
 
     expect(onboarding()->finishStatsQuest($p)->ok)->toBeFalse();
@@ -98,6 +105,35 @@ it('stats equip shop free club full path', function (): void {
         ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 });
 
+it('graduates from each seed city via trainer club', function (string $cityKey): void {
+    $p = onboarding()->ensurePlayer(match ($cityKey) {
+        App\Models\City::KEY_YASEN => 3010,
+        App\Models\City::KEY_KURGAN => 3011,
+        default => 3012,
+    });
+    $p = onboarding()->setNick($p, 'Grad' . $cityKey)->character;
+    $p = onboarding()->setLocation($p, $cityKey)->character;
+    $p = onboarding()->onTutorialWin($p);
+
+    while ($p->stat_points > 0) {
+        $p = characters()->spendStatPoint($p, StatKeyEnum::STRENGTH->value)->character;
+    }
+
+    $p = onboarding()->finishStatsQuest($p)->character;
+    $p = onboarding()->finishEquipQuest($p)->character;
+
+    $res = onboarding()->finishShopQuestClaim($p, shopCatalog()->freeTrainerItemId());
+
+    expect($res->ok)->toBeTrue()
+        ->and($res->character->onboarding_step)->toBe(OnboardingStepEnum::DONE)
+        ->and($res->character->city_id)->toBe(App\Models\City::query()->where('key', $cityKey)->value('id'))
+        ->and($res->character->birth_city_id)->toBe($res->character->city_id);
+})->with([
+    App\Models\City::KEY_YASEN,
+    App\Models\City::KEY_KURGAN,
+    App\Models\City::KEY_LIMAN,
+]);
+
 it('stepHint covers known steps', function (): void {
     expect(onboarding()->stepHint(OnboardingStepEnum::NICK->value))->not->toBeEmpty()
         ->and(onboarding()->stepHint('unknown_step'))->not->toBeEmpty();
@@ -106,7 +142,7 @@ it('stepHint covers known steps', function (): void {
 it('finishShopQuestClaim rejects non trainer weapon', function (): void {
     $p = onboarding()->ensurePlayer(3006);
     $p = onboarding()->setNick($p, 'ShopBad')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0])->character;
+    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
     $p = onboarding()->onTutorialWin($p);
 
     while ($p->stat_points > 0) {

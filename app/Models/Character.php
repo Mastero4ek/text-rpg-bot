@@ -10,6 +10,7 @@ use App\Models\Bag\BagItem;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,7 +20,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 /**
  * @property int $tg_id
  * @property string|null $username
- * @property string|null $location
+ * @property int|null $birth_city_id
+ * @property int|null $city_id
  * @property OnboardingStepEnum $onboarding_step
  * @property int $level
  * @property int $exp
@@ -43,6 +45,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
+ * @property-read City|null $birthCity
+ * @property-read City|null $city
  * @property-read \Illuminate\Database\Eloquent\Collection<int, BackpackItem> $backpackItems
  * @property-read \Illuminate\Database\Eloquent\Collection<int, BagItem> $bagItems
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LoadoutSlot> $loadoutSlots
@@ -50,7 +54,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 #[Fillable([
     'tg_id',
     'username',
-    'location',
+    'birth_city_id',
+    'city_id',
     'onboarding_step',
     'level',
     'exp',
@@ -82,6 +87,22 @@ final class Character extends Model implements HasMedia
     protected $primaryKey = 'tg_id';
 
     protected $keyType = 'int';
+
+    /**
+     * @return BelongsTo<City, $this>
+     */
+    public function birthCity(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'birth_city_id');
+    }
+
+    /**
+     * @return BelongsTo<City, $this>
+     */
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'city_id');
+    }
 
     /**
      * @return HasOne<Fight, $this>
@@ -129,6 +150,8 @@ final class Character extends Model implements HasMedia
     {
         return [
             'tg_id' => 'integer',
+            'birth_city_id' => 'integer',
+            'city_id' => 'integer',
             'onboarding_step' => OnboardingStepEnum::class,
             'level' => 'integer',
             'exp' => 'integer',

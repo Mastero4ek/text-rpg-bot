@@ -116,7 +116,9 @@ final class FightsTable
                         }),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['character']));
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['character']))
+            ->emptyStateHeading(__('admin.empty.fights.heading'))
+            ->emptyStateDescription(__('admin.empty.fights.description'));
     }
 
     private static function enemyName(Fight $record): string
