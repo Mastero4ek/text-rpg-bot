@@ -53,7 +53,7 @@ final class EnemyCatalogSeeder extends Seeder
                 'agility' => 2,
                 'instinct' => 2,
                 'vitality' => 3,
-                'max_hp' => 70,
+                'max_hp' => 60,
                 'weapon_damage' => 0,
                 'mf_dodge' => 0,
                 'mf_anti_dodge' => 0,
