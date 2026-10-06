@@ -4,34 +4,39 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Models\Gem;
+use App\Models\BagCatalog;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Gem>
+ * @extends Factory<BagCatalog>
  */
-final class GemFactory extends Factory
+final class BagCatalogFactory extends Factory
 {
-    protected $model = Gem::class;
+    protected $model = BagCatalog::class;
 
     /**
      * @return array<string, mixed>
      */
     public function definition(): array
     {
-        $gemId = 'test_' . fake()->unique()->bothify('gem_##??');
+        $catalogId = 'test_' . fake()->unique()->bothify('gem_##??');
 
         return [
-            'gem_id' => $gemId,
+            'catalog_id' => $catalogId,
+            'kind' => BagKindEnum::GEM,
             'name' => fake()->words(2, true),
             'description' => fake()->sentence(),
-            'type' => GemTypeEnum::RUBY,
             'in_shop' => true,
             'enabled' => true,
             'price' => 25,
             'currency' => CurrencyEnum::SILVER,
+            'profile' => null,
+            'effect_value' => null,
+            'type' => GemTypeEnum::RUBY,
             'max_durability' => 10,
             'mf_dodge' => 0,
             'mf_anti_dodge' => 0,
@@ -72,6 +77,28 @@ final class GemFactory extends Factory
             'mf_crit' => 0,
             'mf_anti_crit' => 0,
             'in_shop' => false,
+        ]);
+    }
+
+    public function potion(): static
+    {
+        return $this->state(fn (): array => [
+            'catalog_id' => 'test_' . fake()->unique()->bothify('potion_##??'),
+            'kind' => BagKindEnum::POTION,
+            'profile' => ProfileEnum::HEAL,
+            'effect_value' => 40,
+            'type' => null,
+            'max_durability' => null,
+            'mf_crit' => 0,
+            'in_shop' => true,
+        ]);
+    }
+
+    public function staminaPotion(): static
+    {
+        return $this->potion()->state(fn (): array => [
+            'profile' => ProfileEnum::STAMINA,
+            'effect_value' => 25,
         ]);
     }
 }

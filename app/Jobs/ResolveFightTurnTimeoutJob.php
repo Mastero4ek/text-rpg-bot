@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\Backpack\BackpackApplyFightWearAction;
+use App\Actions\Bag\BagGemBreakOnLoseAction;
 use App\Actions\Fight\FightClearAction;
-use App\Actions\Gem\GemBreakOnLoseAction;
-use App\Actions\Inventory\InventoryApplyFightWearAction;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
@@ -39,8 +39,8 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         TelegramClient $telegram,
         CharacterService $characters,
         CombatService $combat,
-        InventoryApplyFightWearAction $fightWear,
-        GemBreakOnLoseAction $breakGems,
+        BackpackApplyFightWearAction $fightWear,
+        BagGemBreakOnLoseAction $breakGems,
         OnboardingService $onboarding,
         GameConfig $config,
         FightClearAction $clearFight,
@@ -129,7 +129,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         FightClearAction $clearFight,
         CharacterService $characters,
         CombatService $combat,
-        InventoryApplyFightWearAction $fightWear,
+        BackpackApplyFightWearAction $fightWear,
         OnboardingService $onboarding,
         GameConfig $config,
         Character $player,
@@ -196,8 +196,8 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
         TelegramClient $telegram,
         FightClearAction $clearFight,
         CharacterService $characters,
-        InventoryApplyFightWearAction $fightWear,
-        GemBreakOnLoseAction $breakGems,
+        BackpackApplyFightWearAction $fightWear,
+        BagGemBreakOnLoseAction $breakGems,
         OnboardingService $onboarding,
         Character $player,
         Fight $fight,

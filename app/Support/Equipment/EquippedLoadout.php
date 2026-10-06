@@ -6,13 +6,13 @@ namespace App\Support\Equipment;
 
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Models\Inventory;
+use App\Models\BackpackItem;
 use App\Support\Game\Mf;
 
 final readonly class EquippedLoadout
 {
     /**
-     * @param  array<string, Inventory|null>  $rowsBySlot
+     * @param  array<string, BackpackItem|null>  $rowsBySlot
      * @param  array{HEAD: int, CHEST: int, BELLY: int, LEGS: int}  $armorByZone
      */
     public function __construct(
@@ -49,7 +49,7 @@ final readonly class EquippedLoadout
         return $this->bodyMf->merge($this->offHandMf);
     }
 
-    public function row(SlotEnum $slot): ?Inventory
+    public function row(SlotEnum $slot): ?BackpackItem
     {
         if (! array_key_exists($slot->value, $this->rowsBySlot)) {
             return null;

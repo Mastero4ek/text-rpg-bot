@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Inventory;
+namespace App\Services\Backpack;
 
 use App\Enums\Equipment\RepairEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
 use App\Services\Shop\ShopCatalog;
@@ -24,7 +24,7 @@ final class RepairService
     ) {}
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     public function damagedList(int $tgId): Collection
     {
@@ -32,7 +32,7 @@ final class RepairService
     }
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     public function damagedVipList(int $tgId): Collection
     {
@@ -42,7 +42,7 @@ final class RepairService
     public function repair(Character $character, int $inventoryRowId): ActionResult
     {
         return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
+            $row = BackpackItem::query()
                 ->where('id', $inventoryRowId)
                 ->where('tg_id', $character->tg_id)
                 ->first();
@@ -59,11 +59,11 @@ final class RepairService
                 return ActionResult::fail(__('errors.already_repaired'));
             }
 
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 return ActionResult::fail(__('errors.cannot_repair'));
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if (! $def->repairable) {
                 return ActionResult::fail(__('errors.cannot_repair'));
@@ -117,7 +117,7 @@ final class RepairService
     public function repairVip(Character $character, int $inventoryRowId): ActionResult
     {
         return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
+            $row = BackpackItem::query()
                 ->where('id', $inventoryRowId)
                 ->where('tg_id', $character->tg_id)
                 ->first();
@@ -134,11 +134,11 @@ final class RepairService
                 return ActionResult::fail(__('errors.already_repaired'));
             }
 
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 return ActionResult::fail(__('errors.cannot_repair'));
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if (! $def->repairable) {
                 return ActionResult::fail(__('errors.cannot_repair'));
@@ -216,7 +216,7 @@ final class RepairService
         return $this->vipGoldPass();
     }
 
-    public function repairVipSilverCost(Inventory $row): int
+    public function repairVipSilverCost(BackpackItem $row): int
     {
         return $this->repairCost($row) * $this->vipSilverMultiplier();
     }
@@ -298,7 +298,7 @@ final class RepairService
         return $gold;
     }
 
-    public function repairCost(Inventory $row): int
+    public function repairCost(BackpackItem $row): int
     {
         if ($row->max_durability === null || $row->durability === null) {
             throw new RuntimeException('Item has no durability.');
@@ -310,7 +310,7 @@ final class RepairService
             return 0;
         }
 
-        $def = $this->shop->findItem($row->item_id);
+        $def = $this->shop->findItem($row->catalog_id);
         $perPoint = $this->repairSilverPerMissingPoint();
 
         if ($def->reqLevel === null) {
@@ -323,11 +323,11 @@ final class RepairService
     }
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     private function damagedListForTier(int $tgId, RepairEnum $tier): Collection
     {
-        $rows = Inventory::query()
+        $rows = BackpackItem::query()
             ->where('tg_id', $tgId)
             ->orderBy('id')
             ->get();
@@ -343,11 +343,11 @@ final class RepairService
                 continue;
             }
 
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 continue;
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if (! $def->repairable) {
                 continue;

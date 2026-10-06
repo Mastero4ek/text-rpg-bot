@@ -27,7 +27,6 @@ final readonly class EquipmentDef
         public Mf $mf,
         public int $statBonus,
         public int $armor,
-        public ?int $effectValue,
         public ?int $reqLevel,
         public ?int $reqStrength,
         public ?int $reqAgility,

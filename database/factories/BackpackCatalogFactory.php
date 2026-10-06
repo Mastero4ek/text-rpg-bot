@@ -9,25 +9,25 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Equipment;
+use App\Models\BackpackCatalog;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Equipment>
+ * @extends Factory<BackpackCatalog>
  */
-final class EquipmentFactory extends Factory
+final class BackpackCatalogFactory extends Factory
 {
-    protected $model = Equipment::class;
+    protected $model = BackpackCatalog::class;
 
     /**
      * @return array<string, mixed>
      */
     public function definition(): array
     {
-        $itemId = 'test_' . fake()->unique()->bothify('item_##??');
+        $catalogId = 'test_' . fake()->unique()->bothify('item_##??');
 
         return [
-            'item_id' => $itemId,
+            'catalog_id' => $catalogId,
             'name' => fake()->words(2, true),
             'description' => fake()->sentence(),
             'item_type' => TypeEnum::WEAPON,
@@ -46,23 +46,9 @@ final class EquipmentFactory extends Factory
             'mf_anti_dodge' => 0,
             'mf_crit' => 0,
             'mf_anti_crit' => 0,
-            'effect_value' => null,
             'sort_order' => 0,
             'repairable' => true,
         ];
-    }
-
-    public function potion(): static
-    {
-        return $this->state(fn (): array => [
-            'item_type' => TypeEnum::POTION,
-            'slot' => SlotEnum::POCKET,
-            'profile' => ProfileEnum::HEAL,
-            'weapon_damage_min' => 0,
-            'weapon_damage_max' => 0,
-            'effect_value' => 40,
-            'repairable' => false,
-        ]);
     }
 
     public function armor(): static

@@ -11,10 +11,11 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Services\Bag\BagCatalog;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\InventoryService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\FightStatusFormatter;
@@ -30,7 +31,8 @@ final class OnboardingHandler
         private readonly OnboardingService $onboarding,
         private readonly CharacterSetNickAction $setNick,
         private readonly CharacterSetLocationAction $setLocation,
-        private readonly InventoryService $inventory,
+        private readonly BagService $bag,
+        private readonly BagCatalog $bagCatalog,
         private readonly ShopCatalog $shop,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
@@ -194,7 +196,7 @@ final class OnboardingHandler
         if ($player->onboarding_step === OnboardingStepEnum::QUEST_SHOP) {
             $responder->reply(
                 __('onboarding.shop_prompt', ['silver' => $player->silver]),
-                TelegramKeyboards::noviceShop($this->shop),
+                TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
             );
 
             return;
@@ -374,7 +376,7 @@ final class OnboardingHandler
                 'silverReward' => $reward['silver'],
                 'silver' => $res->character->silver,
             ]),
-            TelegramKeyboards::noviceShop($this->shop),
+            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
         );
     }
 
@@ -446,13 +448,13 @@ final class OnboardingHandler
 
         $responder->edit(
             __('onboarding.potion_bought', [
-                'potions' => $this->inventory->potionCountByProfile(
+                'potions' => $this->bag->potionCountByProfile(
                     $res->character->tg_id,
                     ProfileEnum::HEAL,
                 ),
                 'silver' => $res->character->silver,
             ]),
-            TelegramKeyboards::noviceShop($this->shop),
+            TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice()),
         );
     }
 

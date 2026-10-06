@@ -8,8 +8,8 @@ use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\Equipment;
-use App\Services\Inventory\LoadoutService;
+use App\Models\BackpackCatalog;
+use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -24,10 +24,10 @@ it('renders gear text with damage range broken slot and totals', function (): vo
     $p->username = 'GearUi';
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    $helm = inventory()->findOwned($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
+    $helm = backpack()->findOwned($p->tg_id, 'mobile_0');
 
     expect(loadout()->equip($p, $knife->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
@@ -69,8 +69,8 @@ it('builds item card with damage range durability and empty gem socket', functio
     $p->username = 'CardUi';
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
     $def = shopCatalog()->findItem('knife_0');
 
     $update = new TelegramUpdate([
@@ -121,13 +121,13 @@ it('builds item card with damage range durability and empty gem socket', functio
 });
 
 it('rejects repair and omits unrepairable gear from smith lists', function (): void {
-    $equipment = Equipment::query()->findOrFail('mobile_0');
+    $equipment = BackpackCatalog::query()->findOrFail('mobile_0');
     $equipment->repairable = false;
     $equipment->save();
 
     $p = characters()->createDraft(8703);
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    $cap = backpack()->findOwned($p->tg_id, 'mobile_0');
     $cap->durability = 10;
     $cap->save();
 
@@ -147,23 +147,23 @@ it('rejects repair and omits unrepairable gear from smith lists', function (): v
 });
 
 it('repairs only normal-tier gear on repair all', function (): void {
-    $equipment = Equipment::query()->findOrFail('knife_0');
+    $equipment = BackpackCatalog::query()->findOrFail('knife_0');
     $equipment->repair_tier = RepairEnum::VIP;
     $equipment->save();
 
     $p = characters()->createDraft(8704);
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    inventory()->addItem($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
 
-    $cap = inventory()->findOwned($p->tg_id, 'mobile_0');
-    $vip = inventory()->findOwned($p->tg_id, 'knife_0');
+    $cap = backpack()->findOwned($p->tg_id, 'mobile_0');
+    $vip = backpack()->findOwned($p->tg_id, 'knife_0');
     $cap->durability = 10;
     $cap->save();
     $vip->durability = 10;
     $vip->save();
 
     expect(repair()->damagedList($p->tg_id))->toHaveCount(1)
-        ->and(repair()->damagedList($p->tg_id)->first()->item_id)->toBe('mobile_0')
+        ->and(repair()->damagedList($p->tg_id)->first()->catalog_id)->toBe('mobile_0')
         ->and(repair()->damagedVipList($p->tg_id))->toHaveCount(1);
 
     $goldCost = repair()->repairAllGoldCost($p);
@@ -181,23 +181,22 @@ it('repairs only normal-tier gear on repair all', function (): void {
 
 it('stores null durability for jewelry and potions', function (): void {
     $p = characters()->createDraft(8705);
-    $ring = inventory()->addItem($p->tg_id, 'focus_0');
-    $potion = inventory()->addItem($p->tg_id, 'heal_0');
+    $ring = backpack()->addItem($p->tg_id, 'focus_0');
+    $potion = bag()->addPotion($p->tg_id, 'heal_0');
 
     expect($ring->max_durability)->toBeNull()
         ->and($ring->durability)->toBeNull()
-        ->and($potion->max_durability)->toBeNull()
         ->and($potion->durability)->toBeNull()
         ->and(shopCatalog()->findItem('focus_0')->maxDurability)->toBeNull()
-        ->and(shopCatalog()->findItem('heal_0')->maxDurability)->toBeNull();
+        ->and(bagCatalog()->findPotion('heal_0')->effectValue)->toBe(40);
 });
 
 it('does not wear unequipped inventory rows after a fight', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8706));
-    inventory()->addItem($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'mobile_0');
 
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $bag = inventory()->findOwned($p->tg_id, 'mobile_0');
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $bag = backpack()->findOwned($p->tg_id, 'mobile_0');
     $knuckles->durability = 10;
     $knuckles->save();
     $bag->durability = 10;
@@ -207,7 +206,7 @@ it('does not wear unequipped inventory rows after a fight', function (): void {
 
     $knuckles->refresh();
     $bag->refresh();
-    $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
+    $loss = BackpackCatalog::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
 
     expect($knuckles->durability)->toBe(10 - $loss)
         ->and($bag->durability)->toBe(10)
@@ -249,14 +248,14 @@ it('counts pierce wear only from pierced block hits', function (): void {
     $fight->refresh();
     expect($fight->pierce_count)->toBe(1);
 
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $knuckles->durability = 20;
     $knuckles->save();
 
     loadout()->applyFightWearAfterWin(characters()->findByTgId($p->tg_id), $fight->pierce_count);
     $knuckles->refresh();
 
-    $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
+    $loss = BackpackCatalog::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
     $perPierce = gameConfig()->settings()['wear']['extraLossPerPierce'];
     expect($knuckles->durability)->toBe(20 - $loss - (1 * $perPierce));
 });
@@ -271,7 +270,7 @@ it('shows gear screen broken line through menu callback', function (): void {
     $p->username = 'BrokenGear';
     $p->save();
 
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $knuckles->durability = 0;
     $knuckles->save();
 

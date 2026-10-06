@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Gem;
+namespace App\Actions\Bag;
 
 use App\Models\Character;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 use App\Support\Game\ActionResult;
 
-final class GemSocketAction
+final class BagGemSocketAction
 {
     public function __construct(
-        private readonly GemService $gems,
+        private readonly BagService $bag,
     ) {}
 
-    public function handle(Character $character, int $inventoryRowId, int $pouchIndex): ActionResult
+    public function handle(Character $character, int $backpackItemId, int $bagItemId): ActionResult
     {
-        return $this->gems->socket($character, $inventoryRowId, $pouchIndex);
+        return $this->bag->socket($character, $backpackItemId, $bagItemId);
     }
 }

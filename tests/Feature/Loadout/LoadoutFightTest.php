@@ -7,8 +7,8 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Models\Inventory;
-use App\Services\Inventory\LoadoutService;
+use App\Models\BackpackItem;
+use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -17,14 +17,14 @@ use Illuminate\Support\Facades\Http;
 
 it('maps armor by zone and sets two block slots with shield', function (): void {
     $p = characters()->createDraft(8101);
-    inventory()->addItem($p->tg_id, 'mobile_0');
-    inventory()->addItem($p->tg_id, 'heavy_0');
-    inventory()->addItem($p->tg_id, 'mobile_2');
-    inventory()->addItem($p->tg_id, 'mobile_1');
-    inventory()->addItem($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'mobile_0');
+    backpack()->addItem($p->tg_id, 'heavy_0');
+    backpack()->addItem($p->tg_id, 'mobile_2');
+    backpack()->addItem($p->tg_id, 'mobile_1');
+    backpack()->addItem($p->tg_id, 'heavy_1');
 
     foreach (['mobile_0', 'heavy_0', 'mobile_2', 'mobile_1', 'heavy_1'] as $itemId) {
-        $row = inventory()->findOwned($p->tg_id, $itemId);
+        $row = backpack()->findOwned($p->tg_id, $itemId);
         $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
         $p = $res->character;
@@ -47,14 +47,14 @@ it('maps armor by zone and sets two block slots with shield', function (): void 
 
 it('unequips left hand when shield is equipped and the reverse', function (): void {
     $p = characters()->createDraft(8102);
-    inventory()->addItem($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'heavy_1');
 
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
     expect($knife->isEquipped())->toBeTrue()
         ->and($knife->slot)->toBe(SlotEnum::LEFT_HAND);
 
-    $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
+    $shield = backpack()->findOwned($p->tg_id, 'heavy_1');
     $eqShield = loadout()->equip($p, $shield->id);
     expect($eqShield->ok)->toBeTrue();
     $knife->refresh();
@@ -74,8 +74,8 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     $p->level = 1;
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'focus_0');
-    inventory()->addItem($p->tg_id, 'vital_0');
+    backpack()->addItem($p->tg_id, 'focus_0');
+    backpack()->addItem($p->tg_id, 'vital_0');
 
     $baseMin = app(LoadoutService::class)->forCharacter($p)->weaponDamageMin;
     $baseMax = app(LoadoutService::class)->forCharacter($p)->weaponDamageMax;
@@ -83,7 +83,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
     foreach (['focus_0', 'vital_0'] as $itemId) {
-        $row = inventory()->findOwned($p->tg_id, $itemId);
+        $row = backpack()->findOwned($p->tg_id, $itemId);
         $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
         $p = $res->character;
@@ -114,7 +114,7 @@ it('sells new doll wearables from shop', function (): void {
         }
 
         expect($buy->ok)->toBeTrue("failed buying {$itemId}")
-            ->and(inventory()->owns($p->tg_id, $itemId))->toBeTrue();
+            ->and(backpack()->owns($p->tg_id, $itemId))->toBeTrue();
     }
 
     expect(shopCatalog()->isEquippable('heavy_1'))->toBeTrue()
@@ -132,8 +132,8 @@ it('asks for second defend zone when shield is equipped', function (): void {
     $p->username = 'ShieldHero';
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'heavy_1');
-    $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'heavy_1');
+    $shield = backpack()->findOwned($p->tg_id, 'heavy_1');
     $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
@@ -232,17 +232,17 @@ it('resolves after one defend zone without shield', function (): void {
 
 it('keeps gloves and rings equippable in gameplay slots', function (): void {
     $p = characters()->createDraft(8107);
-    inventory()->addItem($p->tg_id, 'mobile_3');
-    inventory()->addItem($p->tg_id, 'focus_0');
+    backpack()->addItem($p->tg_id, 'mobile_3');
+    backpack()->addItem($p->tg_id, 'focus_0');
 
-    $gloves = inventory()->findOwned($p->tg_id, 'mobile_3');
-    $ring = inventory()->findOwned($p->tg_id, 'focus_0');
+    $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
+    $ring = backpack()->findOwned($p->tg_id, 'focus_0');
 
     expect(loadout()->equip($p, $gloves->id)->ok)->toBeTrue();
     $p = characters()->findByTgId($p->tg_id);
     expect(loadout()->equip($p, $ring->id)->ok)->toBeTrue();
 
     $loadout = app(LoadoutService::class)->forCharacter(characters()->findByTgId($p->tg_id));
-    expect($loadout->row(SlotEnum::GLOVES))->toBeInstanceOf(Inventory::class)
-        ->and($loadout->row(SlotEnum::RING_1))->toBeInstanceOf(Inventory::class);
+    expect($loadout->row(SlotEnum::GLOVES))->toBeInstanceOf(BackpackItem::class)
+        ->and($loadout->row(SlotEnum::RING_1))->toBeInstanceOf(BackpackItem::class);
 });

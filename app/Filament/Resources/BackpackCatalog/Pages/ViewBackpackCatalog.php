@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Equipment\Pages;
+namespace App\Filament\Resources\BackpackCatalog\Pages;
 
 use App\Filament\Concerns\HasCloneToCreate;
-use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 
-final class ViewEquipment extends ViewRecord
+final class ViewBackpackCatalog extends ViewRecord
 {
     use HasCloneToCreate;
 
-    protected static string $resource = EquipmentResource::class;
+    protected static string $resource = BackpackCatalogResource::class;
 
     protected function getHeaderActions(): array
     {

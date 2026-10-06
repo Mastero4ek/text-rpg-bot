@@ -2,71 +2,49 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Inventory;
+namespace App\Services\Backpack;
 
-use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Models\LoadoutSlot;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Gem\GemService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Game\ActionResult;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class InventoryService
+final class BackpackService
 {
     public function __construct(
         private readonly ShopCatalog $shop,
         private readonly CharacterService $characters,
         private readonly GameConfig $config,
-        private readonly GemService $gems,
     ) {}
 
-    public function addItem(int $tgId, string $itemId): Inventory
+    public function addItem(int $tgId, string $catalogId): BackpackItem
     {
-        return DB::transaction(function () use ($tgId, $itemId): Inventory {
+        return DB::transaction(function () use ($tgId, $catalogId): BackpackItem {
             $character = Character::query()->find($tgId);
 
             if ($character === null) {
                 throw new RuntimeException('Character not found.');
             }
 
-            $def = $this->shop->findItem($itemId);
-
-            if ($def->itemType === TypeEnum::POTION) {
-                $stack = Inventory::query()
-                    ->where('tg_id', $tgId)
-                    ->where('item_id', $def->itemId)
-                    ->where('item_type', TypeEnum::POTION)
-                    ->where('quantity', '<', $this->potionMaxStack())
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($stack instanceof Inventory) {
-                    $stack->quantity += 1;
-                    $stack->save();
-
-                    return $stack;
-                }
-            }
+            $def = $this->shop->findItem($catalogId);
 
             if ($this->isFull($character)) {
                 throw new RuntimeException('Backpack is full.');
             }
 
-            $row = new Inventory;
+            $row = new BackpackItem;
             $row->tg_id = $tgId;
-            $row->item_id = $def->itemId;
+            $row->catalog_id = $def->itemId;
             $row->item_name = $def->itemName;
             $row->item_type = $def->itemType;
             $row->slot = $def->slot;
-            $row->quantity = 1;
 
             if ($def->maxDurability === null) {
                 $row->durability = null;
@@ -82,75 +60,16 @@ final class InventoryService
         });
     }
 
-    public function canAcceptItem(Character $character, string $itemId): bool
+    public function canAcceptItem(Character $character): bool
     {
-        $def = $this->shop->findItem($itemId);
-
-        if ($def->itemType === TypeEnum::POTION) {
-            $hasStackSpace = Inventory::query()
-                ->where('tg_id', $character->tg_id)
-                ->where('item_id', $def->itemId)
-                ->where('item_type', TypeEnum::POTION)
-                ->where('quantity', '<', $this->potionMaxStack())
-                ->exists();
-
-            if ($hasStackSpace) {
-                return true;
-            }
-        }
-
         return ! $this->isFull($character);
     }
 
-    public function consumePotion(int $tgId, ProfileEnum $profile): ActionResult
+    public function discard(Character $character, int $backpackItemId): ActionResult
     {
-        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
-            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
-        }
-
-        return DB::transaction(function () use ($tgId, $profile): ActionResult {
-            $rows = Inventory::query()
-                ->where('tg_id', $tgId)
-                ->where('item_type', TypeEnum::POTION)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-
-            $match = null;
-
-            foreach ($rows as $row) {
-                $def = $this->shop->findItem($row->item_id);
-
-                if ($def->profile !== $profile) {
-                    continue;
-                }
-
-                $match = $row;
-
-                break;
-            }
-
-            if ($match === null) {
-                return ActionResult::fail(__('combat.no_potion_turn'));
-            }
-
-            $def = $this->shop->findItem($match->item_id);
-
-            if ($def->effectValue === null) {
-                throw new RuntimeException("Potion {$match->item_id} has no effect_value.");
-            }
-
-            $this->removeOneFromRow($match);
-
-            return ActionResult::okWithDef($this->characters->findByTgId($tgId), $def);
-        });
-    }
-
-    public function discard(Character $character, int $inventoryRowId): ActionResult
-    {
-        return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
-                ->where('id', $inventoryRowId)
+        return DB::transaction(function () use ($character, $backpackItemId): ActionResult {
+            $row = BackpackItem::query()
+                ->where('id', $backpackItemId)
                 ->where('tg_id', $character->tg_id)
                 ->lockForUpdate()
                 ->first();
@@ -163,23 +82,17 @@ final class InventoryService
                 return ActionResult::fail(__('errors.unequip_first'));
             }
 
-            $moved = $this->removeOneFromRow($row);
+            $row->delete();
 
-            if (! $moved->ok) {
-                return $moved;
-            }
-
-            $character = $this->characters->findByTgId($character->tg_id);
-
-            return ActionResult::ok($character);
+            return ActionResult::ok($this->characters->findByTgId($character->tg_id));
         });
     }
 
-    public function discardEquipped(Character $character, int $inventoryRowId): ActionResult
+    public function discardEquipped(Character $character, int $backpackItemId): ActionResult
     {
-        return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
-                ->where('id', $inventoryRowId)
+        return DB::transaction(function () use ($character, $backpackItemId): ActionResult {
+            $row = BackpackItem::query()
+                ->where('id', $backpackItemId)
                 ->where('tg_id', $character->tg_id)
                 ->lockForUpdate()
                 ->first();
@@ -193,16 +106,11 @@ final class InventoryService
             }
 
             LoadoutSlot::query()
-                ->where('inventory_id', $row->id)
+                ->where('backpack_item_id', $row->id)
                 ->delete();
 
             $row->unsetRelation('loadoutSlot');
-
-            $moved = $this->removeOneFromRow($row);
-
-            if (! $moved->ok) {
-                return $moved;
-            }
+            $row->delete();
 
             $character = $this->characters->findByTgId($character->tg_id);
             $newCap = $this->characters->maxHp($character);
@@ -216,28 +124,24 @@ final class InventoryService
         });
     }
 
-    public function findOwned(int $tgId, string $itemId): Inventory
+    public function findOwned(int $tgId, string $catalogId): BackpackItem
     {
-        $row = Inventory::query()
+        $row = BackpackItem::query()
             ->where('tg_id', $tgId)
-            ->where('item_id', $itemId)
+            ->where('catalog_id', $catalogId)
             ->first();
 
         if ($row === null) {
-            throw new RuntimeException("Item {$itemId} not in inventory for {$tgId}");
+            throw new RuntimeException("Item {$catalogId} not in backpack for {$tgId}");
         }
 
         return $row;
     }
 
     /**
-     * @param  Collection<int, Inventory>|list<Inventory>  $rows
+     * @param  Collection<int, BackpackItem>|list<BackpackItem>  $rows
      */
-
-    /**
-     * @param  Collection<int, Inventory>|list<Inventory>  $rows
-     */
-    public function inventoryText(iterable $rows): string
+    public function backpackText(iterable $rows): string
     {
         $lines = [];
 
@@ -262,11 +166,11 @@ final class InventoryService
     }
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     public function list(int $tgId): Collection
     {
-        return Inventory::query()
+        return BackpackItem::query()
             ->where('tg_id', $tgId)
             ->unequipped()
             ->orderBy('id')
@@ -274,11 +178,11 @@ final class InventoryService
     }
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     public function listByType(int $tgId, ?TypeEnum $type): Collection
     {
-        $query = Inventory::query()
+        $query = BackpackItem::query()
             ->where('tg_id', $tgId)
             ->unequipped()
             ->orderBy('id');
@@ -292,70 +196,55 @@ final class InventoryService
 
     public function defaultMaxRows(): int
     {
-        $inventory = $this->inventorySettings();
+        $backpack = $this->backpackSettings();
 
-        if (! array_key_exists('maxRows', $inventory) || ! is_int($inventory['maxRows'])) {
-            throw new RuntimeException('settings.inventory.maxRows missing.');
+        if (! array_key_exists('maxRows', $backpack) || ! is_int($backpack['maxRows'])) {
+            throw new RuntimeException('settings.backpack.maxRows missing.');
         }
 
-        if ($inventory['maxRows'] < 1) {
-            throw new RuntimeException('settings.inventory.maxRows must be >= 1.');
+        if ($backpack['maxRows'] < 1) {
+            throw new RuntimeException('settings.backpack.maxRows must be >= 1.');
         }
 
-        return $inventory['maxRows'];
-    }
-
-    public function potionMaxStack(): int
-    {
-        $inventory = $this->inventorySettings();
-
-        if (! array_key_exists('potionMaxStack', $inventory) || ! is_int($inventory['potionMaxStack'])) {
-            throw new RuntimeException('settings.inventory.potionMaxStack missing.');
-        }
-
-        if ($inventory['potionMaxStack'] < 1) {
-            throw new RuntimeException('settings.inventory.potionMaxStack must be >= 1.');
-        }
-
-        return $inventory['potionMaxStack'];
+        return $backpack['maxRows'];
     }
 
     public function maxRows(Character $character): int
     {
-        if ($character->inventory_max_rows < 1) {
-            throw new RuntimeException('Character inventory_max_rows must be >= 1.');
+        if ($character->backpack_max_rows < 1) {
+            throw new RuntimeException('Character backpack_max_rows must be >= 1.');
         }
 
-        return $character->inventory_max_rows;
+        return $character->backpack_max_rows;
     }
 
     public function rowCount(int $tgId): int
     {
-        return Inventory::query()
+        return BackpackItem::query()
             ->where('tg_id', $tgId)
             ->unequipped()
             ->count();
     }
 
     /**
-     * @return Collection<int, Inventory>
+     * @return Collection<int, BackpackItem>
      */
     public function sellableList(int $tgId): Collection
     {
-        return Inventory::query()
+        return BackpackItem::query()
             ->where('tg_id', $tgId)
             ->unequipped()
             ->orderBy('id')
             ->get();
     }
 
-    public function sellPayout(Inventory $row): int
+    public function sellPayout(BackpackItem $row): int
     {
-        if (! $this->shop->hasItem($row->item_id)) {
-            throw new RuntimeException("Catalog item {$row->item_id} missing for sell.");
+        if (! $this->shop->hasItem($row->catalog_id)) {
+            throw new RuntimeException("Catalog item {$row->catalog_id} missing for sell.");
         }
 
-        $def = $this->shop->findItem($row->item_id);
+        $def = $this->shop->findItem($row->catalog_id);
         $base = intdiv($def->price * $this->sellRatioPermille(), 1000);
 
         if ($base <= 0) {
@@ -379,65 +268,24 @@ final class InventoryService
         return $payout;
     }
 
-    public function owns(int $tgId, string $itemId): bool
+    public function owns(int $tgId, string $catalogId): bool
     {
-        return Inventory::query()
+        return BackpackItem::query()
             ->where('tg_id', $tgId)
-            ->where('item_id', $itemId)
+            ->where('catalog_id', $catalogId)
             ->exists();
     }
 
-    public function potionCount(int $tgId): int
+    public function removeOne(BackpackItem $row): ActionResult
     {
-        $total = Inventory::query()
-            ->where('tg_id', $tgId)
-            ->where('item_type', TypeEnum::POTION)
-            ->sum('quantity');
+        $row->delete();
 
-        return (int) $total;
+        return ActionResult::ok($this->characters->findByTgId($row->tg_id));
     }
 
-    public function potionCountByProfile(int $tgId, ProfileEnum $profile): int
+    public function rowLabel(BackpackItem $row): string
     {
-        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
-            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
-        }
-
-        $count = 0;
-
-        $rows = Inventory::query()
-            ->where('tg_id', $tgId)
-            ->where('item_type', TypeEnum::POTION)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($rows as $row) {
-            if (! $this->shop->hasItem($row->item_id)) {
-                continue;
-            }
-
-            if ($this->shop->findItem($row->item_id)->profile !== $profile) {
-                continue;
-            }
-
-            $count += $row->quantity;
-        }
-
-        return $count;
-    }
-
-    public function removeOne(Inventory $row): ActionResult
-    {
-        return $this->removeOneFromRow($row);
-    }
-
-    public function rowLabel(Inventory $row): string
-    {
-        if ($row->item_type !== TypeEnum::POTION) {
-            return $row->item_name;
-        }
-
-        return $row->item_name . ' (' . $row->quantity . '/' . $this->potionMaxStack() . ')';
+        return $row->item_name;
     }
 
     private function sellRatioPermille(): int
@@ -464,35 +312,14 @@ final class InventoryService
     /**
      * @return array<string, mixed>
      */
-    private function inventorySettings(): array
+    private function backpackSettings(): array
     {
         $settings = $this->config->settings();
 
-        if (! array_key_exists('inventory', $settings) || ! is_array($settings['inventory'])) {
-            throw new RuntimeException('settings.inventory missing.');
+        if (! array_key_exists('backpack', $settings) || ! is_array($settings['backpack'])) {
+            throw new RuntimeException('settings.backpack missing.');
         }
 
-        return $settings['inventory'];
-    }
-
-    private function removeOneFromRow(Inventory $row): ActionResult
-    {
-        if ($row->quantity > 1) {
-            $row->quantity -= 1;
-            $row->save();
-
-            return ActionResult::ok($this->characters->findByTgId($row->tg_id));
-        }
-
-        $character = $this->characters->findByTgId($row->tg_id);
-        $moved = $this->gems->moveSocketedToPouch($character, $row);
-
-        if (! $moved->ok) {
-            return $moved;
-        }
-
-        $row->delete();
-
-        return ActionResult::ok($this->characters->findByTgId($row->tg_id));
+        return $settings['backpack'];
     }
 }

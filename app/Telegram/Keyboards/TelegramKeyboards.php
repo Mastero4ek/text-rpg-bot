@@ -146,7 +146,7 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */
-    public static function noviceShop(ShopCatalog $shop): array
+    public static function noviceShop(ShopCatalog $shop, int $potionPrice): array
     {
         $rows = [];
 
@@ -154,7 +154,7 @@ final class TelegramKeyboards
             $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
         }
 
-        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $shop->potionPrice()]), 'ob:novice_potion')];
+        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
         $rows[] = [self::cb(__('onboarding.btn_claim_club'), 'ob:claim_club')];
 
         return self::inline($rows);

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Equipment\Schemas;
+namespace App\Filament\Resources\BackpackCatalog\Schemas;
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Equipment;
+use App\Models\BackpackCatalog;
 use Closure;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -24,21 +24,21 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
-final class EquipmentForm
+final class BackpackCatalogForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->columns(1)
             ->components([
-                Section::make(__('admin.sections.equipment_identity'))
+                Section::make(__('admin.sections.backpack_catalog_identity'))
                     ->icon(Heroicon::OutlinedIdentification)
                     ->columns(2)
                     ->columnSpanFull()
                     ->collapsible()
                     ->schema([
                         Group::make([
-                            Hidden::make('item_id')
+                            Hidden::make('catalog_id')
                                 ->required()
                                 ->unique(ignoreRecord: true)
                                 ->dehydrated(),
@@ -50,7 +50,7 @@ final class EquipmentForm
                             Group::make([
                                 Select::make('item_type')
                                     ->label(__('admin.labels.item_type'))
-                                    ->options(TypeEnum::class)
+                                    ->options(self::gearTypeOptions())
                                     ->required()
                                     ->native(false)
                                     ->live()
@@ -77,8 +77,12 @@ final class EquipmentForm
                                     ->afterStateUpdated(function (Set $set, mixed $state): void {
                                         self::syncArmorForSlot($set, $state);
                                     })
+                                    ->visible(fn (Get $get): bool => self::selectedType($get('item_type')) instanceof TypeEnum
+                                        && self::selectedType($get('item_type')) !== TypeEnum::WEAPON)
                                     ->disabled(fn (Get $get): bool => ! self::selectedType($get('item_type')) instanceof TypeEnum)
-                                    ->required(fn (Get $get): bool => self::selectedType($get('item_type')) instanceof TypeEnum),
+                                    ->required(fn (Get $get): bool => self::selectedType($get('item_type')) instanceof TypeEnum
+                                        && self::selectedType($get('item_type')) !== TypeEnum::WEAPON)
+                                    ->dehydrated(),
                             ])
                                 ->columns(3),
                             Group::make([
@@ -104,7 +108,7 @@ final class EquipmentForm
                                 ->rows(3),
                         ]),
                     ]),
-                Section::make(__('admin.sections.equipment_requirements'))
+                Section::make(__('admin.sections.backpack_catalog_requirements'))
                     ->icon(Heroicon::OutlinedLockClosed)
                     ->columns(5)
                     ->columnSpanFull()
@@ -137,7 +141,7 @@ final class EquipmentForm
                             ->numeric()
                             ->minValue(0),
                     ]),
-                Section::make(__('admin.sections.equipment_combat'))
+                Section::make(__('admin.sections.backpack_catalog_combat'))
                     ->icon(Heroicon::OutlinedBolt)
                     ->columns(4)
                     ->columnSpanFull()
@@ -200,15 +204,8 @@ final class EquipmentForm
                             ->minValue(0)
                             ->visible(fn (Get $get): bool => self::typeShowsMf(self::selectedType($get('item_type'))))
                             ->required(fn (Get $get): bool => self::typeShowsMf(self::selectedType($get('item_type')))),
-                        TextInput::make('effect_value')
-                            ->label(__('admin.labels.effect_value'))
-                            ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.effect_value'))
-                            ->numeric()
-                            ->minValue(0)
-                            ->visible(fn (Get $get): bool => self::typeShowsEffects(self::selectedType($get('item_type'))))
-                            ->required(fn (Get $get): bool => self::typeShowsEffects(self::selectedType($get('item_type')))),
                     ]),
-                Section::make(__('admin.sections.equipment_durability'))
+                Section::make(__('admin.sections.backpack_catalog_durability'))
                     ->icon(Heroicon::OutlinedWrenchScrewdriver)
                     ->columns(4)
                     ->columnSpanFull()
@@ -239,7 +236,7 @@ final class EquipmentForm
                             ->label(__('admin.labels.repairable'))
                             ->columnStart(1),
                     ]),
-                Section::make(__('admin.sections.equipment_economy'))
+                Section::make(__('admin.sections.backpack_catalog_economy'))
                     ->icon(Heroicon::OutlinedBanknotes)
                     ->columns(4)
                     ->columnSpanFull()
@@ -268,9 +265,9 @@ final class EquipmentForm
         $type = self::selectedType($data['item_type'] ?? null);
 
         if ($type === TypeEnum::WEAPON) {
+            $data['slot'] = SlotEnum::RIGHT_HAND;
             $data['stat_bonus'] = 0;
             $data['armor'] = 0;
-            $data['effect_value'] = null;
 
             return $data;
         }
@@ -278,7 +275,6 @@ final class EquipmentForm
         if ($type === TypeEnum::ARMOR) {
             $data['weapon_damage_min'] = 0;
             $data['weapon_damage_max'] = 0;
-            $data['effect_value'] = null;
 
             if (! self::slotShowsZoneArmor(self::selectedSlot($data['slot'] ?? null))) {
                 $data['armor'] = 0;
@@ -291,7 +287,6 @@ final class EquipmentForm
             $data['weapon_damage_min'] = 0;
             $data['weapon_damage_max'] = 0;
             $data['armor'] = 0;
-            $data['effect_value'] = null;
             $data['gem_slots'] = null;
             $data['max_durability'] = null;
             $data['durability_loss_per_fight'] = null;
@@ -301,30 +296,21 @@ final class EquipmentForm
             return $data;
         }
 
-        if ($type !== TypeEnum::POTION) {
-            return $data;
+        return $data;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function gearTypeOptions(): array
+    {
+        $options = [];
+
+        foreach ([TypeEnum::WEAPON, TypeEnum::ARMOR, TypeEnum::JEWELRY] as $type) {
+            $options[$type->value] = $type->getLabel();
         }
 
-        $data['weapon_damage_min'] = 0;
-        $data['weapon_damage_max'] = 0;
-        $data['stat_bonus'] = 0;
-        $data['armor'] = 0;
-        $data['mf_dodge'] = 0;
-        $data['mf_anti_dodge'] = 0;
-        $data['mf_crit'] = 0;
-        $data['mf_anti_crit'] = 0;
-        $data['req_level'] = null;
-        $data['req_strength'] = null;
-        $data['req_agility'] = null;
-        $data['req_instinct'] = null;
-        $data['req_vitality'] = null;
-        $data['max_durability'] = null;
-        $data['durability_loss_per_fight'] = null;
-        $data['gem_slots'] = null;
-        $data['repairable'] = false;
-        $data['repair_tier'] = RepairEnum::NORMAL;
-
-        return $data;
+        return $options;
     }
 
     /**
@@ -538,12 +524,12 @@ final class EquipmentForm
         $profile = self::selectedProfile($profileState);
 
         if (! $profile instanceof ProfileEnum) {
-            $set('item_id', null);
+            $set('catalog_id', null);
 
             return;
         }
 
-        $set('item_id', Equipment::nextItemIdForProfile($profile));
+        $set('catalog_id', BackpackCatalog::nextCatalogIdForProfile($profile));
     }
 
     private static function typeShowsDurability(?TypeEnum $type): bool
@@ -553,11 +539,6 @@ final class EquipmentForm
         }
 
         return $type === TypeEnum::ARMOR;
-    }
-
-    private static function typeShowsEffects(?TypeEnum $type): bool
-    {
-        return $type === TypeEnum::POTION;
     }
 
     private static function typeShowsGemFields(?TypeEnum $type): bool

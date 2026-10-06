@@ -1,4 +1,4 @@
-# Text RPG Bot
+# Text MMORPG Bot
 
 ## Stack
 
@@ -22,6 +22,8 @@ composer dev
 ```
 
 Админка: `/` → `/admin` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+
+Домен: [`docs/`](docs/README.md) — персонаж, экипировка, рюкзак, сумка.
 
 ## Prod
 

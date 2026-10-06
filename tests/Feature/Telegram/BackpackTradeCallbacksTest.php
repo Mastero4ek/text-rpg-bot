@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\OnboardingStepEnum;
-use App\Models\Inventory;
-use App\Services\Gem\GemService;
+use App\Models\BackpackItem;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -25,9 +24,9 @@ it('sells inventory row through shop sell_yes callback', function (): void {
     $p->silver = 0;
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    $payout = inventory()->sellPayout($knife);
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
+    $payout = backpack()->sellPayout($knife);
 
     $update = new TelegramUpdate([
         'update_id' => 6401,
@@ -48,7 +47,7 @@ it('sells inventory row through shop sell_yes callback', function (): void {
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    expect(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
+    expect(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
         ->and(characters()->findByTgId($p->tg_id)->silver)->toBe($payout);
 
     Http::assertSent(function (Request $request) use ($knife, $payout): bool {
@@ -69,8 +68,8 @@ it('discards backpack item through inv discard_yes callback', function (): void 
     $p->onboarding_step = OnboardingStepEnum::DONE;
     $p->save();
 
-    inventory()->addItem($p->tg_id, 'axe_0');
-    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, 'axe_0');
+    $axe = backpack()->findOwned($p->tg_id, 'axe_0');
 
     $update = new TelegramUpdate([
         'update_id' => 6402,
@@ -91,7 +90,7 @@ it('discards backpack item through inv discard_yes callback', function (): void 
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    expect(Inventory::query()->whereKey($axe->id)->exists())->toBeFalse();
+    expect(BackpackItem::query()->whereKey($axe->id)->exists())->toBeFalse();
 
     Http::assertSent(function (Request $request) use ($axe): bool {
         if (! str_contains($request->url(), '/sendMessage')) {
@@ -104,17 +103,19 @@ it('discards backpack item through inv discard_yes callback', function (): void 
     });
 });
 
-it('discards gem from pouch through bag discard_yes callback', function (): void {
+it('discards gem from bag through bag discard_yes callback', function (): void {
     $p = characters()->createDraft(6403);
     $p->onboarding_step = OnboardingStepEnum::DONE;
-    $p->gem_pouch = array_merge(gemPouch('ruby_0', 9), gemPouch('emerald_0', 4));
     $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 9);
+    $p = grantGemDurability($p, 'emerald_0', 4);
+    $ruby = looseGem($p, 'ruby_0');
 
     $update = new TelegramUpdate([
         'update_id' => 6403,
         'callback_query' => [
             'id' => 'cb-bag-discard-1',
-            'data' => 'bag:discard_yes:0',
+            'data' => 'bag:discard_yes:' . $ruby->id,
             'from' => ['id' => $p->tg_id, 'is_bot' => false, 'first_name' => 'A'],
             'message' => [
                 'message_id' => 13,
@@ -129,12 +130,11 @@ it('discards gem from pouch through bag discard_yes callback', function (): void
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    $pouch = app(GemService::class)->pouch(characters()->findByTgId($p->tg_id));
+    $character = characters()->findByTgId($p->tg_id);
 
-    expect($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('emerald_0')
-        ->and($pouch[0]['durability'])->toBe(4);
-
+    expect(bag()->looseGems($character))->toHaveCount(1)
+        ->and(hasLooseGem($character, 'emerald_0'))->toBeTrue()
+        ->and(looseGem($character, 'emerald_0')->durability)->toBe(4);
     Http::assertSent(function (Request $request): bool {
         if (! str_contains($request->url(), '/sendMessage')) {
             return false;

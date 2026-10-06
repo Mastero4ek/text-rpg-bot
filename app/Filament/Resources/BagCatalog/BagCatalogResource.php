@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Gems;
+namespace App\Filament\Resources\BagCatalog;
 
-use App\Filament\Resources\Gems\Pages\CreateGem;
-use App\Filament\Resources\Gems\Pages\EditGem;
-use App\Filament\Resources\Gems\Pages\ListGems;
-use App\Filament\Resources\Gems\Pages\ViewGem;
-use App\Filament\Resources\Gems\Schemas\GemForm;
-use App\Filament\Resources\Gems\Tables\GemsTable;
-use App\Models\Gem;
+use App\Filament\Resources\BagCatalog\Pages\CreateBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\EditBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\ListBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\ViewBagCatalog;
+use App\Filament\Resources\BagCatalog\Schemas\BagCatalogForm;
+use App\Filament\Resources\BagCatalog\Tables\BagCatalogTable;
+use App\Models\BagCatalog;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -20,19 +20,21 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
-final class GemResource extends Resource
+final class BagCatalogResource extends Resource
 {
-    protected static ?string $model = Gem::class;
+    protected static ?string $model = BagCatalog::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 
     protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?int $navigationSort = 3;
 
+    protected static ?string $slug = 'bag-catalog';
+
     public static function canForceDelete(Model $record): bool
     {
-        if (! $record instanceof Gem) {
+        if (! $record instanceof BagCatalog) {
             return false;
         }
 
@@ -41,32 +43,32 @@ final class GemResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return GemForm::configure($schema);
+        return BagCatalogForm::configure($schema);
     }
 
     public static function getModelLabel(): string
     {
-        return __('admin.models.gem.singular');
+        return __('admin.models.bag_catalog.singular');
     }
 
     public static function getNavigationLabel(): string
     {
-        return __('admin.navigation.gems');
+        return __('admin.navigation.bag_catalog');
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ListGems::route('/'),
-            'create' => CreateGem::route('/create'),
-            'view' => ViewGem::route('/{record}'),
-            'edit' => EditGem::route('/{record}/edit'),
+            'index' => ListBagCatalog::route('/'),
+            'create' => CreateBagCatalog::route('/create'),
+            'view' => ViewBagCatalog::route('/{record}'),
+            'edit' => EditBagCatalog::route('/{record}/edit'),
         ];
     }
 
     public static function getPluralModelLabel(): string
     {
-        return __('admin.models.gem.plural');
+        return __('admin.models.bag_catalog.plural');
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder
@@ -79,6 +81,6 @@ final class GemResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return GemsTable::configure($table);
+        return BagCatalogTable::configure($table);
     }
 }

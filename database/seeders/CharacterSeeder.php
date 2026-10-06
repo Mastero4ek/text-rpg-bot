@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Bag\BagKindEnum;
 use App\Enums\OnboardingStepEnum;
+use App\Models\BackpackItem;
+use App\Models\BagItem;
 use App\Models\Character;
-use App\Models\Gem;
-use App\Models\Inventory;
 use App\Models\LoadoutSlot;
+use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagCatalog;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -20,7 +23,9 @@ final class CharacterSeeder extends Seeder
     public function run(): void
     {
         $characters = app(CharacterService::class);
-        $inventory = app(InventoryService::class);
+        $backpack = app(BackpackService::class);
+        $bag = app(BagService::class);
+        $bagCatalog = app(BagCatalog::class);
         $loadout = app(LoadoutService::class);
 
         foreach ($this->rows() as $row) {
@@ -39,9 +44,18 @@ final class CharacterSeeder extends Seeder
             $character->gold = $row['gold'];
             $character->save();
 
-            $this->fillBackpack($inventory, $loadout, $character, $row['backpack'], $row['equip']);
-            $this->fillBag($character, $row['bag']);
+            $this->resetOwnership($character);
+            $this->fillBackpack($backpack, $loadout, $character, $row['backpack'], $row['equip']);
+            $this->fillBagPotions($bag, $character, $row['potions']);
+            $this->fillBagGems($bagCatalog, $character, $row['gems']);
         }
+    }
+
+    private function resetOwnership(Character $character): void
+    {
+        LoadoutSlot::query()->where('tg_id', $character->tg_id)->delete();
+        BagItem::query()->where('tg_id', $character->tg_id)->delete();
+        BackpackItem::query()->where('tg_id', $character->tg_id)->delete();
     }
 
     /**
@@ -49,25 +63,22 @@ final class CharacterSeeder extends Seeder
      * @param  list<string>  $equipItemIds
      */
     private function fillBackpack(
-        InventoryService $inventory,
+        BackpackService $backpack,
         LoadoutService $loadout,
         Character $character,
         array $itemIds,
         array $equipItemIds,
     ): void {
-        LoadoutSlot::query()->where('tg_id', $character->tg_id)->delete();
-        Inventory::query()->where('tg_id', $character->tg_id)->delete();
-
-        foreach ($itemIds as $itemId) {
-            $inventory->addItem($character->tg_id, $itemId);
+        foreach ($itemIds as $catalogId) {
+            $backpack->addItem($character->tg_id, $catalogId);
         }
 
-        foreach ($equipItemIds as $itemId) {
-            $result = $loadout->equipByItemId($character, $itemId);
+        foreach ($equipItemIds as $catalogId) {
+            $result = $loadout->equipByItemId($character, $catalogId);
 
             if (! $result->ok) {
                 throw new RuntimeException(
-                    'Failed to equip ' . $itemId . ' for tg_id ' . $character->tg_id . ': ' . (string) $result->error,
+                    'Failed to equip ' . $catalogId . ' for tg_id ' . $character->tg_id . ': ' . (string) $result->error,
                 );
             }
 
@@ -78,31 +89,35 @@ final class CharacterSeeder extends Seeder
     }
 
     /**
-     * @param  list<array{gem_id: string, durability: int}>  $bag
+     * @param  list<string>  $potionIds
      */
-    private function fillBag(Character $character, array $bag): void
+    private function fillBagPotions(BagService $bag, Character $character, array $potionIds): void
     {
-        $pouch = [];
-        $addedAt = now()->toIso8601String();
+        foreach ($potionIds as $catalogId) {
+            $bag->addPotion($character->tg_id, $catalogId);
+        }
+    }
 
-        foreach ($bag as $entry) {
-            if (! Gem::query()->withTrashed()->whereKey($entry['gem_id'])->exists()) {
-                throw new RuntimeException('Unknown gem for seed: ' . $entry['gem_id']);
+    /**
+     * @param  list<array{catalog_id: string, durability: int}>  $gems
+     */
+    private function fillBagGems(BagCatalog $bagCatalog, Character $character, array $gems): void
+    {
+        foreach ($gems as $entry) {
+            if (! $bagCatalog->hasGem($entry['catalog_id'])) {
+                throw new RuntimeException('Unknown gem for seed: ' . $entry['catalog_id']);
             }
 
-            $pouch[] = [
-                'gem_id' => $entry['gem_id'],
-                'durability' => $entry['durability'],
-                'added_at' => $addedAt,
-            ];
+            $row = new BagItem;
+            $row->tg_id = $character->tg_id;
+            $row->kind = BagKindEnum::GEM;
+            $row->catalog_id = $entry['catalog_id'];
+            $row->quantity = 1;
+            $row->durability = $entry['durability'];
+            $row->backpack_item_id = null;
+            $row->created_at = now();
+            $row->save();
         }
-
-        if (count($pouch) > $character->bag_max_rows) {
-            $character->bag_max_rows = count($pouch);
-        }
-
-        $character->gem_pouch = $pouch;
-        $character->save();
     }
 
     /**
@@ -116,7 +131,8 @@ final class CharacterSeeder extends Seeder
      *     gold: int,
      *     backpack: list<string>,
      *     equip: list<string>,
-     *     bag: list<array{gem_id: string, durability: int}>
+     *     potions: list<string>,
+     *     gems: list<array{catalog_id: string, durability: int}>
      * }>
      */
     private function rows(): array
@@ -134,18 +150,20 @@ final class CharacterSeeder extends Seeder
                     'knuckles_0',
                     'heavy_0',
                     'knife_0',
-                    'heal_0',
-                    'heal_0',
-                    'heal_0',
-                    'stamina_0',
                 ],
                 'equip' => [
                     'knuckles_0',
                     'heavy_0',
                 ],
-                'bag' => [
-                    ['gem_id' => 'ruby_0', 'durability' => 10],
-                    ['gem_id' => 'emerald_0', 'durability' => 7],
+                'potions' => [
+                    'heal_0',
+                    'heal_0',
+                    'heal_0',
+                    'stamina_0',
+                ],
+                'gems' => [
+                    ['catalog_id' => 'ruby_0', 'durability' => 10],
+                    ['catalog_id' => 'emerald_0', 'durability' => 7],
                 ],
             ],
             [
@@ -161,21 +179,23 @@ final class CharacterSeeder extends Seeder
                     'mobile_0',
                     'mobile_3',
                     'focus_0',
-                    'heal_0',
-                    'stamina_0',
-                    'stamina_0',
-                    'stamina_0',
-                    'stamina_0',
                 ],
                 'equip' => [
                     'sword_0',
                     'mobile_0',
                     'focus_0',
                 ],
-                'bag' => [
-                    ['gem_id' => 'ruby_0', 'durability' => 10],
-                    ['gem_id' => 'sapphire_0', 'durability' => 9],
-                    ['gem_id' => 'emerald_0', 'durability' => 4],
+                'potions' => [
+                    'heal_0',
+                    'stamina_0',
+                    'stamina_0',
+                    'stamina_0',
+                    'stamina_0',
+                ],
+                'gems' => [
+                    ['catalog_id' => 'ruby_0', 'durability' => 10],
+                    ['catalog_id' => 'sapphire_0', 'durability' => 9],
+                    ['catalog_id' => 'emerald_0', 'durability' => 4],
                 ],
             ],
             [
@@ -192,12 +212,6 @@ final class CharacterSeeder extends Seeder
                     'mobile_1',
                     'mobile_2',
                     'vital_0',
-                    'heal_0',
-                    'heal_0',
-                    'heal_0',
-                    'heal_0',
-                    'heal_0',
-                    'heal_0',
                     'axe_0',
                 ],
                 'equip' => [
@@ -206,11 +220,19 @@ final class CharacterSeeder extends Seeder
                     'mobile_1',
                     'vital_0',
                 ],
-                'bag' => [
-                    ['gem_id' => 'diamond_0', 'durability' => 10],
-                    ['gem_id' => 'ruby_0', 'durability' => 8],
-                    ['gem_id' => 'sapphire_0', 'durability' => 10],
-                    ['gem_id' => 'emerald_0', 'durability' => 6],
+                'potions' => [
+                    'heal_0',
+                    'heal_0',
+                    'heal_0',
+                    'heal_0',
+                    'heal_0',
+                    'heal_0',
+                ],
+                'gems' => [
+                    ['catalog_id' => 'diamond_0', 'durability' => 10],
+                    ['catalog_id' => 'ruby_0', 'durability' => 8],
+                    ['catalog_id' => 'sapphire_0', 'durability' => 10],
+                    ['catalog_id' => 'emerald_0', 'durability' => 6],
                 ],
             ],
         ];

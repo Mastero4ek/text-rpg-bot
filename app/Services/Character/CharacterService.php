@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Character;
 
-use App\Enums\Equipment\TypeEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\LoadoutService;
 use App\Support\Game\ActionResult;
 use App\Support\Game\Mf;
 use Carbon\CarbonInterface;
@@ -24,6 +23,7 @@ final class CharacterService
     public function __construct(
         private readonly GameConfig $config,
         private readonly LoadoutService $loadout,
+        private readonly BagService $bag,
     ) {}
 
     public function clampHp(int $hp, int $maxHp): int
@@ -142,7 +142,7 @@ final class CharacterService
             $character->last_stamina_update = now();
             $character->stat_points = $start['statPoints'];
             $character->bag_max_rows = $this->defaultBagMaxRows();
-            $character->inventory_max_rows = $this->defaultInventoryMaxRows();
+            $character->backpack_max_rows = $this->defaultBackpackMaxRows();
             $character->arena_points = 0;
             $character->premium_until = null;
             $character->save();
@@ -174,10 +174,10 @@ final class CharacterService
         });
     }
 
-    public function setInventoryMaxRows(Character $character, int $maxRows): Character
+    public function setBackpackMaxRows(Character $character, int $maxRows): Character
     {
         if ($maxRows < 1) {
-            throw new InvalidArgumentException('Inventory max rows must be >= 1.');
+            throw new InvalidArgumentException('Backpack max rows must be >= 1.');
         }
 
         return DB::transaction(function () use ($character, $maxRows): Character {
@@ -190,7 +190,7 @@ final class CharacterService
                 throw new ModelNotFoundException('Character not found.');
             }
 
-            $locked->inventory_max_rows = $maxRows;
+            $locked->backpack_max_rows = $maxRows;
             $locked->save();
 
             return $locked;
@@ -508,10 +508,7 @@ final class CharacterService
                 'gold' => $character->gold,
                 'stamina' => $character->current_stamina,
                 'maxStamina' => $this->maxStamina($character),
-                'potions' => (int) Inventory::query()
-                    ->where('tg_id', $character->tg_id)
-                    ->where('item_type', TypeEnum::POTION)
-                    ->sum('quantity'),
+                'potions' => $this->bag->potionCount($character->tg_id),
                 'exp' => $need,
                 'str' => $character->strength,
                 'agi' => $character->agility,
@@ -730,42 +727,42 @@ final class CharacterService
     {
         $settings = $this->config->settings();
 
-        if (! array_key_exists('gems', $settings) || ! is_array($settings['gems'])) {
-            throw new RuntimeException('settings.gems missing.');
+        if (! array_key_exists('bag', $settings) || ! is_array($settings['bag'])) {
+            throw new RuntimeException('settings.bag missing.');
         }
 
-        $gems = $settings['gems'];
+        $bag = $settings['bag'];
 
-        if (! array_key_exists('bagMaxRows', $gems) || ! is_int($gems['bagMaxRows'])) {
-            throw new RuntimeException('settings.gems.bagMaxRows missing.');
+        if (! array_key_exists('maxRows', $bag) || ! is_int($bag['maxRows'])) {
+            throw new RuntimeException('settings.bag.maxRows missing.');
         }
 
-        if ($gems['bagMaxRows'] < 1) {
-            throw new RuntimeException('settings.gems.bagMaxRows must be >= 1.');
+        if ($bag['maxRows'] < 1) {
+            throw new RuntimeException('settings.bag.maxRows must be >= 1.');
         }
 
-        return $gems['bagMaxRows'];
+        return $bag['maxRows'];
     }
 
-    private function defaultInventoryMaxRows(): int
+    private function defaultBackpackMaxRows(): int
     {
         $settings = $this->config->settings();
 
-        if (! array_key_exists('inventory', $settings) || ! is_array($settings['inventory'])) {
-            throw new RuntimeException('settings.inventory missing.');
+        if (! array_key_exists('backpack', $settings) || ! is_array($settings['backpack'])) {
+            throw new RuntimeException('settings.backpack missing.');
         }
 
-        $inventory = $settings['inventory'];
+        $backpack = $settings['backpack'];
 
-        if (! array_key_exists('maxRows', $inventory) || ! is_int($inventory['maxRows'])) {
-            throw new RuntimeException('settings.inventory.maxRows missing.');
+        if (! array_key_exists('maxRows', $backpack) || ! is_int($backpack['maxRows'])) {
+            throw new RuntimeException('settings.backpack.maxRows missing.');
         }
 
-        if ($inventory['maxRows'] < 1) {
-            throw new RuntimeException('settings.inventory.maxRows must be >= 1.');
+        if ($backpack['maxRows'] < 1) {
+            throw new RuntimeException('settings.backpack.maxRows must be >= 1.');
         }
 
-        return $inventory['maxRows'];
+        return $backpack['maxRows'];
     }
 
     /**

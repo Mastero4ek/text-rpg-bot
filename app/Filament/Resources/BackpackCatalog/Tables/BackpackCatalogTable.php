@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Equipment\Tables;
+namespace App\Filament\Resources\BackpackCatalog\Tables;
 
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Filament\Support\EquipmentTypeProfileFilters;
-use App\Models\Equipment;
+use App\Models\BackpackCatalog;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -23,7 +23,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-final class EquipmentTable
+final class BackpackCatalogTable
 {
     use HasAppearanceColumn;
 
@@ -35,8 +35,8 @@ final class EquipmentTable
                 self::appearanceColumn(),
                 TextColumn::make('name')
                     ->label(__('admin.labels.name'))
-                    ->searchable(['name', 'item_id'])
-                    ->tooltip(fn (Equipment $record): string => $record->name)
+                    ->searchable(['name', 'catalog_id'])
+                    ->tooltip(fn (BackpackCatalog $record): string => $record->name)
                     ->limit(40)
                     ->placeholder('-')
                     ->sortable(),
@@ -111,7 +111,7 @@ final class EquipmentTable
                     ->color(Color::Amber)
                     ->label('')
                     ->tooltip(__('admin.actions.archive.label'))
-                    ->modalHeading(fn (Equipment $record): string => __('admin.actions.archive.modal_heading', [
+                    ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.archive.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.archive.modal_submit'))
@@ -121,7 +121,7 @@ final class EquipmentTable
                     ->color(Color::Green)
                     ->label('')
                     ->tooltip(__('admin.actions.restore.label'))
-                    ->modalHeading(fn (Equipment $record): string => __('admin.actions.restore.modal_heading', [
+                    ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.restore.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.restore.modal_submit'))
@@ -131,7 +131,7 @@ final class EquipmentTable
                     ->color(Color::Red)
                     ->label('')
                     ->tooltip(__('admin.actions.delete.label'))
-                    ->modalHeading(fn (Equipment $record): string => __('admin.actions.delete.modal_heading', [
+                    ->modalHeading(fn (BackpackCatalog $record): string => __('admin.actions.delete.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.delete.modal_submit'))

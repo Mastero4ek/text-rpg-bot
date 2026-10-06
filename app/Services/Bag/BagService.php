@@ -2,27 +2,201 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Gem;
+namespace App\Services\Bag;
 
+use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
-use App\Enums\Equipment\TypeEnum;
+use App\Enums\Equipment\ProfileEnum;
+use App\Models\BackpackItem;
+use App\Models\BagItem;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Services\Game\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Game\ActionResult;
 use App\Support\Game\Mf;
 use App\Support\Random\RandomSourceContract;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class GemService
+final class BagService
 {
     public function __construct(
-        private readonly GemCatalog $gems,
+        private readonly BagCatalog $catalog,
         private readonly ShopCatalog $shop,
+        private readonly GameConfig $config,
         private readonly RandomSourceContract $random,
     ) {}
+
+    public function addPotion(int $tgId, string $catalogId): BagItem
+    {
+        return DB::transaction(function () use ($tgId, $catalogId): BagItem {
+            $character = Character::query()->find($tgId);
+
+            if ($character === null) {
+                throw new RuntimeException('Character not found.');
+            }
+
+            $potion = $this->catalog->findPotion($catalogId);
+
+            $stack = BagItem::query()
+                ->where('tg_id', $tgId)
+                ->where('kind', BagKindEnum::POTION->value)
+                ->whereNull('backpack_item_id')
+                ->where('catalog_id', $potion->catalogId)
+                ->where('quantity', '<', $this->potionMaxStack())
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($stack instanceof BagItem) {
+                $stack->quantity += 1;
+                $stack->save();
+
+                return $stack;
+            }
+
+            if ($this->isBagFull($character)) {
+                throw new RuntimeException('Bag is full.');
+            }
+
+            $row = new BagItem;
+            $row->tg_id = $tgId;
+            $row->kind = BagKindEnum::POTION;
+            $row->catalog_id = $potion->catalogId;
+            $row->quantity = 1;
+            $row->durability = null;
+            $row->backpack_item_id = null;
+            $row->created_at = now();
+            $row->save();
+
+            return $row;
+        });
+    }
+
+    public function canAcceptPotion(Character $character, string $catalogId): bool
+    {
+        $potion = $this->catalog->findPotion($catalogId);
+
+        $hasStackSpace = BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('kind', BagKindEnum::POTION->value)
+            ->whereNull('backpack_item_id')
+            ->where('catalog_id', $potion->catalogId)
+            ->where('quantity', '<', $this->potionMaxStack())
+            ->exists();
+
+        if ($hasStackSpace) {
+            return true;
+        }
+
+        return ! $this->isBagFull($character);
+    }
+
+    public function consumePotion(int $tgId, ProfileEnum $profile): ActionResult
+    {
+        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
+            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
+        }
+
+        return DB::transaction(function () use ($tgId, $profile): ActionResult {
+            $rows = BagItem::query()
+                ->where('tg_id', $tgId)
+                ->where('kind', BagKindEnum::POTION->value)
+                ->whereNull('backpack_item_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $match = null;
+
+            foreach ($rows as $row) {
+                if (! $this->catalog->hasPotion($row->catalog_id)) {
+                    continue;
+                }
+
+                if ($this->catalog->findPotion($row->catalog_id)->profile !== $profile) {
+                    continue;
+                }
+
+                $match = $row;
+
+                break;
+            }
+
+            if ($match === null) {
+                return ActionResult::fail(__('combat.no_potion_turn'));
+            }
+
+            $potion = $this->catalog->findPotion($match->catalog_id);
+
+            if ($match->quantity > 1) {
+                $match->quantity -= 1;
+                $match->save();
+            } else {
+                $match->delete();
+            }
+
+            return ActionResult::okWithPotion($this->freshCharacter($tgId), $potion);
+        });
+    }
+
+    public function potionCount(int $tgId): int
+    {
+        $total = BagItem::query()
+            ->where('tg_id', $tgId)
+            ->where('kind', BagKindEnum::POTION->value)
+            ->whereNull('backpack_item_id')
+            ->sum('quantity');
+
+        return (int) $total;
+    }
+
+    public function potionCountByProfile(int $tgId, ProfileEnum $profile): int
+    {
+        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
+            throw new RuntimeException('Potion profile must be HEAL or STAMINA.');
+        }
+
+        $count = 0;
+
+        $rows = BagItem::query()
+            ->where('tg_id', $tgId)
+            ->where('kind', BagKindEnum::POTION->value)
+            ->whereNull('backpack_item_id')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($rows as $row) {
+            if (! $this->catalog->hasPotion($row->catalog_id)) {
+                continue;
+            }
+
+            if ($this->catalog->findPotion($row->catalog_id)->profile !== $profile) {
+                continue;
+            }
+
+            $count += $row->quantity;
+        }
+
+        return $count;
+    }
+
+    public function potionMaxStack(): int
+    {
+        $bag = $this->bagSettings();
+
+        if (! array_key_exists('potionMaxStack', $bag) || ! is_int($bag['potionMaxStack'])) {
+            throw new RuntimeException('settings.bag.potionMaxStack missing.');
+        }
+
+        if ($bag['potionMaxStack'] < 1) {
+            throw new RuntimeException('settings.bag.potionMaxStack must be >= 1.');
+        }
+
+        return $bag['potionMaxStack'];
+    }
 
     /**
      * @return list<string> destroyed gem names
@@ -42,96 +216,69 @@ final class GemService
             $destroyedNames = [];
             $chance = $this->breakChanceFor($locked);
 
-            $equipped = Inventory::query()
+            $equippedIds = BackpackItem::query()
                 ->where('tg_id', $locked->tg_id)
                 ->equipped()
+                ->pluck('id')
+                ->all();
+
+            if ($equippedIds === []) {
+                return [];
+            }
+
+            $gems = BagItem::query()
+                ->where('tg_id', $locked->tg_id)
+                ->where('kind', BagKindEnum::GEM->value)
+                ->whereIn('backpack_item_id', $equippedIds)
                 ->orderBy('id')
                 ->get();
 
-            foreach ($equipped as $row) {
-                $socketed = $this->socketedInstances($row);
-
-                if ($socketed === []) {
+            foreach ($gems as $gem) {
+                if (! $this->catalog->hasGem($gem->catalog_id)) {
                     continue;
                 }
 
-                $kept = [];
-
-                foreach ($socketed as $instance) {
-                    if (! $this->gems->has($instance['gem_id'])) {
-                        continue;
-                    }
-
-                    $roll = $this->random->float() * 100.0;
-
-                    if ($roll < $chance) {
-                        $next = $instance['durability'] - 1;
-
-                        if ($next <= 0) {
-                            $destroyedNames[] = $this->gems->find($instance['gem_id'])->name;
-
-                            continue;
-                        }
-
-                        $kept[] = [
-                            'gem_id' => $instance['gem_id'],
-                            'durability' => $next,
-                        ];
-
-                        continue;
-                    }
-
-                    $kept[] = $instance;
+                if ($gem->durability === null) {
+                    continue;
                 }
 
-                $row->socketed_gems = $kept;
-                $row->save();
+                $roll = $this->random->float() * 100.0;
+
+                if ($roll >= $chance) {
+                    continue;
+                }
+
+                $next = $gem->durability - 1;
+
+                if ($next <= 0) {
+                    $destroyedNames[] = $this->catalog->findGem($gem->catalog_id)->name;
+                    $gem->delete();
+
+                    continue;
+                }
+
+                $gem->durability = $next;
+                $gem->save();
             }
 
             return $destroyedNames;
         });
     }
 
-    public function discardFromPouch(Character $character, int $pouchIndex): ActionResult
+    public function grantGem(Character $character, string $catalogId, int $qty): Character
     {
-        return DB::transaction(function () use ($character, $pouchIndex): ActionResult {
-            $locked = Character::query()
-                ->where('tg_id', $character->tg_id)
-                ->lockForUpdate()
-                ->first();
-
-            if ($locked === null) {
-                return ActionResult::fail(__('errors.item_not_found'));
-            }
-
-            $pouch = $this->pouch($locked);
-
-            if (! array_key_exists($pouchIndex, $pouch)) {
-                return ActionResult::fail(__('errors.gem_not_in_pouch'));
-            }
-
-            unset($pouch[$pouchIndex]);
-            $locked->gem_pouch = array_values($pouch);
-            $locked->save();
-
-            return ActionResult::ok($this->freshCharacter($locked->tg_id));
-        });
-    }
-
-    public function grantToPouch(Character $character, string $gemId, int $qty): Character
-    {
-        if (! $this->gems->inCatalog($gemId)) {
-            throw new RuntimeException("Unknown gem {$gemId}");
+        if (! $this->catalog->gemInCatalog($catalogId)) {
+            throw new RuntimeException("Unknown gem {$catalogId}");
         }
 
         if ($qty < 1) {
             throw new RuntimeException('Gem qty must be >= 1.');
         }
 
-        $def = $this->gems->find($gemId);
+        $def = $this->catalog->findGem($catalogId);
 
         if (! $def->enabled) {
-            throw new RuntimeException("Gem {$gemId} disabled.");
+            throw new RuntimeException("Gem {$catalogId} disabled.");
         }
 
         $character = $this->freshCharacter($character->tg_id);
@@ -140,19 +287,21 @@ final class GemService
             throw new RuntimeException(__('errors.bag_full'));
         }
 
-        $this->appendInstances($character, $gemId, $def->maxDurability, $qty);
+        for ($i = 0; $i < $qty; $i++) {
+            $this->createLooseGem($character->tg_id, $catalogId, $def->maxDurability);
+        }
 
         return $this->freshCharacter($character->tg_id);
     }
 
-    public function buy(Character $character, string $gemId): ActionResult
+    public function buy(Character $character, string $catalogId): ActionResult
     {
-        return DB::transaction(function () use ($character, $gemId): ActionResult {
-            if (! $this->gems->inCatalog($gemId)) {
+        return DB::transaction(function () use ($character, $catalogId): ActionResult {
+            if (! $this->catalog->gemInCatalog($catalogId)) {
                 return ActionResult::fail(__('errors.gem_not_found'));
             }
 
-            $gem = $this->gems->find($gemId);
+            $gem = $this->catalog->findGem($catalogId);
 
             if (! $gem->enabled || ! $gem->inShop) {
                 return ActionResult::fail(__('errors.gem_not_in_shop'));
@@ -184,34 +333,60 @@ final class GemService
                 return ActionResult::fail(__('errors.bag_full'));
             }
 
-            $this->appendInstances($character, $gemId, $gem->maxDurability, 1);
+            $this->createLooseGem($character->tg_id, $catalogId, $gem->maxDurability);
 
-            return ActionResult::ok($character);
+            return ActionResult::ok($this->freshCharacter($character->tg_id));
         });
     }
 
-    public function freeSocketCount(Inventory $row): int
+    public function discardLoose(Character $character, int $bagItemId): ActionResult
     {
-        $slots = $this->gemSlotCount($row);
+        return DB::transaction(function () use ($character, $bagItemId): ActionResult {
+            $row = BagItem::query()
+                ->where('id', $bagItemId)
+                ->where('tg_id', $character->tg_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($row === null) {
+                return ActionResult::fail(__('errors.item_not_found'));
+            }
+
+            if ($row->backpack_item_id !== null) {
+                return ActionResult::fail(__('errors.gem_socketed'));
+            }
+
+            if ($row->kind === BagKindEnum::POTION && $row->quantity > 1) {
+                $row->quantity -= 1;
+                $row->save();
+
+                return ActionResult::ok($this->freshCharacter($character->tg_id));
+            }
+
+            $row->delete();
+
+            return ActionResult::ok($this->freshCharacter($character->tg_id));
+        });
+    }
+
+    public function freeSocketCount(BackpackItem $item): int
+    {
+        $slots = $this->gemSlotCount($item);
 
         if ($slots <= 0) {
             return 0;
         }
 
-        return max(0, $slots - count($this->socketedInstances($row)));
+        return max(0, $slots - $this->socketedInstances($item)->count());
     }
 
-    public function gemSlotCount(Inventory $row): int
+    public function gemSlotCount(BackpackItem $item): int
     {
-        if (! $this->shop->hasItem($row->item_id)) {
+        if (! $this->shop->hasItem($item->catalog_id)) {
             return 0;
         }
 
-        $def = $this->shop->findItem($row->item_id);
-
-        if ($def->itemType === TypeEnum::JEWELRY || $def->itemType === TypeEnum::POTION) {
-            return 0;
-        }
+        $def = $this->shop->findItem($item->catalog_id);
 
         if ($def->gemSlots === null || $def->gemSlots <= 0) {
             return 0;
@@ -220,108 +395,155 @@ final class GemService
         return $def->gemSlots;
     }
 
-    public function moveSocketedToPouch(Character $character, Inventory $row): ActionResult
+    public function socket(Character $character, int $backpackItemId, int $bagItemId): ActionResult
     {
-        $instances = $this->socketedInstances($row);
+        return DB::transaction(function () use ($character, $backpackItemId, $bagItemId): ActionResult {
+            $item = BackpackItem::query()
+                ->where('id', $backpackItemId)
+                ->where('tg_id', $character->tg_id)
+                ->first();
 
-        if ($instances === []) {
-            if (is_array($row->socketed_gems) && $row->socketed_gems !== []) {
-                $row->socketed_gems = [];
-                $row->save();
+            if ($item === null) {
+                return ActionResult::fail(__('errors.item_not_found'));
             }
 
-            return ActionResult::ok($character);
-        }
+            if ($this->freeSocketCount($item) <= 0) {
+                return ActionResult::fail(__('errors.no_gem_slots'));
+            }
 
-        $locked = Character::query()
-            ->where('tg_id', $character->tg_id)
-            ->lockForUpdate()
-            ->first();
+            $gem = BagItem::query()
+                ->where('id', $bagItemId)
+                ->where('tg_id', $character->tg_id)
+                ->where('kind', BagKindEnum::GEM->value)
+                ->whereNull('backpack_item_id')
+                ->lockForUpdate()
+                ->first();
 
-        if ($locked === null) {
-            throw new RuntimeException("Character {$character->tg_id} missing.");
-        }
+            if ($gem === null) {
+                return ActionResult::fail(__('errors.gem_not_in_pouch'));
+            }
 
-        if (! $this->canAcceptBagRows($locked, count($instances))) {
-            return ActionResult::fail(__('errors.bag_full'));
-        }
+            if (! $this->catalog->gemInCatalog($gem->catalog_id)) {
+                return ActionResult::fail(__('errors.gem_not_found'));
+            }
 
-        $pouch = $this->pouch($locked);
-        $addedAt = now()->toIso8601String();
+            if (! $this->catalog->findGem($gem->catalog_id)->enabled) {
+                return ActionResult::fail(__('errors.gem_not_found'));
+            }
 
-        foreach ($instances as $instance) {
-            $pouch[] = [
-                'gem_id' => $instance['gem_id'],
-                'durability' => $instance['durability'],
-                'added_at' => $addedAt,
-            ];
-        }
+            $gem->backpack_item_id = $item->id;
+            $gem->save();
 
-        $locked->gem_pouch = $pouch;
-        $locked->save();
-
-        $row->socketed_gems = [];
-        $row->save();
-
-        return ActionResult::ok($this->freshCharacter($locked->tg_id));
+            return ActionResult::okWithItem($this->freshCharacter($character->tg_id), $item);
+        });
     }
 
-    public function mfFromSocketed(Inventory $row): Mf
+    public function mfFromSocketed(BackpackItem $item): Mf
     {
         $mf = new Mf(0, 0, 0, 0);
 
-        foreach ($this->socketedInstances($row) as $instance) {
-            if ($instance['durability'] <= 0) {
+        foreach ($this->socketedInstances($item) as $gem) {
+            if ($gem->durability === null || $gem->durability <= 0) {
                 continue;
             }
 
-            if (! $this->gems->has($instance['gem_id'])) {
+            if (! $this->catalog->hasGem($gem->catalog_id)) {
                 continue;
             }
 
-            $mf = $mf->merge($this->gems->find($instance['gem_id'])->mf);
+            $mf = $mf->merge($this->catalog->findGem($gem->catalog_id)->mf);
         }
 
         return $mf;
     }
 
     /**
-     * @return list<array{gem_id: string, durability: int, added_at?: string}>
+     * @return Collection<int, BagItem>
      */
-    public function pouch(Character $character): array
+    public function socketedInstances(BackpackItem $item): Collection
     {
-        if (! is_array($character->gem_pouch)) {
-            return [];
+        if ($item->relationLoaded('socketedGems')) {
+            return $item->getRelation('socketedGems');
         }
 
-        $out = [];
+        return BagItem::query()
+            ->where('backpack_item_id', $item->id)
+            ->where('kind', BagKindEnum::GEM->value)
+            ->orderBy('id')
+            ->get();
+    }
 
-        foreach ($character->gem_pouch as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
+    /**
+     * @return list<string>
+     */
+    public function socketedGemIds(BackpackItem $item): array
+    {
+        $ids = [];
 
-            if (! array_key_exists('gem_id', $row) || ! is_string($row['gem_id']) || $row['gem_id'] === '') {
-                continue;
-            }
-
-            if (! array_key_exists('durability', $row) || ! is_int($row['durability']) || $row['durability'] <= 0) {
-                continue;
-            }
-
-            $instance = [
-                'gem_id' => $row['gem_id'],
-                'durability' => $row['durability'],
-            ];
-
-            if (array_key_exists('added_at', $row) && is_string($row['added_at']) && $row['added_at'] !== '') {
-                $instance['added_at'] = $row['added_at'];
-            }
-
-            $out[] = $instance;
+        foreach ($this->socketedInstances($item) as $gem) {
+            $ids[] = $gem->catalog_id;
         }
 
-        return $out;
+        return $ids;
+    }
+
+    public function socketedText(BackpackItem $item): string
+    {
+        $slots = $this->gemSlotCount($item);
+
+        if ($slots <= 0) {
+            throw new RuntimeException('Item has no gem slots.');
+        }
+
+        $instances = $this->socketedInstances($item);
+        $parts = [];
+
+        foreach ($instances as $gem) {
+            if ($this->catalog->hasGem($gem->catalog_id)) {
+                $def = $this->catalog->findGem($gem->catalog_id);
+                $parts[] = __('smith.gem_instance', [
+                    'name' => $def->name,
+                    'current' => $gem->durability,
+                    'max' => $def->maxDurability,
+                ]);
+            } else {
+                $parts[] = $gem->catalog_id;
+            }
+        }
+
+        $empty = $slots - $instances->count();
+
+        for ($i = 0; $i < $empty; $i++) {
+            $parts[] = __('smith.gem_slot_empty');
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * @return Collection<int, BagItem>
+     */
+    public function looseGems(Character $character): Collection
+    {
+        return BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('kind', BagKindEnum::GEM->value)
+            ->whereNull('backpack_item_id')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, BagItem>
+     */
+    public function loosePotions(Character $character): Collection
+    {
+        return BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('kind', BagKindEnum::POTION->value)
+            ->whereNull('backpack_item_id')
+            ->orderBy('id')
+            ->get();
     }
 
     public function bagMaxRows(Character $character): int
@@ -335,7 +557,10 @@ final class GemService
 
     public function bagRowCount(Character $character): int
     {
-        return count($this->pouch($character));
+        return BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->whereNull('backpack_item_id')
+            ->count();
     }
 
     public function canAcceptBagRows(Character $character, int $rows): bool
@@ -352,217 +577,27 @@ final class GemService
         return $this->bagRowCount($character) >= $this->bagMaxRows($character);
     }
 
-    public function socket(Character $character, int $inventoryRowId, int $pouchIndex): ActionResult
+    private function createLooseGem(int $tgId, string $catalogId, int $durability): BagItem
     {
-        return DB::transaction(function () use ($character, $inventoryRowId, $pouchIndex): ActionResult {
-            $row = Inventory::query()
-                ->where('id', $inventoryRowId)
-                ->where('tg_id', $character->tg_id)
-                ->first();
+        $row = new BagItem;
+        $row->tg_id = $tgId;
+        $row->kind = BagKindEnum::GEM;
+        $row->catalog_id = $catalogId;
+        $row->quantity = 1;
+        $row->durability = $durability;
+        $row->backpack_item_id = null;
+        $row->created_at = now();
+        $row->save();
 
-            if ($row === null) {
-                return ActionResult::fail(__('errors.item_not_found'));
-            }
-
-            if ($this->freeSocketCount($row) <= 0) {
-                return ActionResult::fail(__('errors.no_gem_slots'));
-            }
-
-            $character = $this->freshCharacter($character->tg_id);
-            $pouch = $this->pouch($character);
-
-            if (! array_key_exists($pouchIndex, $pouch)) {
-                return ActionResult::fail(__('errors.gem_not_in_pouch'));
-            }
-
-            $instance = $pouch[$pouchIndex];
-
-            if (! $this->gems->inCatalog($instance['gem_id'])) {
-                return ActionResult::fail(__('errors.gem_not_found'));
-            }
-
-            $def = $this->gems->find($instance['gem_id']);
-
-            if (! $def->enabled) {
-                return ActionResult::fail(__('errors.gem_not_found'));
-            }
-
-            unset($pouch[$pouchIndex]);
-            $character->gem_pouch = array_values($pouch);
-            $character->save();
-
-            $socketed = $this->socketedInstances($row);
-            $socketed[] = $instance;
-            $row->socketed_gems = $socketed;
-            $row->save();
-
-            $character = $this->freshCharacter($character->tg_id);
-
-            return ActionResult::okWithItem($character, $row);
-        });
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function socketedGemIds(Inventory $row): array
-    {
-        $ids = [];
-
-        foreach ($this->socketedInstances($row) as $instance) {
-            $ids[] = $instance['gem_id'];
-        }
-
-        return $ids;
-    }
-
-    /**
-     * @return list<array{gem_id: string, durability: int}>
-     */
-    public function socketedInstances(Inventory $row): array
-    {
-        if (! is_array($row->socketed_gems)) {
-            return [];
-        }
-
-        $out = [];
-
-        foreach ($row->socketed_gems as $entry) {
-            if (! is_array($entry)) {
-                continue;
-            }
-
-            if (! array_key_exists('gem_id', $entry) || ! is_string($entry['gem_id']) || $entry['gem_id'] === '') {
-                continue;
-            }
-
-            if (! array_key_exists('durability', $entry) || ! is_int($entry['durability']) || $entry['durability'] <= 0) {
-                continue;
-            }
-
-            $out[] = [
-                'gem_id' => $entry['gem_id'],
-                'durability' => $entry['durability'],
-            ];
-        }
-
-        return $out;
-    }
-
-    public function socketedText(Inventory $row): string
-    {
-        $instances = $this->socketedInstances($row);
-        $slots = $this->gemSlotCount($row);
-
-        if ($slots <= 0) {
-            throw new RuntimeException('Item has no gem slots.');
-        }
-
-        $parts = [];
-
-        foreach ($instances as $instance) {
-            if ($this->gems->has($instance['gem_id'])) {
-                $def = $this->gems->find($instance['gem_id']);
-                $parts[] = __('smith.gem_instance', [
-                    'name' => $def->name,
-                    'current' => $instance['durability'],
-                    'max' => $def->maxDurability,
-                ]);
-            } else {
-                $parts[] = $instance['gem_id'];
-            }
-        }
-
-        $empty = $slots - count($instances);
-
-        for ($i = 0; $i < $empty; $i++) {
-            $parts[] = __('smith.gem_slot_empty');
-        }
-
-        return implode(', ', $parts);
-    }
-
-    public function unsocket(Character $character, int $inventoryRowId, int $socketIndex): ActionResult
-    {
-        return DB::transaction(function () use ($character, $inventoryRowId, $socketIndex): ActionResult {
-            $row = Inventory::query()
-                ->where('id', $inventoryRowId)
-                ->where('tg_id', $character->tg_id)
-                ->first();
-
-            if ($row === null) {
-                return ActionResult::fail(__('errors.item_not_found'));
-            }
-
-            $socketed = $this->socketedInstances($row);
-
-            if (! array_key_exists($socketIndex, $socketed)) {
-                return ActionResult::fail(__('errors.gem_socket_empty'));
-            }
-
-            $character = $this->freshCharacter($character->tg_id);
-
-            if (! $this->canAcceptBagRows($character, 1)) {
-                return ActionResult::fail(__('errors.bag_full'));
-            }
-
-            $cost = $this->gems->unsocketSilver();
-
-            if ($cost > 0) {
-                $updated = Character::query()
-                    ->where('tg_id', $character->tg_id)
-                    ->where('silver', '>=', $cost)
-                    ->decrement('silver', $cost);
-
-                if ($updated <= 0) {
-                    return ActionResult::fail(__('errors.not_enough_silver'));
-                }
-            }
-
-            $instance = $socketed[$socketIndex];
-            unset($socketed[$socketIndex]);
-            $row->socketed_gems = array_values($socketed);
-            $row->save();
-
-            $character = $this->freshCharacter($character->tg_id);
-            $pouch = $this->pouch($character);
-            $pouch[] = [
-                'gem_id' => $instance['gem_id'],
-                'durability' => $instance['durability'],
-                'added_at' => now()->toIso8601String(),
-            ];
-            $character->gem_pouch = $pouch;
-            $character->save();
-
-            $character = $this->freshCharacter($character->tg_id);
-
-            return ActionResult::okWithItem($character, $row);
-        });
-    }
-
-    private function appendInstances(Character $character, string $gemId, int $durability, int $qty): void
-    {
-        $pouch = $this->pouch($character);
-        $addedAt = now()->toIso8601String();
-
-        for ($i = 0; $i < $qty; $i++) {
-            $pouch[] = [
-                'gem_id' => $gemId,
-                'durability' => $durability,
-                'added_at' => $addedAt,
-            ];
-        }
-
-        $character->gem_pouch = $pouch;
-        $character->save();
+        return $row;
     }
 
     private function breakChanceFor(Character $character): int
     {
-        $chance = $this->gems->breakChanceOnLose();
+        $chance = $this->catalog->breakChanceOnLose();
 
         if ($this->hasActivePremium($character)) {
-            $chance -= $this->gems->premiumBreakChanceReduce();
+            $chance -= $this->catalog->premiumBreakChanceReduce();
         }
 
         if ($chance < 0) {
@@ -579,6 +614,20 @@ final class GemService
         }
 
         return $character->premium_until->isFuture();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bagSettings(): array
+    {
+        $settings = $this->config->settings();
+
+        if (! array_key_exists('bag', $settings) || ! is_array($settings['bag'])) {
+            throw new RuntimeException('settings.bag missing.');
+        }
+
+        return $settings['bag'];
     }
 
     private function freshCharacter(int $tgId): Character

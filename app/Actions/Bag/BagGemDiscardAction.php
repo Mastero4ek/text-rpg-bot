@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Gem;
+namespace App\Actions\Bag;
 
 use App\Models\Character;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 use App\Support\Game\ActionResult;
 
-final class GemDiscardFromPouchAction
+final class BagGemDiscardAction
 {
     public function __construct(
-        private readonly GemService $gems,
+        private readonly BagService $bag,
     ) {}
 
-    public function handle(Character $character, int $pouchIndex): ActionResult
+    public function handle(Character $character, int $bagItemId): ActionResult
     {
-        return $this->gems->discardFromPouch($character, $pouchIndex);
+        return $this->bag->discardLoose($character, $bagItemId);
     }
 }

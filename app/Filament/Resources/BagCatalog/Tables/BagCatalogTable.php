@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Gems\Tables;
+namespace App\Filament\Resources\BagCatalog\Tables;
 
+use App\Enums\Bag\BagKindEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
-use App\Models\Gem;
+use App\Models\BagCatalog;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -24,7 +26,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-final class GemsTable
+final class BagCatalogTable
 {
     use HasAppearanceColumn;
 
@@ -36,17 +38,28 @@ final class GemsTable
                 self::appearanceColumn(),
                 TextColumn::make('name')
                     ->label(__('admin.labels.name'))
-                    ->searchable(['name', 'gem_id'])
-                    ->tooltip(fn (Gem $record): string => $record->name)
+                    ->searchable(['name', 'catalog_id'])
+                    ->tooltip(fn (BagCatalog $record): string => $record->name)
                     ->limit(40)
                     ->placeholder('-')
                     ->sortable(),
-                TextColumn::make('type')
-                    ->label(__('admin.labels.item_type'))
+                TextColumn::make('kind')
+                    ->label(__('admin.labels.bag_kind'))
                     ->badge()
                     ->alignCenter()
                     ->placeholder('-')
                     ->sortable(),
+                TextColumn::make('profile_display')
+                    ->label(__('admin.labels.profile'))
+                    ->badge()
+                    ->alignCenter()
+                    ->placeholder('-')
+                    ->state(function (BagCatalog $record): GemTypeEnum|ProfileEnum|null {
+                        return match ($record->kind) {
+                            BagKindEnum::GEM => $record->type,
+                            BagKindEnum::POTION => $record->profile,
+                        };
+                    }),
                 IconColumn::make('in_shop')
                     ->label(__('admin.labels.in_shop'))
                     ->alignCenter()
@@ -75,10 +88,35 @@ final class GemsTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->label(__('admin.labels.item_type'))
+                SelectFilter::make('kind')
+                    ->label(__('admin.labels.bag_kind'))
                     ->native(false)
-                    ->options(GemTypeEnum::class),
+                    ->options(BagKindEnum::class),
+                SelectFilter::make('profile_display')
+                    ->label(__('admin.labels.profile'))
+                    ->native(false)
+                    ->options(self::profileFilterOptions())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (! is_string($value) || $value === '') {
+                            return $query;
+                        }
+
+                        $gemType = GemTypeEnum::tryFrom($value);
+
+                        if ($gemType instanceof GemTypeEnum) {
+                            return $query->where('type', $gemType);
+                        }
+
+                        $profile = ProfileEnum::tryFrom($value);
+
+                        if ($profile instanceof ProfileEnum) {
+                            return $query->where('profile', $profile);
+                        }
+
+                        return $query;
+                    }),
                 TernaryFilter::make('in_shop')
                     ->label(__('admin.labels.in_shop'))
                     ->native(false),
@@ -108,7 +146,7 @@ final class GemsTable
                     ->color(Color::Amber)
                     ->label('')
                     ->tooltip(__('admin.actions.archive.label'))
-                    ->modalHeading(fn (Gem $record): string => __('admin.actions.archive.modal_heading', [
+                    ->modalHeading(fn (BagCatalog $record): string => __('admin.actions.archive.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.archive.modal_submit'))
@@ -118,7 +156,7 @@ final class GemsTable
                     ->color(Color::Green)
                     ->label('')
                     ->tooltip(__('admin.actions.restore.label'))
-                    ->modalHeading(fn (Gem $record): string => __('admin.actions.restore.modal_heading', [
+                    ->modalHeading(fn (BagCatalog $record): string => __('admin.actions.restore.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.restore.modal_submit'))
@@ -128,7 +166,7 @@ final class GemsTable
                     ->color(Color::Red)
                     ->label('')
                     ->tooltip(__('admin.actions.delete.label'))
-                    ->modalHeading(fn (Gem $record): string => __('admin.actions.delete.modal_heading', [
+                    ->modalHeading(fn (BagCatalog $record): string => __('admin.actions.delete.modal_heading', [
                         'label' => $record->name,
                     ]))
                     ->modalSubmitActionLabel(__('admin.actions.delete.modal_submit'))
@@ -146,5 +184,23 @@ final class GemsTable
                 ]),
             ])
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('media'));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function profileFilterOptions(): array
+    {
+        $options = [];
+
+        foreach (GemTypeEnum::cases() as $type) {
+            $options[$type->value] = $type->getLabel();
+        }
+
+        foreach ([ProfileEnum::HEAL, ProfileEnum::STAMINA] as $profile) {
+            $options[$profile->value] = $profile->getLabel();
+        }
+
+        return $options;
     }
 }

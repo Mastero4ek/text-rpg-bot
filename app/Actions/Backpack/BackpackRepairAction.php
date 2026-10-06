@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Backpack;
 
 use App\Models\Character;
-use App\Services\Inventory\RepairService;
+use App\Services\Backpack\RepairService;
 use App\Support\Game\ActionResult;
 
-final class InventoryRepairAction
+final class BackpackRepairAction
 {
     public function __construct(
         private readonly RepairService $repair,
     ) {}
 
-    public function handle(Character $character, int $inventoryRowId): ActionResult
+    public function handle(Character $character, int $backpackItemId): ActionResult
     {
-        return $this->repair->repair($character, $inventoryRowId);
+        return $this->repair->repair($character, $backpackItemId);
     }
 }

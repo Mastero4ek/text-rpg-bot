@@ -6,11 +6,11 @@ namespace App\Quest;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Gem\GemService;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\Equipment\EquipmentDef;
@@ -34,9 +34,9 @@ final class ShopQuest
     public function __construct(
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
-        private readonly InventoryService $inventory,
+        private readonly BackpackService $backpack,
         private readonly LoadoutService $loadout,
-        private readonly GemService $gems,
+        private readonly BagService $bag,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
     ) {}
@@ -52,7 +52,7 @@ final class ShopQuest
 
             $player = $character;
 
-            if (! $this->inventory->owns($player->tg_id, $itemId)) {
+            if (! $this->backpack->owns($player->tg_id, $itemId)) {
                 $buy = $this->shopService->buyWeapon($player->tg_id, $itemId);
 
                 if (! $buy->ok || ! $buy->character instanceof Character) {
@@ -81,12 +81,12 @@ final class ShopQuest
 
             $player = $character;
 
-            if (! $this->inventory->owns($player->tg_id, $itemId)) {
-                if ($this->inventory->isFull($player)) {
+            if (! $this->backpack->owns($player->tg_id, $itemId)) {
+                if ($this->backpack->isFull($player)) {
                     return ActionResult::fail(__('errors.inventory_full'));
                 }
 
-                $this->inventory->addItem($player->tg_id, $itemId);
+                $this->backpack->addItem($player->tg_id, $itemId);
             }
 
             return $this->equipAndGraduate($player, $itemId);
@@ -125,7 +125,7 @@ final class ShopQuest
         $player->last_hp_update = now();
         $player->onboarding_step = OnboardingStepEnum::DONE;
         $player->save();
-        $player = $this->gems->grantToPouch($player, $this->starterGemId(), 1);
+        $player = $this->bag->grantGem($player, $this->starterGemId(), 1);
 
         return ActionResult::ok($player);
     }

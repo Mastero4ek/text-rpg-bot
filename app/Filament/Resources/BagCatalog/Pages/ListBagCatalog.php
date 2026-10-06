@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Gems\Pages;
+namespace App\Filament\Resources\BagCatalog\Pages;
 
-use App\Filament\Resources\Gems\GemResource;
+use App\Filament\Resources\BagCatalog\BagCatalogResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-final class ListGems extends ListRecords
+final class ListBagCatalog extends ListRecords
 {
-    protected static string $resource = GemResource::class;
+    protected static string $resource = BagCatalogResource::class;
 
     protected function getHeaderActions(): array
     {

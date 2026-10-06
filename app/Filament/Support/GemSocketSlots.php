@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Support;
 
-use App\Models\Gem;
-use App\Models\Inventory;
-use App\Services\Gem\GemService;
+use App\Enums\Bag\BagKindEnum;
+use App\Models\BackpackItem;
+use App\Models\BagCatalog;
+use App\Services\Bag\BagService;
 
 final class GemSocketSlots
 {
@@ -18,40 +19,41 @@ final class GemSocketSlots
     /**
      * @return list<array{kind: 'image'|'camera'|'empty', url?: string, tooltip?: string}>
      */
-    public static function forInventory(Inventory $record): array
+    public static function forBackpackItem(BackpackItem $record): array
     {
-        $gems = app(GemService::class);
-        $slotCount = $gems->gemSlotCount($record);
+        $bag = app(BagService::class);
+        $slotCount = $bag->gemSlotCount($record);
 
         if ($slotCount <= 0) {
             return [];
         }
 
-        $instances = $gems->socketedInstances($record);
-        $gemIds = [];
+        $instances = $bag->socketedInstances($record)->values();
+        $catalogIds = [];
 
         foreach ($instances as $instance) {
-            $gemIds[] = $instance['gem_id'];
+            $catalogIds[] = $instance->catalog_id;
         }
 
-        self::warm($gemIds);
+        self::warm($catalogIds);
 
         $rows = [];
 
         for ($index = 0; $index < $slotCount; $index++) {
-            if (! array_key_exists($index, $instances)) {
+            $instance = $instances->get($index);
+
+            if ($instance === null) {
                 $rows[] = ['kind' => 'empty'];
 
                 continue;
             }
 
-            $instance = $instances[$index];
-            $gemId = $instance['gem_id'];
-            $tooltip = self::tooltipFor($gemId);
+            $catalogId = $instance->catalog_id;
+            $tooltip = self::tooltipFor($catalogId);
             $url = '';
 
-            if (array_key_exists($gemId, self::$gemById)) {
-                $url = self::$gemById[$gemId]['url'];
+            if (array_key_exists($catalogId, self::$gemById)) {
+                $url = self::$gemById[$catalogId]['url'];
             }
 
             if ($url === '') {
@@ -84,25 +86,25 @@ final class GemSocketSlots
         return $url;
     }
 
-    private static function tooltipFor(string $gemId): string
+    private static function tooltipFor(string $catalogId): string
     {
-        if (array_key_exists($gemId, self::$gemById)) {
-            return self::$gemById[$gemId]['name'];
+        if (array_key_exists($catalogId, self::$gemById)) {
+            return self::$gemById[$catalogId]['name'];
         }
 
-        return $gemId;
+        return $catalogId;
     }
 
     /**
-     * @param  list<string>  $gemIds
+     * @param  list<string>  $catalogIds
      */
-    private static function warm(array $gemIds): void
+    private static function warm(array $catalogIds): void
     {
         $missing = [];
 
-        foreach ($gemIds as $gemId) {
-            if (! array_key_exists($gemId, self::$gemById)) {
-                $missing[] = $gemId;
+        foreach ($catalogIds as $catalogId) {
+            if (! array_key_exists($catalogId, self::$gemById)) {
+                $missing[] = $catalogId;
             }
         }
 
@@ -110,16 +112,17 @@ final class GemSocketSlots
             return;
         }
 
-        $gems = Gem::query()
+        $gems = BagCatalog::query()
             ->withTrashed()
             ->with('media')
-            ->whereIn('gem_id', $missing)
+            ->where('kind', BagKindEnum::GEM->value)
+            ->whereIn('catalog_id', $missing)
             ->get();
 
-        foreach ($missing as $gemId) {
-            self::$gemById[$gemId] = [
+        foreach ($missing as $catalogId) {
+            self::$gemById[$catalogId] = [
                 'url' => '',
-                'name' => $gemId,
+                'name' => $catalogId,
                 'max' => 0,
             ];
         }
@@ -133,7 +136,7 @@ final class GemSocketSlots
                 $relative = self::relativeUrl($url);
             }
 
-            self::$gemById[$gem->gem_id] = [
+            self::$gemById[$gem->catalog_id] = [
                 'url' => $relative,
                 'name' => $gem->name,
                 'max' => $gem->max_durability,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Actions\Equipment\EquipmentSyncNamesAction;
+use App\Actions\Backpack\BackpackCatalogSyncNamesAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
@@ -14,7 +14,7 @@ use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
 use App\Support\Game\Mf;
 use Carbon\CarbonInterface;
-use Database\Factories\EquipmentFactory;
+use Database\Factories\BackpackCatalogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,7 +23,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
- * @property string $item_id
+ * @property string $catalog_id
  * @property string $name
  * @property string|null $description
  * @property TypeEnum $item_type
@@ -42,7 +42,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $mf_anti_dodge
  * @property int $mf_crit
  * @property int $mf_anti_crit
- * @property int|null $effect_value
  * @property int|null $req_strength
  * @property int|null $req_agility
  * @property int|null $req_instinct
@@ -58,7 +57,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property CarbonInterface|null $deleted_at
  */
 #[Fillable([
-    'item_id',
+    'catalog_id',
     'name',
     'description',
     'item_type',
@@ -77,7 +76,6 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'mf_anti_dodge',
     'mf_crit',
     'mf_anti_crit',
-    'effect_value',
     'req_strength',
     'req_agility',
     'req_instinct',
@@ -89,9 +87,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'gem_slots',
     'sort_order',
 ])]
-final class Equipment extends Model implements HasMedia
+final class BackpackCatalog extends Model implements HasMedia
 {
-    /** @use HasFactory<EquipmentFactory> */
+    /** @use HasFactory<BackpackCatalogFactory> */
     use HasFactory;
 
     use InteractsWithMedia;
@@ -99,13 +97,13 @@ final class Equipment extends Model implements HasMedia
 
     public $incrementing = false;
 
-    protected $primaryKey = 'item_id';
+    protected $primaryKey = 'catalog_id';
 
     protected $keyType = 'string';
 
-    protected $table = 'equipment';
+    protected $table = 'backpack_catalog';
 
-    public static function nextItemIdForProfile(ProfileEnum $profile): string
+    public static function nextCatalogIdForProfile(ProfileEnum $profile): string
     {
         $prefix = mb_strtolower($profile->value);
         $pattern = '/^' . preg_quote($prefix, '/') . '_(\d+)$/';
@@ -113,15 +111,15 @@ final class Equipment extends Model implements HasMedia
 
         $ids = self::query()
             ->withTrashed()
-            ->where('item_id', 'like', $prefix . '_%')
-            ->pluck('item_id');
+            ->where('catalog_id', 'like', $prefix . '_%')
+            ->pluck('catalog_id');
 
-        foreach ($ids as $itemId) {
-            if (! is_string($itemId)) {
+        foreach ($ids as $catalogId) {
+            if (! is_string($catalogId)) {
                 continue;
             }
 
-            if (preg_match($pattern, $itemId, $matches) !== 1) {
+            if (preg_match($pattern, $catalogId, $matches) !== 1) {
                 continue;
             }
 
@@ -135,10 +133,10 @@ final class Equipment extends Model implements HasMedia
         return $prefix . '_' . ($max + 1);
     }
 
-    public function isReferencedByInventory(): bool
+    public function isReferencedByBackpack(): bool
     {
-        return Inventory::query()
-            ->where('item_id', $this->item_id)
+        return BackpackItem::query()
+            ->where('catalog_id', $this->catalog_id)
             ->exists();
     }
 
@@ -152,7 +150,7 @@ final class Equipment extends Model implements HasMedia
     public function toEquipmentDef(): EquipmentDef
     {
         return new EquipmentDef(
-            $this->item_id,
+            $this->catalog_id,
             $this->name,
             $this->description,
             $this->item_type,
@@ -170,7 +168,6 @@ final class Equipment extends Model implements HasMedia
             ),
             $this->stat_bonus,
             $this->armor,
-            $this->effect_value,
             $this->req_level,
             $this->req_strength,
             $this->req_agility,
@@ -186,7 +183,7 @@ final class Equipment extends Model implements HasMedia
 
     protected static function booted(): void
     {
-        self::saving(function (Equipment $equipment): void {
+        self::saving(function (BackpackCatalog $catalog): void {
             foreach ([
                 'weapon_damage_min',
                 'weapon_damage_max',
@@ -198,37 +195,34 @@ final class Equipment extends Model implements HasMedia
                 'mf_anti_crit',
                 'price',
             ] as $attribute) {
-                $raw = $equipment->getAttributes()[$attribute] ?? null;
+                $raw = $catalog->getAttributes()[$attribute] ?? null;
 
                 if ($raw === null) {
-                    $equipment->{$attribute} = 0;
+                    $catalog->{$attribute} = 0;
                 }
             }
 
-            if ($equipment->weapon_damage_max < $equipment->weapon_damage_min) {
-                $equipment->weapon_damage_max = $equipment->weapon_damage_min;
+            if ($catalog->weapon_damage_max < $catalog->weapon_damage_min) {
+                $catalog->weapon_damage_max = $catalog->weapon_damage_min;
             }
 
             if (
-                $equipment->slot === SlotEnum::GLOVES
-                || $equipment->slot === SlotEnum::SHIELD
+                $catalog->slot === SlotEnum::GLOVES
+                || $catalog->slot === SlotEnum::SHIELD
             ) {
-                $equipment->armor = 0;
+                $catalog->armor = 0;
             }
 
-            if (
-                $equipment->item_type === TypeEnum::JEWELRY
-                || $equipment->item_type === TypeEnum::POTION
-            ) {
-                $equipment->gem_slots = null;
+            if ($catalog->item_type === TypeEnum::JEWELRY) {
+                $catalog->gem_slots = null;
             }
         });
 
-        self::saved(function (Equipment $equipment): void {
+        self::saved(function (BackpackCatalog $catalog): void {
             app(ShopCatalog::class)->forgetCache();
 
-            if ($equipment->wasChanged('name')) {
-                app(EquipmentSyncNamesAction::class)->handle($equipment);
+            if ($catalog->wasChanged('name')) {
+                app(BackpackCatalogSyncNamesAction::class)->handle($catalog);
             }
         });
 
@@ -263,7 +257,6 @@ final class Equipment extends Model implements HasMedia
             'mf_anti_dodge' => 'integer',
             'mf_crit' => 'integer',
             'mf_anti_crit' => 'integer',
-            'effect_value' => 'integer',
             'req_strength' => 'integer',
             'req_agility' => 'integer',
             'req_instinct' => 'integer',

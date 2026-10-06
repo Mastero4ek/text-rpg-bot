@@ -22,13 +22,13 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     $p->username = 'PotionStamina';
     $p->save();
 
-    $p->silver = shopCatalog()->staminaPotionPrice();
+    $p->silver = bagCatalog()->staminaPotionPrice();
     $p->save();
     shopService()->buyStaminaPotion($p->tg_id);
 
-    $heal = shopCatalog()->findItem(shopCatalog()->shopStaminaPotionId())->effectValue;
+    $heal = bagCatalog()->potionStaminaHeal();
     expect($heal)->toBeInt()
-        ->and(inventory()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(1);
+        ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(1);
 
     $fight = fights()->createTraining($p->fresh(), combat()->makeWoodenSoldier());
     $enemy = $fight->enemy;
@@ -55,7 +55,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
 
     expect($outcome->kind)->toBe('continue')
         ->and($fight->player_stamina)->toBe(10 + $heal - $drain)
-        ->and(inventory()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(0)
+        ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(0)
         ->and(implode("\n", $fight->log))->toContain((string) $heal);
 });
 
@@ -64,11 +64,11 @@ it('drinks heal potion instead of attacking', function (): void {
 
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(1402));
     $p->username = 'PotionHeal';
-    $p->silver = shopCatalog()->potionPrice();
+    $p->silver = bagCatalog()->potionPrice();
     $p->save();
     shopService()->buyPotion($p->tg_id);
 
-    $heal = shopCatalog()->findItem(shopCatalog()->shopPotionId())->effectValue;
+    $heal = bagCatalog()->potionHeal();
 
     $fight = fights()->createTraining($p->fresh(), combat()->makeWoodenSoldier());
     $enemy = $fight->enemy;
@@ -93,7 +93,7 @@ it('drinks heal potion instead of attacking', function (): void {
 
     expect($fight->player_hp)->toBeGreaterThan(20)
         ->and($fight->player_hp)->toBeLessThanOrEqual(20 + $heal)
-        ->and(inventory()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
+        ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
         ->and(implode("\n", $fight->log))->toContain((string) $heal);
 });
 

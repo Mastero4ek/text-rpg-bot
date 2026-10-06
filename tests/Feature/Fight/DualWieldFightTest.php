@@ -8,7 +8,7 @@ use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\OnboardingStepEnum;
-use App\Services\Inventory\LoadoutService;
+use App\Services\Backpack\LoadoutService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
 use App\Support\Telegram\TelegramClient;
@@ -186,14 +186,14 @@ it('keeps single attack step without left hand even at level 1', function (): vo
 
 it('rejects left hand weapon while single-hand weapon is equipped', function (): void {
     $p = characters()->createDraft(8505);
-    inventory()->addItem($p->tg_id, 'axe_0');
-    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, 'axe_0');
+    $axe = backpack()->findOwned($p->tg_id, 'axe_0');
     $eq = loadout()->equip($p, $axe->id);
     expect($eq->ok)->toBeTrue();
     $p = $eq->character;
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
     $fail = loadout()->equipToSlot($p, $knife->id, SlotEnum::LEFT_HAND);
 
     expect($fail->ok)->toBeFalse()
@@ -203,15 +203,15 @@ it('rejects left hand weapon while single-hand weapon is equipped', function ():
 
 it('allows axe with shield for one attack and two blocks', function (): void {
     $p = characters()->createDraft(8506);
-    inventory()->addItem($p->tg_id, 'axe_0');
-    inventory()->addItem($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, 'heavy_1');
 
-    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
+    $axe = backpack()->findOwned($p->tg_id, 'axe_0');
     $eqAxe = loadout()->equip($p, $axe->id);
     expect($eqAxe->ok)->toBeTrue();
     $p = $eqAxe->character;
 
-    $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
+    $shield = backpack()->findOwned($p->tg_id, 'heavy_1');
     $eqShield = loadout()->equip($p, $shield->id);
     expect($eqShield->ok)->toBeTrue();
 
@@ -223,8 +223,8 @@ it('allows axe with shield for one attack and two blocks', function (): void {
 it('keeps one attack when knife is worn with shield', function (): void {
     $p = characters()->createDraft(8507);
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::RIGHT_HAND);
-    inventory()->addItem($p->tg_id, 'heavy_1');
-    $shield = inventory()->findOwned($p->tg_id, 'heavy_1');
+    backpack()->addItem($p->tg_id, 'heavy_1');
+    $shield = backpack()->findOwned($p->tg_id, 'heavy_1');
     $eq = loadout()->equip($p, $shield->id);
     expect($eq->ok)->toBeTrue();
 
@@ -240,12 +240,12 @@ it('unequips left hand dual weapon when single-hand is equipped', function (): v
     $p = giveAndEquipStarterKnuckles($p);
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
-    inventory()->addItem($p->tg_id, 'axe_0');
-    $axe = inventory()->findOwned($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, 'axe_0');
+    $axe = backpack()->findOwned($p->tg_id, 'axe_0');
     $eq = loadout()->equip($p, $axe->id);
     expect($eq->ok)->toBeTrue();
 
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
     $knife->refresh();
     expect($knife->isEquipped())->toBeFalse()
         ->and(app(LoadoutService::class)->forCharacter($eq->character)->attackSlots)->toBe(1);

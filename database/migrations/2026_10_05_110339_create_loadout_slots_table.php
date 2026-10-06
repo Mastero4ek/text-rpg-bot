@@ -14,12 +14,12 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('tg_id');
             $table->string('slot');
-            $table->unsignedBigInteger('inventory_id');
+            $table->unsignedBigInteger('backpack_item_id');
             $table->unique(['tg_id', 'slot']);
-            $table->unique('inventory_id');
+            $table->unique('backpack_item_id');
             $table->index('tg_id');
             $table->foreign('tg_id')->references('tg_id')->on('characters')->cascadeOnDelete();
-            $table->foreign('inventory_id')->references('id')->on('inventories')->cascadeOnDelete();
+            $table->foreign('backpack_item_id')->references('id')->on('backpack_items')->cascadeOnDelete();
         });
     }
 

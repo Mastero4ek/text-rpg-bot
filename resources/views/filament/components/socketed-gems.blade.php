@@ -1,10 +1,10 @@
 @php
     use App\Filament\Support\GemSocketSlots;
     use App\Filament\Support\ResourceSvg;
-    use App\Models\Inventory;
+    use App\Models\BackpackItem;
 
     $record = $getRecord();
-    $slots = $record instanceof Inventory ? GemSocketSlots::forInventory($record) : [];
+    $slots = $record instanceof BackpackItem ? GemSocketSlots::forBackpackItem($record) : [];
     $size = '40px';
 @endphp
 

@@ -6,7 +6,7 @@ namespace App\Filament\Support;
 
 use Illuminate\Support\HtmlString;
 
-final class InventoryEquipPreviewHtml
+final class BackpackEquipPreviewHtml
 {
     /**
      * @param  list<array{

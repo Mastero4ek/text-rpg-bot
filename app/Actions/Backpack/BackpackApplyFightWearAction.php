@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Backpack;
 
 use App\Models\Character;
-use App\Services\Inventory\LoadoutService;
+use App\Services\Backpack\LoadoutService;
 
-final class InventoryApplyFightWearAction
+final class BackpackApplyFightWearAction
 {
     public function __construct(
         private readonly LoadoutService $loadout,

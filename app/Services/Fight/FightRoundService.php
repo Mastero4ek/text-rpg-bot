@@ -11,11 +11,11 @@ use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Models\Character;
 use App\Models\Fight;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
-use App\Support\Equipment\EquipmentDef;
+use App\Support\Bag\PotionDef;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\Enemy;
 use App\Support\Game\Fighter;
@@ -29,7 +29,7 @@ final class FightRoundService
         private readonly CharacterService $characters,
         private readonly CombatService $combat,
         private readonly FightService $fights,
-        private readonly InventoryService $inventory,
+        private readonly BagService $bag,
         private readonly LoadoutService $loadout,
     ) {}
 
@@ -108,16 +108,15 @@ final class FightRoundService
                 $profile = ProfileEnum::HEAL;
             }
 
-            $consumed = $this->inventory->consumePotion($fresh->tg_id, $profile);
+            $consumed = $this->bag->consumePotion($fresh->tg_id, $profile);
 
             if (
                 ! $consumed->ok
-                || ! $consumed->def instanceof EquipmentDef
-                || $consumed->def->effectValue === null
+                || ! $consumed->potion instanceof PotionDef
             ) {
                 $logs[] = __('combat.no_potion_turn');
             } else {
-                $heal = $consumed->def->effectValue;
+                $heal = $consumed->potion->effectValue;
 
                 if ($fresh->username === null) {
                     $drinkName = __('common.you');

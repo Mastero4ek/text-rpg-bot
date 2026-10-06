@@ -34,15 +34,15 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $max_stamina
  * @property CarbonInterface $last_stamina_update
  * @property int $stat_points
- * @property list<mixed>|null $gem_pouch
  * @property int $bag_max_rows
- * @property int $inventory_max_rows
+ * @property int $backpack_max_rows
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Inventory> $inventories
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, BackpackItem> $backpackItems
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, BagItem> $bagItems
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LoadoutSlot> $loadoutSlots
  */
 #[Fillable([
@@ -65,9 +65,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'max_stamina',
     'last_stamina_update',
     'stat_points',
-    'gem_pouch',
     'bag_max_rows',
-    'inventory_max_rows',
+    'backpack_max_rows',
     'arena_points',
     'premium_until',
 ])]
@@ -91,11 +90,19 @@ final class Character extends Model implements HasMedia
     }
 
     /**
-     * @return HasMany<Inventory, $this>
+     * @return HasMany<BackpackItem, $this>
      */
-    public function inventories(): HasMany
+    public function backpackItems(): HasMany
     {
-        return $this->hasMany(Inventory::class, 'tg_id', 'tg_id');
+        return $this->hasMany(BackpackItem::class, 'tg_id', 'tg_id');
+    }
+
+    /**
+     * @return HasMany<BagItem, $this>
+     */
+    public function bagItems(): HasMany
+    {
+        return $this->hasMany(BagItem::class, 'tg_id', 'tg_id');
     }
 
     /**
@@ -136,9 +143,8 @@ final class Character extends Model implements HasMedia
             'max_stamina' => 'integer',
             'last_stamina_update' => 'datetime',
             'stat_points' => 'integer',
-            'gem_pouch' => 'array',
             'bag_max_rows' => 'integer',
-            'inventory_max_rows' => 'integer',
+            'backpack_max_rows' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
         ];

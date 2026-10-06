@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\RelationManagers;
 
-use App\Actions\Character\CharacterSetInventoryMaxRowsAction;
-use App\Filament\Resources\Inventories\InventoryResource;
-use App\Filament\Resources\Inventories\Tables\InventoriesTable;
+use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
+use App\Filament\Resources\Characters\Tables\BackpackTable;
 use App\Models\Character;
-use App\Services\Inventory\InventoryService;
+use App\Services\Backpack\BackpackService;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\EmbeddedTable;
@@ -30,9 +29,7 @@ final class BackpackRelationManager extends RelationManager
 {
     public ?int $inventoryMaxRows = null;
 
-    protected static string $relationship = 'inventories';
-
-    protected static ?string $relatedResource = InventoryResource::class;
+    protected static string $relationship = 'backpackItems';
 
     protected static bool $isLazy = false;
 
@@ -56,16 +53,16 @@ final class BackpackRelationManager extends RelationManager
         }
 
         if ($component->inventoryMaxRows === null) {
-            $component->inventoryMaxRows = $owner->inventory_max_rows;
+            $component->inventoryMaxRows = $owner->backpack_max_rows;
         }
 
-        $current = app(InventoryService::class)->rowCount($owner->tg_id);
+        $current = app(BackpackService::class)->rowCount($owner->tg_id);
         $editable = ! $component->isReadOnly();
 
         return new HtmlString(
             view('filament.characters.capacity-toolbar', [
                 'current' => $current,
-                'max' => $component->inventoryMaxRows ?? $owner->inventory_max_rows,
+                'max' => $component->inventoryMaxRows ?? $owner->backpack_max_rows,
                 'editable' => $editable,
                 'filledLabel' => __('admin.labels.backpack_filled'),
                 'ofLabel' => __('admin.labels.backpack_capacity_of'),
@@ -98,7 +95,7 @@ final class BackpackRelationManager extends RelationManager
         $owner = $this->getOwnerRecord();
 
         if ($owner instanceof Character) {
-            $this->inventoryMaxRows = $owner->inventory_max_rows;
+            $this->inventoryMaxRows = $owner->backpack_max_rows;
         }
     }
 
@@ -111,7 +108,7 @@ final class BackpackRelationManager extends RelationManager
         if ($owner instanceof Character) {
             $owner->refresh();
             $this->ownerRecord = $owner;
-            $this->inventoryMaxRows = $owner->inventory_max_rows;
+            $this->inventoryMaxRows = $owner->backpack_max_rows;
         }
 
         $this->resetTable();
@@ -119,12 +116,7 @@ final class BackpackRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        if ($this->isReadOnly()) {
-            return InventoriesTable::configureForCharacterView($table)
-                ->modifyQueryUsing(fn (Builder $query): Builder => $query->whereDoesntHave('loadoutSlot'));
-        }
-
-        return InventoriesTable::configureForCharacter($table)
+        return BackpackTable::configure($table, ! $this->isReadOnly())
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->whereDoesntHave('loadoutSlot'));
     }
 
@@ -141,7 +133,7 @@ final class BackpackRelationManager extends RelationManager
         }
 
         if (! is_numeric($value)) {
-            $this->inventoryMaxRows = $owner->inventory_max_rows;
+            $this->inventoryMaxRows = $owner->backpack_max_rows;
             Notification::make()
                 ->title(__('admin.actions.set_inventory_max_rows.invalid'))
                 ->danger()
@@ -153,7 +145,7 @@ final class BackpackRelationManager extends RelationManager
         $maxRows = (int) $value;
 
         if ($maxRows < 1) {
-            $this->inventoryMaxRows = $owner->inventory_max_rows;
+            $this->inventoryMaxRows = $owner->backpack_max_rows;
             Notification::make()
                 ->title(__('admin.actions.set_inventory_max_rows.invalid'))
                 ->danger()
@@ -163,9 +155,9 @@ final class BackpackRelationManager extends RelationManager
         }
 
         try {
-            $updated = app(CharacterSetInventoryMaxRowsAction::class)->handle($owner, $maxRows);
+            $updated = app(CharacterSetBackpackMaxRowsAction::class)->handle($owner, $maxRows);
         } catch (InvalidArgumentException) {
-            $this->inventoryMaxRows = $owner->inventory_max_rows;
+            $this->inventoryMaxRows = $owner->backpack_max_rows;
             Notification::make()
                 ->title(__('admin.actions.set_inventory_max_rows.invalid'))
                 ->danger()
@@ -175,7 +167,7 @@ final class BackpackRelationManager extends RelationManager
         }
 
         $this->ownerRecord = $updated;
-        $this->inventoryMaxRows = $updated->inventory_max_rows;
+        $this->inventoryMaxRows = $updated->backpack_max_rows;
 
         Notification::make()
             ->title(__('admin.actions.set_inventory_max_rows.notification'))

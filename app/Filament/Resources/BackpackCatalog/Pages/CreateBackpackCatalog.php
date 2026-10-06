@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Equipment\Pages;
+namespace App\Filament\Resources\BackpackCatalog\Pages;
 
 use App\Enums\Equipment\ProfileEnum;
 use App\Filament\Concerns\HasCloneToCreate;
 use App\Filament\Concerns\HasFormActionsBetween;
-use App\Filament\Resources\Equipment\EquipmentResource;
-use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
-use App\Models\Equipment;
+use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
+use App\Filament\Resources\BackpackCatalog\Schemas\BackpackCatalogForm;
+use App\Models\BackpackCatalog;
 use Filament\Resources\Pages\CreateRecord;
 
-final class CreateEquipment extends CreateRecord
+final class CreateBackpackCatalog extends CreateRecord
 {
     use HasCloneToCreate;
     use HasFormActionsBetween;
 
-    protected static string $resource = EquipmentResource::class;
+    protected static string $resource = BackpackCatalogResource::class;
 
     protected static bool $canCreateAnother = false;
 
@@ -44,10 +44,10 @@ final class CreateEquipment extends CreateRecord
         }
 
         if ($profile instanceof ProfileEnum) {
-            $data['item_id'] = Equipment::nextItemIdForProfile($profile);
+            $data['catalog_id'] = BackpackCatalog::nextCatalogIdForProfile($profile);
         }
 
-        return EquipmentForm::sanitizeCatalogFieldsForType($data);
+        return BackpackCatalogForm::sanitizeCatalogFieldsForType($data);
     }
 
     private function assignGeneratedItemId(): void
@@ -65,6 +65,6 @@ final class CreateEquipment extends CreateRecord
             return;
         }
 
-        $this->data['item_id'] = Equipment::nextItemIdForProfile($profile);
+        $this->data['catalog_id'] = BackpackCatalog::nextCatalogIdForProfile($profile);
     }
 }

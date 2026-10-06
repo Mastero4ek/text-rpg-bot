@@ -1,6 +1,9 @@
 {
-    "inventory": {
-        "maxRows": 50,
+    "backpack": {
+        "maxRows": 50
+    },
+    "bag": {
+        "maxRows": 10,
         "potionMaxStack": 5
     },
     "shop": {
@@ -20,9 +23,7 @@
     },
     "gems": {
         "breakChanceOnLose": 40,
-        "unsocketSilver": 5,
-        "premiumBreakChanceReduce": 15,
-        "bagMaxRows": 10
+        "premiumBreakChanceReduce": 15
     },
     "combat": {
         "aiDefendChance": 0.55,

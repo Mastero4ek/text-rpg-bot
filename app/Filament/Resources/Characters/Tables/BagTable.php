@@ -4,30 +4,38 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Tables;
 
-use App\Actions\Gem\GemDiscardFromPouchAction;
-use App\Actions\Gem\GemSocketAction;
+use App\Actions\Bag\BagGemDiscardAction;
+use App\Actions\Bag\BagGemSocketAction;
+use App\Enums\Bag\BagKindEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
+use App\Filament\Resources\BagCatalog\BagCatalogResource;
 use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
-use App\Filament\Resources\Gems\GemResource;
+use App\Filament\Support\BackpackEquipPreviewHtml;
+use App\Models\BackpackItem;
+use App\Models\BagCatalog;
 use App\Models\Character;
-use App\Models\Gem;
-use App\Models\Inventory;
-use App\Services\Gem\GemService;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Bag\BagService;
+use Carbon\CarbonInterface;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Colors\Color;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Livewire\Component;
+use RuntimeException;
 
-final class GemPouchTable
+final class BagTable
 {
     public static function configure(Table $table, Character $character, bool $canMutate): Table
     {
@@ -37,9 +45,7 @@ final class GemPouchTable
                 ->color(Color::Teal)
                 ->label('')
                 ->tooltip(__('admin.actions.view.label'))
-                ->url(fn (array $record): string => GemResource::getUrl('view', [
-                    'record' => $record['gem_id'],
-                ]))
+                ->url(fn (array $record): ?string => self::catalogUrl($record))
                 ->visible(fn (array $record): bool => $record['in_catalog']),
         ];
 
@@ -59,13 +65,13 @@ final class GemPouchTable
             ) use ($character): LengthAwarePaginator {
                 $rows = self::rowsFor($character);
 
-                $typeFilter = $filters['type']['value'] ?? null;
+                $kindFilter = $filters['kind']['value'] ?? null;
 
-                if (is_string($typeFilter) && $typeFilter !== '') {
+                if (is_string($kindFilter) && $kindFilter !== '') {
                     $filtered = [];
 
                     foreach ($rows as $row) {
-                        if ($row['type'] instanceof GemTypeEnum && $row['type']->value === $typeFilter) {
+                        if ($row['kind']->value === $kindFilter) {
                             $filtered[] = $row;
                         }
                     }
@@ -79,9 +85,9 @@ final class GemPouchTable
 
                     foreach ($rows as $row) {
                         $name = mb_strtolower($row['name']);
-                        $gemId = mb_strtolower($row['gem_id']);
+                        $catalogId = mb_strtolower($row['catalog_id']);
 
-                        if (str_contains($name, $needle) || str_contains($gemId, $needle)) {
+                        if (str_contains($name, $needle) || str_contains($catalogId, $needle)) {
                             $filtered[] = $row;
                         }
                     }
@@ -132,7 +138,7 @@ final class GemPouchTable
                 $keyed = [];
 
                 foreach ($items as $item) {
-                    $keyed[(string) $item['index']] = $item;
+                    $keyed[(string) $item['id']] = $item;
                 }
 
                 return new LengthAwarePaginator(
@@ -154,11 +160,22 @@ final class GemPouchTable
                     ->limit(40)
                     ->tooltip(fn (array $record): string => $record['name'])
                     ->placeholder('-'),
-                TextColumn::make('type')
+                TextColumn::make('kind')
                     ->label(__('admin.labels.item_type'))
                     ->badge()
+                    ->state(fn (array $record): BagKindEnum => $record['kind'])
                     ->alignCenter()
                     ->sortable()
+                    ->placeholder('-'),
+                TextColumn::make('profile')
+                    ->label(__('admin.labels.profile'))
+                    ->badge()
+                    ->alignCenter()
+                    ->placeholder('-')
+                    ->sortable(),
+                TextColumn::make('quantity')
+                    ->label(__('admin.labels.quantity'))
+                    ->alignCenter()
                     ->placeholder('-'),
                 TextColumn::make('obtained_at')
                     ->label(__('admin.labels.obtained_at'))
@@ -169,17 +186,13 @@ final class GemPouchTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('type')
+                SelectFilter::make('kind')
                     ->label(__('admin.labels.item_type'))
                     ->native(false)
-                    ->options(GemTypeEnum::class),
+                    ->options(BagKindEnum::class),
             ])
             ->recordActions($recordActions)
-            ->recordUrl(fn (array $record): ?string => $record['in_catalog']
-                ? GemResource::getUrl('view', [
-                    'record' => $record['gem_id'],
-                ])
-                : null)
+            ->recordUrl(fn (array $record): ?string => self::catalogUrl($record))
             ->toolbarActions([])
             ->headerActions([])
             ->emptyStateHeading(__('admin.empty.bag.heading'))
@@ -189,45 +202,55 @@ final class GemPouchTable
 
     /**
      * @return list<array{
-     *     index: int,
-     *     gem_id: string,
+     *     id: int,
+     *     catalog_id: string,
      *     name: string,
-     *     type: GemTypeEnum|null,
-     *     obtained_at: Carbon|null,
+     *     kind: BagKindEnum,
+     *     profile: GemTypeEnum|ProfileEnum|null,
+     *     quantity: int,
+     *     obtained_at: CarbonInterface|null,
      *     image_url: string|null,
      *     in_catalog: bool
      * }>
      */
     public static function rowsFor(Character $character): array
     {
-        $pouch = app(GemService::class)->pouch($character);
+        $bag = app(BagService::class);
+        $items = [];
 
-        if ($pouch === []) {
+        foreach ($bag->looseGems($character) as $item) {
+            $items[] = $item;
+        }
+
+        foreach ($bag->loosePotions($character) as $item) {
+            $items[] = $item;
+        }
+
+        if ($items === []) {
             return [];
         }
 
-        $gemIds = [];
+        $catalogIds = [];
 
-        foreach ($pouch as $instance) {
-            $gemIds[] = $instance['gem_id'];
+        foreach ($items as $item) {
+            $catalogIds[] = $item->catalog_id;
         }
 
-        $gems = Gem::query()
+        $catalog = BagCatalog::query()
             ->withTrashed()
             ->with('media')
-            ->whereIn('gem_id', $gemIds)
+            ->whereIn('catalog_id', $catalogIds)
             ->get()
-            ->keyBy('gem_id');
+            ->keyBy('catalog_id');
 
         $rows = [];
 
-        foreach ($pouch as $index => $instance) {
-            $gemId = $instance['gem_id'];
-            $gem = $gems->get($gemId);
-            $obtainedAt = self::obtainedAtFromInstance($instance);
+        foreach ($items as $item) {
+            $entry = $catalog->get($item->catalog_id);
+            $obtainedAt = $item->created_at;
 
-            if ($gem instanceof Gem) {
-                $url = $gem->getFirstMediaUrl('image');
+            if ($entry instanceof BagCatalog) {
+                $url = $entry->getFirstMediaUrl('image');
 
                 if ($url === '') {
                     $imageUrl = null;
@@ -236,10 +259,12 @@ final class GemPouchTable
                 }
 
                 $rows[] = [
-                    'index' => $index,
-                    'gem_id' => $gemId,
-                    'name' => $gem->name,
-                    'type' => $gem->type,
+                    'id' => $item->id,
+                    'catalog_id' => $item->catalog_id,
+                    'name' => $entry->name,
+                    'kind' => $item->kind,
+                    'profile' => self::catalogProfile($entry),
+                    'quantity' => $item->quantity,
                     'obtained_at' => $obtainedAt,
                     'image_url' => $imageUrl,
                     'in_catalog' => true,
@@ -249,10 +274,12 @@ final class GemPouchTable
             }
 
             $rows[] = [
-                'index' => $index,
-                'gem_id' => $gemId,
-                'name' => $gemId,
-                'type' => null,
+                'id' => $item->id,
+                'catalog_id' => $item->catalog_id,
+                'name' => $item->catalog_id,
+                'kind' => $item->kind,
+                'profile' => null,
+                'quantity' => $item->quantity,
                 'obtained_at' => $obtainedAt,
                 'image_url' => null,
                 'in_catalog' => false,
@@ -262,22 +289,51 @@ final class GemPouchTable
         return $rows;
     }
 
+    private static function catalogProfile(BagCatalog $entry): GemTypeEnum|ProfileEnum|null
+    {
+        if ($entry->kind === BagKindEnum::GEM) {
+            return $entry->type;
+        }
+
+        return $entry->profile;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    private static function catalogUrl(array $record): ?string
+    {
+        if (! array_key_exists('in_catalog', $record) || ! $record['in_catalog']) {
+            return null;
+        }
+
+        if (! array_key_exists('catalog_id', $record) || ! is_string($record['catalog_id'])) {
+            return null;
+        }
+
+        if (! array_key_exists('kind', $record) || ! $record['kind'] instanceof BagKindEnum) {
+            return null;
+        }
+
+        return BagCatalogResource::getUrl('view', ['record' => $record['catalog_id']]);
+    }
+
     private static function discardAction(Character $character): Action
     {
         return Action::make('discard')
             ->icon('heroicon-o-trash')
             ->color(Color::Red)
             ->label('')
-            ->tooltip(__('admin.actions.discard_gem.label'))
+            ->tooltip(fn (array $record): string => self::discardCopy($record['kind'], 'label'))
             ->requiresConfirmation()
-            ->modalHeading(fn (array $record): string => __('admin.actions.discard_gem.modal_heading', [
+            ->modalHeading(fn (array $record): string => self::discardCopy($record['kind'], 'modal_heading', [
                 'name' => $record['name'],
             ]))
-            ->modalDescription(__('admin.actions.discard_gem.modal_description'))
-            ->modalSubmitActionLabel(__('admin.actions.discard_gem.modal_submit'))
+            ->modalDescription(fn (array $record): string => self::discardCopy($record['kind'], 'modal_description'))
+            ->modalSubmitActionLabel(fn (array $record): string => self::discardCopy($record['kind'], 'modal_submit'))
             ->action(function (array $record, Component $livewire) use ($character): void {
                 $owner = self::ownerFromLivewire($livewire, $character);
-                $result = app(GemDiscardFromPouchAction::class)->handle($owner, $record['index']);
+                $result = app(BagGemDiscardAction::class)->handle($owner, $record['id']);
 
                 if (! $result->ok) {
                     Notification::make()
@@ -291,28 +347,30 @@ final class GemPouchTable
                 self::refreshAfterMutation($livewire, $result->character);
 
                 Notification::make()
-                    ->title(__('admin.actions.discard_gem.notification'))
+                    ->title(self::discardCopy($record['kind'], 'notification'))
                     ->success()
                     ->send();
             });
     }
 
     /**
-     * @param  array{gem_id: string, durability: int, added_at?: mixed}  $instance
+     * @param  array<string, scalar>  $replace
      */
-    private static function obtainedAtFromInstance(array $instance): ?Carbon
+    private static function discardCopy(BagKindEnum $kind, string $key, array $replace = []): string
     {
-        if (! array_key_exists('added_at', $instance)) {
-            return null;
+        if ($kind === BagKindEnum::POTION) {
+            $group = 'admin.actions.discard_potion.';
+        } else {
+            $group = 'admin.actions.discard_gem.';
         }
 
-        $raw = $instance['added_at'];
+        $text = __($group . $key, $replace);
 
-        if (! is_string($raw) || $raw === '') {
-            return null;
+        if (! is_string($text)) {
+            throw new RuntimeException($group . $key . ' must be a string.');
         }
 
-        return \Illuminate\Support\Facades\Date::parse($raw);
+        return $text;
     }
 
     private static function ownerFromLivewire(Component $livewire, Character $character): Character
@@ -361,6 +419,7 @@ final class GemPouchTable
             ->color(Color::Green)
             ->label('')
             ->tooltip(__('admin.actions.socket_gem.label'))
+            ->visible(fn (array $record): bool => $record['kind'] === BagKindEnum::GEM)
             ->requiresConfirmation()
             ->modalHeading(__('admin.actions.socket_gem.modal_heading'))
             ->modalDescription(function (array $record) use ($character): string {
@@ -387,9 +446,9 @@ final class GemPouchTable
                     return [];
                 }
 
-                return ['inventory_id' => array_key_first($targets)];
+                return ['backpack_item_id' => array_key_first($targets)];
             })
-            ->schema(function () use ($character): array {
+            ->schema(function (array $record) use ($character): array {
                 $targets = self::socketTargets($character);
 
                 if ($targets === []) {
@@ -397,15 +456,21 @@ final class GemPouchTable
                 }
 
                 return [
-                    Select::make('inventory_id')
+                    Select::make('backpack_item_id')
                         ->label(__('admin.actions.socket_gem.target_label'))
                         ->options($targets)
                         ->required()
+                        ->live()
                         ->native(false),
+                    Placeholder::make('socket_stat_changes')
+                        ->hiddenLabel()
+                        ->content(function (Get $get) use ($character, $record): HtmlString {
+                            return self::socketStatChangesHtml($character, $record['catalog_id'], $get('backpack_item_id'));
+                        }),
                 ];
             })
             ->action(function (array $record, array $data, Component $livewire) use ($character): void {
-                if (! array_key_exists('inventory_id', $data)) {
+                if (! array_key_exists('backpack_item_id', $data)) {
                     Notification::make()
                         ->title(__('admin.actions.socket_gem.no_targets'))
                         ->danger()
@@ -415,10 +480,10 @@ final class GemPouchTable
                 }
 
                 $owner = self::ownerFromLivewire($livewire, $character);
-                $result = app(GemSocketAction::class)->handle(
+                $result = app(BagGemSocketAction::class)->handle(
                     $owner,
-                    (int) $data['inventory_id'],
-                    $record['index'],
+                    (int) $data['backpack_item_id'],
+                    $record['id'],
                 );
 
                 if (! $result->ok) {
@@ -439,13 +504,45 @@ final class GemPouchTable
             });
     }
 
+    private static function socketStatChangesHtml(Character $character, string $catalogId, mixed $hostId): HtmlString
+    {
+        if (is_int($hostId)) {
+            $backpackItemId = $hostId;
+        } elseif (is_string($hostId) && $hostId !== '') {
+            $backpackItemId = (int) $hostId;
+        } else {
+            return new HtmlString('');
+        }
+
+        if ($backpackItemId < 1) {
+            return new HtmlString('');
+        }
+
+        $host = BackpackItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('id', $backpackItemId)
+            ->first();
+
+        if (! $host instanceof BackpackItem) {
+            return new HtmlString(e(__('errors.item_not_found')));
+        }
+
+        if ($catalogId === '') {
+            throw new RuntimeException('Gem catalog id is required.');
+        }
+
+        return BackpackEquipPreviewHtml::format(
+            app(LoadoutService::class)->socketStatChanges($character, $host, $catalogId),
+        );
+    }
+
     /**
      * @return array<int, string>
      */
     private static function socketTargets(Character $character): array
     {
-        $gems = app(GemService::class);
-        $rows = Inventory::query()
+        $bag = app(BagService::class);
+        $rows = BackpackItem::query()
             ->where('tg_id', $character->tg_id)
             ->orderBy('id')
             ->get();
@@ -453,13 +550,13 @@ final class GemPouchTable
         $options = [];
 
         foreach ($rows as $row) {
-            $free = $gems->freeSocketCount($row);
+            $free = $bag->freeSocketCount($row);
 
             if ($free <= 0) {
                 continue;
             }
 
-            $total = $gems->gemSlotCount($row);
+            $total = $bag->gemSlotCount($row);
 
             $options[$row->id] = __('admin.actions.socket_gem.item_option', [
                 'name' => $row->item_name,
@@ -473,11 +570,13 @@ final class GemPouchTable
 
     /**
      * @param  array{
-     *     index: int,
-     *     gem_id: string,
+     *     id: int,
+     *     catalog_id: string,
      *     name: string,
-     *     type: GemTypeEnum|null,
-     *     obtained_at: Carbon|null,
+     *     kind: BagKindEnum,
+     *     profile: GemTypeEnum|ProfileEnum|null,
+     *     quantity: int,
+     *     obtained_at: CarbonInterface|null,
      *     image_url: string|null,
      *     in_catalog: bool
      * }  $row
@@ -488,22 +587,26 @@ final class GemPouchTable
             return mb_strtolower($row['name']);
         }
 
-        if ($column === 'type') {
-            if ($row['type'] instanceof GemTypeEnum) {
-                return $row['type']->value;
+        if ($column === 'kind') {
+            return $row['kind']->value;
+        }
+
+        if ($column === 'profile') {
+            if ($row['profile'] instanceof GemTypeEnum || $row['profile'] instanceof ProfileEnum) {
+                return $row['profile']->value;
             }
 
             return '';
         }
 
         if ($column === 'obtained_at') {
-            if ($row['obtained_at'] instanceof Carbon) {
-                return $row['obtained_at']->timestamp;
+            if ($row['obtained_at'] instanceof CarbonInterface) {
+                return $row['obtained_at']->getTimestamp();
             }
 
             return 0;
         }
 
-        return $row['index'];
+        return $row['id'];
     }
 }

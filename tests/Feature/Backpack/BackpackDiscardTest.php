@@ -2,110 +2,100 @@
 
 declare(strict_types=1);
 
-use App\Actions\Inventory\InventoryDiscardAction;
-use App\Actions\Inventory\InventoryDiscardEquippedAction;
-use App\Models\Inventory;
-use App\Services\Gem\GemService;
+use App\Actions\Backpack\BackpackDiscardAction;
+use App\Actions\Backpack\BackpackDiscardEquippedAction;
+use App\Models\BackpackItem;
+use App\Services\Bag\BagService;
 
-it('discards unequipped gear and moves socketed gems to pouch', function (): void {
+it('discards unequipped gear and destroys socketed gems', function (): void {
     $p = characters()->createDraft(6201);
-    $p->gem_pouch = gemPouch('ruby_0', 8);
-    $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 8);
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    $socket = app(GemService::class)->socket($p, $knife->id, 0);
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
+    $socket = socketGem($p, $knife, 'ruby_0');
     expect($socket->ok)->toBeTrue();
     $p = $socket->character;
     $knife->refresh();
 
-    expect(app(GemService::class)->socketedGemIds($knife))->toBe(['ruby_0'])
-        ->and(app(GemService::class)->pouch($p))->toBe([]);
+    expect(app(BagService::class)->socketedGemIds($knife))->toBe(['ruby_0'])
+        ->and(bag()->looseGems($p))->toHaveCount(0);
 
-    $discard = app(InventoryDiscardAction::class)->handle($p, $knife->id);
+    $discard = app(BackpackDiscardAction::class)->handle($p, $knife->id);
 
     expect($discard->ok)->toBeTrue()
-        ->and(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse();
-
-    $pouch = app(GemService::class)->pouch($discard->character);
-
-    expect($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
-        ->and($pouch[0]['durability'])->toBe(8);
+        ->and(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(bag()->looseGems($discard->character))->toHaveCount(0)
+        ->and(hasLooseGem($discard->character, 'ruby_0'))->toBeFalse();
 });
 
 it('decrements potion quantity on discard instead of deleting the stack', function (): void {
     $p = characters()->createDraft(6202);
-    inventory()->addItem($p->tg_id, shopCatalog()->shopPotionId());
-    inventory()->addItem($p->tg_id, shopCatalog()->shopPotionId());
-    $potion = inventory()->findOwned($p->tg_id, shopCatalog()->shopPotionId());
+    bag()->addPotion($p->tg_id, bagCatalog()->shopPotionId());
+    bag()->addPotion($p->tg_id, bagCatalog()->shopPotionId());
+    $potion = bag()->loosePotions($p)->first();
 
     expect($potion->quantity)->toBe(2);
 
-    $discard = inventory()->discard($p, $potion->id);
+    $discard = bag()->discardLoose($p, $potion->id);
 
     expect($discard->ok)->toBeTrue()
-        ->and(inventory()->findOwned($p->tg_id, shopCatalog()->shopPotionId())->quantity)->toBe(1);
+        ->and(bag()->loosePotions($discard->character)->first()->quantity)->toBe(1);
 });
 
 it('rejects discarding equipped items and missing rows', function (): void {
     $p = characters()->createDraft(6203);
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
     $p = loadout()->equip($p, $knife->id)->character;
 
-    $equipped = inventory()->discard($p, $knife->id);
+    $equipped = backpack()->discard($p, $knife->id);
 
     expect($equipped->ok)->toBeFalse()
         ->and($equipped->error)->toBe(__('errors.unequip_first'))
         ->and($knife->fresh()->isEquipped())->toBeTrue();
 
-    $missing = inventory()->discard($p, 9_999_999);
+    $missing = backpack()->discard($p, 9_999_999);
 
     expect($missing->ok)->toBeFalse()
         ->and($missing->error)->toBe(__('errors.item_not_found'));
 });
 
-it('discards equipped gear without needing backpack space and moves gems to pouch', function (): void {
+it('discards equipped gear without needing backpack space and destroys gems', function (): void {
     $p = characters()->createDraft(6204);
-    $p->inventory_max_rows = 1;
-    $p->gem_pouch = gemPouch('ruby_0', 8);
+    $p->backpack_max_rows = 1;
     $p->save();
+    $p = grantGemDurability($p, 'ruby_0', 8);
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
-    $socket = app(GemService::class)->socket($p, $knife->id, 0);
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
+    $socket = socketGem($p, $knife, 'ruby_0');
     expect($socket->ok)->toBeTrue();
     $p = $socket->character;
     $knife->refresh();
 
     $p = loadout()->equip($p, $knife->id)->character;
-    inventory()->addItem($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, 'axe_0');
 
-    expect(inventory()->isFull($p))->toBeTrue()
-        ->and(app(GemService::class)->pouch($p))->toBe([]);
+    expect(backpack()->isFull($p))->toBeTrue()
+        ->and(bag()->looseGems($p))->toHaveCount(0);
 
-    $discard = app(InventoryDiscardEquippedAction::class)->handle($p, $knife->id);
+    $discard = app(BackpackDiscardEquippedAction::class)->handle($p, $knife->id);
 
     expect($discard->ok)->toBeTrue()
-        ->and(Inventory::query()->whereKey($knife->id)->exists())->toBeFalse()
-        ->and(inventory()->rowCount($p->tg_id))->toBe(1);
-
-    $pouch = app(GemService::class)->pouch($discard->character);
-
-    expect($pouch)->toHaveCount(1)
-        ->and($pouch[0]['gem_id'])->toBe('ruby_0')
-        ->and($pouch[0]['durability'])->toBe(8);
+        ->and(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
+        ->and(backpack()->rowCount($p->tg_id))->toBe(1)
+        ->and(hasLooseGem($discard->character, 'ruby_0'))->toBeFalse();
 });
 
 it('rejects discardEquipped for unequipped rows', function (): void {
     $p = characters()->createDraft(6205);
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
 
-    $result = inventory()->discardEquipped($p, $knife->id);
+    $result = backpack()->discardEquipped($p, $knife->id);
 
     expect($result->ok)->toBeFalse()
         ->and($result->error)->toBe(__('errors.not_equipped'))
-        ->and(Inventory::query()->whereKey($knife->id)->exists())->toBeTrue();
+        ->and(BackpackItem::query()->whereKey($knife->id)->exists())->toBeTrue();
 });

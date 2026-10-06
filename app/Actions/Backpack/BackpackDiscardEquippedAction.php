@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Inventory;
+namespace App\Actions\Backpack;
 
 use App\Models\Character;
-use App\Services\Inventory\InventoryService;
+use App\Services\Backpack\BackpackService;
 use App\Support\Game\ActionResult;
 
-final class InventoryDiscardEquippedAction
+final class BackpackDiscardEquippedAction
 {
     public function __construct(
-        private readonly InventoryService $inventory,
+        private readonly BackpackService $backpack,
     ) {}
 
-    public function handle(Character $character, int $inventoryRowId): ActionResult
+    public function handle(Character $character, int $backpackItemId): ActionResult
     {
-        return $this->inventory->discardEquipped($character, $inventoryRowId);
+        return $this->backpack->discardEquipped($character, $backpackItemId);
     }
 }

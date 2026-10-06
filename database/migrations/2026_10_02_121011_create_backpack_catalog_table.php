@@ -13,8 +13,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('equipment', function (Blueprint $table) {
-            $table->string('item_id')->primary();
+        Schema::create('backpack_catalog', function (Blueprint $table) {
+            $table->string('catalog_id')->primary();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('item_type')->default(TypeEnum::WEAPON->value);
@@ -33,7 +33,6 @@ return new class extends Migration
             $table->unsignedInteger('mf_anti_dodge')->default(0);
             $table->unsignedInteger('mf_crit')->default(0);
             $table->unsignedInteger('mf_anti_crit')->default(0);
-            $table->unsignedInteger('effect_value')->nullable();
             $table->unsignedInteger('req_strength')->nullable();
             $table->unsignedInteger('req_agility')->nullable();
             $table->unsignedInteger('req_instinct')->nullable();
@@ -53,6 +52,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('equipment');
+        Schema::dropIfExists('backpack_catalog');
     }
 };

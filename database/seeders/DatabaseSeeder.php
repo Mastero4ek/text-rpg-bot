@@ -15,8 +15,8 @@ final class DatabaseSeeder extends Seeder
     {
         $this->call([
             AdminUserSeeder::class,
-            EquipmentSeeder::class,
-            GemSeeder::class,
+            BackpackCatalogSeeder::class,
+            BagCatalogSeeder::class,
             CharacterSeeder::class,
             FightSeeder::class,
         ]);

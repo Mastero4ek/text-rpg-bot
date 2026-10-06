@@ -2,35 +2,39 @@
 
 declare(strict_types=1);
 
-use App\Enums\Gem\GemTypeEnum;
-use App\Filament\Resources\Characters\Tables\GemPouchTable;
+use App\Enums\Bag\BagKindEnum;
+use App\Filament\Resources\Characters\Tables\BagTable;
+use App\Models\BagItem;
 
-it('builds bag table rows from pouch and gem catalog', function (): void {
+it('builds bag table rows from loose bag items and catalog', function (): void {
     $character = characters()->createDraft(9120);
-    $character->gem_pouch = [
-        ['gem_id' => 'ruby_0', 'durability' => 10, 'added_at' => '2026-10-05T12:00:00+00:00'],
-        ['gem_id' => 'missing_gem', 'durability' => 3],
-    ];
-    $character->save();
+    $character = grantGemDurability($character, 'ruby_0', 10);
 
-    $rows = GemPouchTable::rowsFor($character);
+    $orphan = new BagItem;
+    $orphan->tg_id = $character->tg_id;
+    $orphan->kind = BagKindEnum::GEM;
+    $orphan->catalog_id = 'missing_gem';
+    $orphan->quantity = 1;
+    $orphan->durability = 3;
+    $orphan->backpack_item_id = null;
+    $orphan->created_at = now();
+    $orphan->save();
+
+    $rows = BagTable::rowsFor($character->fresh());
 
     expect($rows)->toHaveCount(2)
-        ->and($rows[0]['index'])->toBe(0)
-        ->and($rows[0]['gem_id'])->toBe('ruby_0')
+        ->and($rows[0]['catalog_id'])->toBe('ruby_0')
         ->and($rows[0]['name'])->toBe('Рубин ученика')
-        ->and($rows[0]['type'])->toBe(GemTypeEnum::RUBY)
+        ->and($rows[0]['kind'])->toBe(BagKindEnum::GEM)
         ->and($rows[0]['in_catalog'])->toBeTrue()
         ->and($rows[0]['obtained_at'])->not->toBeNull()
-        ->and($rows[1]['index'])->toBe(1)
+        ->and($rows[1]['catalog_id'])->toBe('missing_gem')
         ->and($rows[1]['name'])->toBe('missing_gem')
-        ->and($rows[1]['type'])->toBeNull()
-        ->and($rows[1]['in_catalog'])->toBeFalse()
-        ->and($rows[1]['obtained_at'])->toBeNull();
+        ->and($rows[1]['in_catalog'])->toBeFalse();
 });
 
-it('returns no bag table rows for an empty pouch', function (): void {
+it('returns no bag table rows for an empty bag', function (): void {
     $character = characters()->createDraft(9121);
 
-    expect(GemPouchTable::rowsFor($character))->toBe([]);
+    expect(BagTable::rowsFor($character))->toBe([]);
 });

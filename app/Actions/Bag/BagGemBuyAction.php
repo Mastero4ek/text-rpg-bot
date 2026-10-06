@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Gem;
+namespace App\Actions\Bag;
 
 use App\Models\Character;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 use App\Support\Game\ActionResult;
 
-final class GemBuyAction
+final class BagGemBuyAction
 {
     public function __construct(
-        private readonly GemService $gems,
+        private readonly BagService $bag,
     ) {}
 
-    public function handle(Character $character, string $gemId): ActionResult
+    public function handle(Character $character, string $catalogId): ActionResult
     {
-        return $this->gems->buy($character, $gemId);
+        return $this->bag->buy($character, $catalogId);
     }
 }

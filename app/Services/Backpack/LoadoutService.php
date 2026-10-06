@@ -2,22 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Inventory;
+namespace App\Services\Backpack;
 
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Inventory;
 use App\Models\LoadoutSlot;
+use App\Services\Bag\BagCatalog as BagCatalogService;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Gem\GemService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Game\ActionResult;
+use App\Support\Game\GemMfText;
 use App\Support\Game\Mf;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -26,7 +28,7 @@ final class LoadoutService
 {
     public function __construct(
         private readonly ShopCatalog $shop,
-        private readonly GemService $gems,
+        private readonly BagService $bag,
         private readonly GameConfig $config,
     ) {}
 
@@ -40,13 +42,13 @@ final class LoadoutService
      *     delta?: int
      * }>
      */
-    public function equipStatChanges(Character $character, Inventory $row, SlotEnum $slot): array
+    public function equipStatChanges(Character $character, BackpackItem $row, SlotEnum $slot): array
     {
         $before = $this->forCharacter($character);
         $afterRows = $before->rowsBySlot;
 
         foreach ($afterRows as $key => $wornRow) {
-            if ($wornRow instanceof Inventory && $wornRow->id === $row->id) {
+            if ($wornRow instanceof BackpackItem && $wornRow->id === $row->id) {
                 $afterRows[$key] = null;
             }
         }
@@ -60,7 +62,7 @@ final class LoadoutService
         }
 
         if ($slot === SlotEnum::RIGHT_HAND) {
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if ($def->profile instanceof ProfileEnum && $def->profile->isSingleHandWeapon()) {
                 $afterRows[SlotEnum::LEFT_HAND->value] = null;
@@ -74,7 +76,7 @@ final class LoadoutService
         /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
         $lines = [];
 
-        if ($replaced instanceof Inventory && $replaced->id !== $row->id) {
+        if ($replaced instanceof BackpackItem && $replaced->id !== $row->id) {
             $lines[] = [
                 'kind' => 'note',
                 'text' => $this->equipLang('admin.actions.equip.replaces', ['name' => $replaced->item_name]),
@@ -103,14 +105,14 @@ final class LoadoutService
      *     delta?: int
      * }>
      */
-    public function unequipStatChanges(Character $character, Inventory $row): array
+    public function unequipStatChanges(Character $character, BackpackItem $row): array
     {
         $before = $this->forCharacter($character);
         $afterRows = $before->rowsBySlot;
         $found = false;
 
         foreach ($afterRows as $key => $wornRow) {
-            if ($wornRow instanceof Inventory && $wornRow->id === $row->id) {
+            if ($wornRow instanceof BackpackItem && $wornRow->id === $row->id) {
                 $afterRows[$key] = null;
                 $found = true;
             }
@@ -139,6 +141,64 @@ final class LoadoutService
         return $lines;
     }
 
+    /**
+     * @return list<array{
+     *     kind: 'note'|'plain'|'delta',
+     *     text?: string,
+     *     label?: string,
+     *     before?: string,
+     *     after?: string,
+     *     delta?: int
+     * }>
+     */
+    public function socketStatChanges(Character $character, BackpackItem $host, string $gemCatalogId): array
+    {
+        $catalog = app(BagCatalogService::class);
+
+        if (! $catalog->hasGem($gemCatalogId)) {
+            return [[
+                'kind' => 'note',
+                'text' => $this->equipLang('errors.gem_not_found'),
+            ]];
+        }
+
+        $def = $catalog->findGem($gemCatalogId);
+
+        if (! $host->isEquipped()) {
+            return [
+                [
+                    'kind' => 'note',
+                    'text' => $this->equipLang('admin.actions.socket_gem.bonus', [
+                        'bonus' => GemMfText::forDef($def),
+                    ]),
+                ],
+                [
+                    'kind' => 'note',
+                    'text' => $this->equipLang('admin.actions.socket_gem.not_equipped'),
+                ],
+            ];
+        }
+
+        $before = $this->forCharacter($character);
+        $afterMf = $before->mf->merge($def->mf);
+
+        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
+        $lines = [];
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_dodge', $before->mf->dodge, $afterMf->dodge);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_dodge', $before->mf->antiDodge, $afterMf->antiDodge);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_crit', $before->mf->crit, $afterMf->crit);
+        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_crit', $before->mf->antiCrit, $afterMf->antiCrit);
+
+        if ($lines === []) {
+            return [[
+                'kind' => 'note',
+                'text' => $this->equipLang('admin.actions.socket_gem.no_stat_changes'),
+            ]];
+        }
+
+        return $lines;
+    }
+
     public function forCharacter(Character $character): EquippedLoadout
     {
         $rowsBySlot = [];
@@ -149,7 +209,7 @@ final class LoadoutService
 
         $slots = LoadoutSlot::query()
             ->where('tg_id', $character->tg_id)
-            ->with('inventory')
+            ->with('backpackItem')
             ->orderBy('id')
             ->get();
 
@@ -160,9 +220,9 @@ final class LoadoutService
                 continue;
             }
 
-            $row = $loadoutSlot->inventory;
+            $row = $loadoutSlot->backpackItem;
 
-            if (! $row instanceof Inventory) {
+            if (! $row instanceof BackpackItem) {
                 continue;
             }
 
@@ -204,15 +264,15 @@ final class LoadoutService
 
             $row = $rowsBySlot[$worn->value];
 
-            if (! $row instanceof Inventory) {
+            if (! $row instanceof BackpackItem) {
                 continue;
             }
 
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 continue;
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if (! $this->defFitsWornSlot($def, $worn)) {
                 continue;
@@ -234,7 +294,7 @@ final class LoadoutService
                 continue;
             }
 
-            $rowMf = $def->mf->merge($this->gems->mfFromSocketed($row));
+            $rowMf = $def->mf->merge($this->bag->mfFromSocketed($row));
             $statBonus += $def->statBonus;
 
             if ($worn === SlotEnum::RIGHT_HAND) {
@@ -281,7 +341,7 @@ final class LoadoutService
 
         $shield = $normalized[SlotEnum::SHIELD->value];
 
-        if ($shield instanceof Inventory && $this->rowGivesBonuses($shield)) {
+        if ($shield instanceof BackpackItem && $this->rowGivesBonuses($shield)) {
             $blockSlots = 2;
         } else {
             $blockSlots = 1;
@@ -326,7 +386,7 @@ final class LoadoutService
         foreach (SlotEnum::gameplayEquipSlots() as $slot) {
             $row = $loadout->row($slot);
 
-            if (! $row instanceof Inventory) {
+            if (! $row instanceof BackpackItem) {
                 $lines[] = __('profile.gear_slot_empty', [
                     'slot' => $slot->getLabel(),
                 ]);
@@ -439,14 +499,14 @@ final class LoadoutService
 
     public function dropUnmetEquipped(Character $character): Character
     {
-        $equipped = Inventory::query()
+        $equipped = BackpackItem::query()
             ->where('tg_id', $character->tg_id)
             ->equipped()
             ->orderBy('id')
             ->get();
 
         foreach ($equipped as $row) {
-            if (! $this->shop->hasItem($row->item_id)) {
+            if (! $this->shop->hasItem($row->catalog_id)) {
                 $res = $this->unequip($character, $row->id);
 
                 if ($res->character instanceof Character) {
@@ -456,7 +516,7 @@ final class LoadoutService
                 continue;
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             if ($this->characterMeetsRequirements($character, $def)) {
                 continue;
@@ -474,7 +534,7 @@ final class LoadoutService
 
     public function equip(Character $character, int $inventoryRowId): ActionResult
     {
-        $row = Inventory::query()
+        $row = BackpackItem::query()
             ->where('id', $inventoryRowId)
             ->where('tg_id', $character->tg_id)
             ->first();
@@ -483,11 +543,11 @@ final class LoadoutService
             return ActionResult::fail(__('errors.item_not_found'));
         }
 
-        if (! $this->shop->isEquippable($row->item_id)) {
+        if (! $this->shop->isEquippable($row->catalog_id)) {
             return ActionResult::fail(__('errors.cannot_equip'));
         }
 
-        $def = $this->shop->findItem($row->item_id);
+        $def = $this->shop->findItem($row->catalog_id);
 
         if (! $def->slot instanceof SlotEnum) {
             return ActionResult::fail(__('errors.cannot_equip'));
@@ -498,11 +558,11 @@ final class LoadoutService
 
     public function equipByItemId(Character $character, string $itemId): ActionResult
     {
-        if (! $this->inventory()->owns($character->tg_id, $itemId)) {
+        if (! $this->backpack()->owns($character->tg_id, $itemId)) {
             return ActionResult::fail(__('errors.not_in_inventory'));
         }
 
-        $row = $this->inventory()->findOwned($character->tg_id, $itemId);
+        $row = $this->backpack()->findOwned($character->tg_id, $itemId);
 
         return $this->equip($character, $row->id);
     }
@@ -510,7 +570,7 @@ final class LoadoutService
     public function equipToSlot(Character $character, int $inventoryRowId, SlotEnum $slot): ActionResult
     {
         return DB::transaction(function () use ($character, $inventoryRowId, $slot): ActionResult {
-            $row = Inventory::query()
+            $row = BackpackItem::query()
                 ->where('id', $inventoryRowId)
                 ->where('tg_id', $character->tg_id)
                 ->first();
@@ -519,11 +579,11 @@ final class LoadoutService
                 return ActionResult::fail(__('errors.item_not_found'));
             }
 
-            if (! $this->shop->isEquippable($row->item_id)) {
+            if (! $this->shop->isEquippable($row->catalog_id)) {
                 return ActionResult::fail(__('errors.cannot_equip'));
             }
 
-            $def = $this->shop->findItem($row->item_id);
+            $def = $this->shop->findItem($row->catalog_id);
 
             $slotError = $this->equipSlotError($character, $def, $slot);
 
@@ -561,13 +621,13 @@ final class LoadoutService
             }
 
             LoadoutSlot::query()
-                ->where('inventory_id', $row->id)
+                ->where('backpack_item_id', $row->id)
                 ->delete();
 
             $loadout = new LoadoutSlot;
             $loadout->tg_id = $character->tg_id;
             $loadout->slot = $slot;
-            $loadout->inventory_id = $row->id;
+            $loadout->backpack_item_id = $row->id;
             $loadout->save();
 
             $character = $this->characters()->findByTgId($character->tg_id);
@@ -594,13 +654,13 @@ final class LoadoutService
     /**
      * @return list<SlotEnum>
      */
-    public function equippableSlots(Character $character, Inventory $row): array
+    public function equippableSlots(Character $character, BackpackItem $row): array
     {
-        if (! $this->shop->isEquippable($row->item_id)) {
+        if (! $this->shop->isEquippable($row->catalog_id)) {
             return [];
         }
 
-        $def = $this->shop->findItem($row->item_id);
+        $def = $this->shop->findItem($row->catalog_id);
         $slots = [];
 
         foreach (SlotEnum::gameplayEquipSlots() as $slot) {
@@ -620,7 +680,7 @@ final class LoadoutService
     public function unequip(Character $character, int $inventoryRowId): ActionResult
     {
         return DB::transaction(function () use ($character, $inventoryRowId): ActionResult {
-            $row = Inventory::query()
+            $row = BackpackItem::query()
                 ->where('id', $inventoryRowId)
                 ->where('tg_id', $character->tg_id)
                 ->first();
@@ -633,12 +693,12 @@ final class LoadoutService
                 return ActionResult::fail(__('errors.not_equipped'));
             }
 
-            if ($this->inventory()->isFull($character)) {
+            if ($this->backpack()->isFull($character)) {
                 return ActionResult::fail(__('errors.inventory_full'));
             }
 
             LoadoutSlot::query()
-                ->where('inventory_id', $row->id)
+                ->where('backpack_item_id', $row->id)
                 ->delete();
 
             $character = $this->characters()->findByTgId($character->tg_id);
@@ -664,7 +724,7 @@ final class LoadoutService
             return ActionResult::fail(__('errors.slot_empty'));
         }
 
-        return $this->unequip($character, $loadout->inventory_id);
+        return $this->unequip($character, $loadout->backpack_item_id);
     }
 
     /**
@@ -776,7 +836,7 @@ final class LoadoutService
         return $combat['dualWieldMinLevel'];
     }
 
-    private function rowGivesBonuses(Inventory $row): bool
+    private function rowGivesBonuses(BackpackItem $row): bool
     {
         if ($row->max_durability === null) {
             return true;
@@ -789,10 +849,10 @@ final class LoadoutService
         return $row->durability > 0;
     }
 
-    private function slotBonusText(SlotEnum $slot, Inventory $row): string
+    private function slotBonusText(SlotEnum $slot, BackpackItem $row): string
     {
-        $def = $this->shop->findItem($row->item_id);
-        $mf = $def->mf->merge($this->gems->mfFromSocketed($row));
+        $def = $this->shop->findItem($row->catalog_id);
+        $mf = $def->mf->merge($this->bag->mfFromSocketed($row));
         $parts = [];
 
         if ($slot === SlotEnum::RIGHT_HAND || $slot === SlotEnum::LEFT_HAND) {
@@ -845,7 +905,7 @@ final class LoadoutService
         return DB::transaction(function () use ($character, $extraLoss): array {
             $brokenNames = [];
 
-            $equipped = Inventory::query()
+            $equipped = BackpackItem::query()
                 ->where('tg_id', $character->tg_id)
                 ->equipped()
                 ->orderBy('id')
@@ -860,11 +920,11 @@ final class LoadoutService
                     continue;
                 }
 
-                if (! $this->shop->hasItem($row->item_id)) {
+                if (! $this->shop->hasItem($row->catalog_id)) {
                     continue;
                 }
 
-                $def = $this->shop->findItem($row->item_id);
+                $def = $this->shop->findItem($row->catalog_id);
 
                 if ($def->durabilityLossPerFight === null || $def->durabilityLossPerFight <= 0) {
                     continue;
@@ -993,20 +1053,20 @@ final class LoadoutService
         $loadout = LoadoutSlot::query()
             ->where('tg_id', $character->tg_id)
             ->where('slot', SlotEnum::RIGHT_HAND->value)
-            ->with('inventory')
+            ->with('backpackItem')
             ->first();
 
-        if ($loadout === null || ! $loadout->inventory instanceof Inventory) {
+        if ($loadout === null || ! $loadout->backpackItem instanceof BackpackItem) {
             return null;
         }
 
-        $row = $loadout->inventory;
+        $row = $loadout->backpackItem;
 
-        if (! $this->shop->hasItem($row->item_id)) {
+        if (! $this->shop->hasItem($row->catalog_id)) {
             return null;
         }
 
-        $def = $this->shop->findItem($row->item_id);
+        $def = $this->shop->findItem($row->catalog_id);
 
         if (! $def->profile instanceof ProfileEnum) {
             return null;
@@ -1121,8 +1181,8 @@ final class LoadoutService
         return app(CharacterService::class);
     }
 
-    private function inventory(): InventoryService
+    private function backpack(): BackpackService
     {
-        return app(InventoryService::class);
+        return app(BackpackService::class);
     }
 }

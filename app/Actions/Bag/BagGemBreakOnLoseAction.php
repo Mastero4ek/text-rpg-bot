@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Gem;
+namespace App\Actions\Bag;
 
 use App\Models\Character;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 
-final class GemBreakOnLoseAction
+final class BagGemBreakOnLoseAction
 {
     public function __construct(
-        private readonly GemService $gems,
+        private readonly BagService $bag,
     ) {}
 
     /**
@@ -18,6 +18,6 @@ final class GemBreakOnLoseAction
      */
     public function handle(Character $character): array
     {
-        return $this->gems->breakSocketedOnLose($character);
+        return $this->bag->breakSocketedOnLose($character);
     }
 }

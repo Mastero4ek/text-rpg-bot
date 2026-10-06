@@ -2,38 +2,35 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Inventories\Tables;
+namespace App\Filament\Resources\Characters\Tables;
 
-use App\Actions\Inventory\InventoryDiscardAction;
-use App\Actions\Inventory\InventoryEquipToSlotAction;
+use App\Actions\Backpack\BackpackDiscardAction;
+use App\Actions\Backpack\BackpackEquipToSlotAction;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Filament\Resources\BackpackCatalog\BackpackCatalogResource;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
-use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Support\BackpackDurabilityText;
+use App\Filament\Support\BackpackEquipPreviewHtml;
 use App\Filament\Support\EquipmentTypeProfileFilters;
-use App\Filament\Support\InventoryDurabilityText;
-use App\Filament\Support\InventoryEquipPreviewHtml;
-use App\Filament\Support\InventoryQuantityText;
 use App\Filament\Tables\Columns\AppearanceImageColumn;
+use App\Models\BackpackCatalog;
+use App\Models\BackpackItem;
 use App\Models\Character;
-use App\Models\Equipment;
-use App\Models\Inventory;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
+use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
 use App\Services\Shop\ShopCatalog;
 use Filament\Actions\Action;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Colors\Color;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -43,76 +40,24 @@ use Illuminate\Support\HtmlString;
 use Livewire\Component;
 use RuntimeException;
 
-final class InventoriesTable
+final class BackpackTable
 {
-    public static function configure(Table $table): Table
+    public static function configure(Table $table, bool $canMutate): Table
     {
-        return self::finishTable($table, [
-            ...self::backpackItemColumns(),
-            IconColumn::make('is_equipped')
-                ->label(__('admin.labels.is_equipped'))
-                ->state(fn (Inventory $record): bool => $record->isEquipped())
-                ->boolean()
-                ->alignCenter()
-                ->sortable(query: function (Builder $query, string $direction): Builder {
-                    if ($direction !== 'asc' && $direction !== 'desc') {
-                        throw new RuntimeException('Invalid sort direction.');
-                    }
+        $recordActions = [];
 
-                    return $query->orderByRaw(
-                        'exists (select 1 from loadout_slots where loadout_slots.inventory_id = inventories.id) ' . $direction,
-                    );
-                })
-                ->placeholder('-'),
-            TextColumn::make('tg_id')
-                ->label(__('admin.labels.tg_id'))
-                ->alignCenter()
-                ->sortable()
-                ->searchable()
-                ->placeholder('-'),
-            TextColumn::make('character.username')
-                ->label(__('admin.labels.username'))
-                ->searchable()
-                ->limit(40)
-                ->tooltip(fn (Inventory $record): string => self::usernameLabel($record))
-                ->placeholder('-'),
-        ], [
-            ...self::typeAndProfileFilters(),
-            TernaryFilter::make('is_equipped')
-                ->label(__('admin.labels.is_equipped'))
-                ->native(false)
-                ->queries(
-                    true: fn (Builder $query): Builder => $query->whereHas('loadoutSlot'),
-                    false: fn (Builder $query): Builder => $query->whereDoesntHave('loadoutSlot'),
-                    blank: fn (Builder $query): Builder => $query,
-                ),
-        ], self::characterMutationActions(), self::inventoryInstanceViewAction());
-    }
+        if ($canMutate) {
+            $recordActions = self::characterMutationActions();
+        }
 
-    public static function configureForCharacter(Table $table): Table
-    {
         return self::finishTable(
             $table,
             self::backpackItemColumns(),
             self::typeAndProfileFilters(),
-            self::characterMutationActions(),
-            self::equipmentCatalogViewAction(),
+            $recordActions,
+            self::catalogViewAction(),
         )
-            ->recordUrl(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
-            ->emptyStateHeading(__('admin.empty.backpack.heading'))
-            ->emptyStateDescription(__('admin.empty.backpack.description'));
-    }
-
-    public static function configureForCharacterView(Table $table): Table
-    {
-        return self::finishTable(
-            $table,
-            self::backpackItemColumns(),
-            self::typeAndProfileFilters(),
-            [],
-            self::equipmentCatalogViewAction(),
-        )
-            ->recordUrl(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
+            ->recordUrl(fn (BackpackItem $record): ?string => self::catalogUrl($record))
             ->emptyStateHeading(__('admin.empty.backpack.heading'))
             ->emptyStateDescription(__('admin.empty.backpack.description'));
     }
@@ -123,7 +68,7 @@ final class InventoriesTable
     private static function backpackItemColumns(): array
     {
         return [
-            AppearanceImageColumn::make('equipment.image')
+            AppearanceImageColumn::make('catalog.image')
                 ->label(__('admin.labels.appearance'))
                 ->collection('image')
                 ->circular()
@@ -134,31 +79,25 @@ final class InventoriesTable
                         throw new RuntimeException('Invalid sort direction.');
                     }
 
-                    $inventoryTable = $query->getModel()->getTable();
+                    $backpackTable = $query->getModel()->getTable();
 
                     return $query->orderByRaw(
                         'exists (
                             select 1
                             from media
                             where media.model_type = ?
-                              and media.model_id = ' . $inventoryTable . '.item_id
+                              and media.model_id = ' . $backpackTable . '.catalog_id
                               and media.collection_name = ?
                         ) ' . $direction,
-                        [(new Equipment)->getMorphClass(), 'image'],
+                        [(new BackpackCatalog)->getMorphClass(), 'image'],
                     );
                 }),
             TextColumn::make('item_name')
                 ->label(__('admin.labels.item_name'))
-                ->searchable(['item_name', 'item_id'])
+                ->searchable(['item_name', 'catalog_id'])
                 ->sortable()
                 ->limit(40)
-                ->tooltip(fn (Inventory $record): string => $record->item_name)
-                ->placeholder('-'),
-            TextColumn::make('quantity')
-                ->label(__('admin.labels.quantity'))
-                ->state(fn (Inventory $record): ?string => InventoryQuantityText::format($record))
-                ->alignCenter()
-                ->sortable()
+                ->tooltip(fn (BackpackItem $record): string => $record->item_name)
                 ->placeholder('-'),
             TextColumn::make('item_type')
                 ->label(__('admin.labels.item_type'))
@@ -166,7 +105,7 @@ final class InventoriesTable
                 ->alignCenter()
                 ->sortable()
                 ->placeholder('-'),
-            TextColumn::make('equipment.profile')
+            TextColumn::make('catalog.profile')
                 ->label(__('admin.labels.profile'))
                 ->badge()
                 ->alignCenter()
@@ -184,17 +123,17 @@ final class InventoriesTable
                     return $query->orderByRaw(
                         'exists (
                             select 1
-                            from equipment
-                            where equipment.item_id = inventories.item_id
-                              and equipment.gem_slots > 0
-                              and inventories.item_type not in (?, ?)
+                            from backpack_catalog
+                            where backpack_catalog.catalog_id = backpack_items.catalog_id
+                              and backpack_catalog.gem_slots > 0
+                              and backpack_items.item_type != ?
                         ) ' . $direction,
-                        [TypeEnum::JEWELRY->value, TypeEnum::POTION->value],
+                        [TypeEnum::JEWELRY->value],
                     );
                 }),
             TextColumn::make('durability')
                 ->label(__('admin.labels.durability_pair'))
-                ->state(fn (Inventory $record): ?string => InventoryDurabilityText::format($record))
+                ->state(fn (BackpackItem $record): ?string => BackpackDurabilityText::format($record))
                 ->alignCenter()
                 ->sortable()
                 ->placeholder('-'),
@@ -222,7 +161,7 @@ final class InventoriesTable
     ): Table {
         return $table
             ->defaultSort('id', 'asc')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipment', 'loadoutSlot']))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['catalog', 'loadoutSlot']))
             ->columns($columns)
             ->filters($filters)
             ->recordActions([
@@ -233,35 +172,26 @@ final class InventoriesTable
             ->headerActions([]);
     }
 
-    private static function equipmentCatalogUrl(Inventory $record): ?string
+    private static function catalogUrl(BackpackItem $record): ?string
     {
-        if ($record->equipment === null) {
+        if ($record->catalog === null) {
             return null;
         }
 
-        return EquipmentResource::getUrl('view', [
-            'record' => $record->item_id,
+        return BackpackCatalogResource::getUrl('view', [
+            'record' => $record->catalog_id,
         ]);
     }
 
-    private static function equipmentCatalogViewAction(): Action
+    private static function catalogViewAction(): Action
     {
         return Action::make('view')
             ->icon('heroicon-o-eye')
             ->color(Color::Teal)
             ->label('')
             ->tooltip(__('admin.actions.view.label'))
-            ->url(fn (Inventory $record): ?string => self::equipmentCatalogUrl($record))
-            ->visible(fn (Inventory $record): bool => $record->equipment !== null);
-    }
-
-    private static function inventoryInstanceViewAction(): ViewAction
-    {
-        return ViewAction::make()
-            ->icon('heroicon-o-eye')
-            ->color(Color::Teal)
-            ->label('')
-            ->tooltip(__('admin.actions.view.label'));
+            ->url(fn (BackpackItem $record): ?string => self::catalogUrl($record))
+            ->visible(fn (BackpackItem $record): bool => $record->catalog !== null);
     }
 
     /**
@@ -282,14 +212,14 @@ final class InventoriesTable
             ->color(Color::Red)
             ->label('')
             ->tooltip(__('admin.actions.discard.label'))
-            ->visible(fn (Inventory $record): bool => ! $record->isEquipped())
+            ->visible(fn (BackpackItem $record): bool => ! $record->isEquipped())
             ->requiresConfirmation()
-            ->modalHeading(fn (Inventory $record): string => __('admin.actions.discard.modal_heading', [
-                'name' => app(InventoryService::class)->rowLabel($record),
+            ->modalHeading(fn (BackpackItem $record): string => __('admin.actions.discard.modal_heading', [
+                'name' => app(BackpackService::class)->rowLabel($record),
             ]))
             ->modalDescription(__('admin.actions.discard.modal_description'))
             ->modalSubmitActionLabel(__('admin.actions.discard.modal_submit'))
-            ->action(function (Inventory $record, Component $livewire): void {
+            ->action(function (BackpackItem $record, Component $livewire): void {
                 $character = $record->character;
 
                 if (! $character instanceof Character) {
@@ -297,10 +227,10 @@ final class InventoriesTable
                 }
 
                 if (! $character instanceof Character) {
-                    throw new RuntimeException('Character not found for inventory row.');
+                    throw new RuntimeException('Character not found for backpack row.');
                 }
 
-                $result = app(InventoryDiscardAction::class)->handle($character, $record->id);
+                $result = app(BackpackDiscardAction::class)->handle($character, $record->id);
 
                 if (! $result->ok) {
                     Notification::make()
@@ -333,20 +263,20 @@ final class InventoriesTable
             ->color(Color::Green)
             ->label('')
             ->tooltip(__('admin.actions.equip.label'))
-            ->visible(function (Inventory $record): bool {
+            ->visible(function (BackpackItem $record): bool {
                 if ($record->isEquipped()) {
                     return false;
                 }
 
-                return app(ShopCatalog::class)->isEquippable($record->item_id);
+                return app(ShopCatalog::class)->isEquippable($record->catalog_id);
             })
             ->requiresConfirmation()
-            ->modalHeading(fn (Inventory $record): string => __('admin.actions.equip.modal_heading', [
+            ->modalHeading(fn (BackpackItem $record): string => __('admin.actions.equip.modal_heading', [
                 'name' => $record->item_name,
             ]))
             ->modalDescription('')
             ->modalSubmitActionLabel(__('admin.actions.equip.modal_submit'))
-            ->fillForm(function (Inventory $record): array {
+            ->fillForm(function (BackpackItem $record): array {
                 $slots = self::equippableSlotsFor($record);
 
                 if ($slots === []) {
@@ -355,7 +285,7 @@ final class InventoriesTable
 
                 return ['slot' => $slots[0]->value];
             })
-            ->schema(function (Inventory $record): array {
+            ->schema(function (BackpackItem $record): array {
                 $slots = self::equippableSlotsFor($record);
                 $fields = [];
 
@@ -384,7 +314,7 @@ final class InventoriesTable
 
                 return $fields;
             })
-            ->action(function (Inventory $record, array $data, Component $livewire): void {
+            ->action(function (BackpackItem $record, array $data, Component $livewire): void {
                 $character = $record->character;
 
                 if (! $character instanceof Character) {
@@ -392,7 +322,7 @@ final class InventoriesTable
                 }
 
                 if (! $character instanceof Character) {
-                    throw new RuntimeException('Character not found for inventory row.');
+                    throw new RuntimeException('Character not found for backpack row.');
                 }
 
                 $slots = app(LoadoutService::class)->equippableSlots($character, $record);
@@ -416,7 +346,7 @@ final class InventoriesTable
                     $slot = SlotEnum::from($data['slot']);
                 }
 
-                $result = app(InventoryEquipToSlotAction::class)->handle($character, $record->id, $slot);
+                $result = app(BackpackEquipToSlotAction::class)->handle($character, $record->id, $slot);
 
                 if (! $result->ok) {
                     Notification::make()
@@ -442,7 +372,7 @@ final class InventoriesTable
             });
     }
 
-    private static function equipStatChangesHtml(Inventory $record, mixed $slotState): HtmlString
+    private static function equipStatChangesHtml(BackpackItem $record, mixed $slotState): HtmlString
     {
         $character = $record->character;
 
@@ -466,7 +396,7 @@ final class InventoriesTable
             $slot = $slots[0];
         }
 
-        return InventoryEquipPreviewHtml::format(
+        return BackpackEquipPreviewHtml::format(
             app(LoadoutService::class)->equipStatChanges($character, $record, $slot),
         );
     }
@@ -474,7 +404,7 @@ final class InventoriesTable
     /**
      * @return list<SlotEnum>
      */
-    private static function equippableSlotsFor(Inventory $record): array
+    private static function equippableSlotsFor(BackpackItem $record): array
     {
         $character = $record->character;
 
@@ -504,9 +434,8 @@ final class InventoriesTable
                         return $query;
                     }
 
-                    return $query->whereHas(
-                        'equipment',
-                        fn (Builder $equipment): Builder => $equipment->where('profile', $value),
+                    return $query->whereHas('catalog',
+                        fn (Builder $catalog): Builder => $catalog->where('profile', $value),
                     );
                 }),
             TernaryFilter::make('has_socketed_gems')
@@ -515,15 +444,8 @@ final class InventoriesTable
                 ->trueLabel(__('admin.labels.with_socketed_gems'))
                 ->falseLabel(__('admin.labels.without_socketed_gems'))
                 ->queries(
-                    true: fn (Builder $query): Builder => $query
-                        ->whereNotNull('socketed_gems')
-                        ->where('socketed_gems', '!=', '[]')
-                        ->where('socketed_gems', 'like', '%"gem_id"%'),
-                    false: fn (Builder $query): Builder => $query->where(function (Builder $inner): void {
-                        $inner->whereNull('socketed_gems')
-                            ->orWhere('socketed_gems', '=', '[]')
-                            ->orWhere('socketed_gems', 'not like', '%"gem_id"%');
-                    }),
+                    true: fn (Builder $query): Builder => $query->whereHas('socketedGems'),
+                    false: fn (Builder $query): Builder => $query->whereDoesntHave('socketedGems'),
                     blank: fn (Builder $query): Builder => $query,
                 ),
             TernaryFilter::make('has_gem_sockets')
@@ -533,17 +455,15 @@ final class InventoriesTable
                 ->falseLabel(__('admin.labels.without_gem_sockets'))
                 ->queries(
                     true: fn (Builder $query): Builder => $query
-                        ->whereNotIn('item_type', [TypeEnum::JEWELRY->value, TypeEnum::POTION->value])
-                        ->whereHas(
-                            'equipment',
-                            fn (Builder $equipment): Builder => $equipment->where('gem_slots', '>', 0),
+                        ->where('item_type', '!=', TypeEnum::JEWELRY->value)
+                        ->whereHas('catalog',
+                            fn (Builder $catalog): Builder => $catalog->where('gem_slots', '>', 0),
                         ),
                     false: fn (Builder $query): Builder => $query->where(function (Builder $inner): void {
-                        $inner->whereIn('item_type', [TypeEnum::JEWELRY->value, TypeEnum::POTION->value])
-                            ->orWhereDoesntHave('equipment')
-                            ->orWhereHas(
-                                'equipment',
-                                fn (Builder $equipment): Builder => $equipment->where(function (Builder $slots): void {
+                        $inner->where('item_type', TypeEnum::JEWELRY->value)
+                            ->orWhereDoesntHave('catalog')
+                            ->orWhereHas('catalog',
+                                fn (Builder $catalog): Builder => $catalog->where(function (Builder $slots): void {
                                     $slots->whereNull('gem_slots')
                                         ->orWhere('gem_slots', '<=', 0);
                                 }),
@@ -552,16 +472,5 @@ final class InventoriesTable
                     blank: fn (Builder $query): Builder => $query,
                 ),
         ];
-    }
-
-    private static function usernameLabel(Inventory $record): string
-    {
-        $username = $record->character?->username;
-
-        if (is_string($username) && $username !== '') {
-            return $username;
-        }
-
-        return (string) $record->tg_id;
     }
 }

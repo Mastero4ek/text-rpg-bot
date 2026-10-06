@@ -11,17 +11,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('inventories', function (Blueprint $table) {
+        Schema::create('backpack_items', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tg_id');
-            $table->string('item_id');
+            $table->string('catalog_id');
             $table->string('item_name');
             $table->string('item_type')->default(TypeEnum::WEAPON->value);
             $table->string('slot')->nullable();
             $table->unsignedInteger('durability')->nullable();
             $table->unsignedInteger('max_durability')->nullable();
-            $table->unsignedTinyInteger('quantity')->default(1);
-            $table->json('socketed_gems')->nullable();
             $table->timestamp('created_at')->nullable();
             $table->index('tg_id');
             $table->foreign('tg_id')->references('tg_id')->on('characters');
@@ -30,6 +28,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('inventories');
+        Schema::dropIfExists('backpack_items');
     }
 };

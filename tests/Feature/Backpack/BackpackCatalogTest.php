@@ -4,26 +4,24 @@ declare(strict_types=1);
 
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Enums\Equipment\TypeEnum;
-use App\Models\Equipment;
-use App\Models\Inventory;
-use Database\Seeders\EquipmentSeeder;
+use App\Models\BackpackCatalog;
+use App\Models\BackpackItem;
+use Database\Seeders\BackpackCatalogSeeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 it('seeds equipment catalog into the database', function (): void {
-    expect(Equipment::query()->count())->toBeGreaterThan(10)
+    expect(BackpackCatalog::query()->count())->toBeGreaterThan(10)
         ->and(shopCatalog()->mailShirtId())->toBe('heavy_0')
         ->and(shopCatalog()->starterKnucklesId())->toBe('knuckles_0')
         ->and(shopCatalog()->freeTrainerItemId())->toBe('club_0')
-        ->and(shopCatalog()->potionPrice())->toBe(15)
-        ->and(shopCatalog()->potionHeal())->toBe(40)
+        ->and(bagCatalog()->potionPrice())->toBe(15)
+        ->and(bagCatalog()->potionHeal())->toBe(40)
         ->and(shopCatalog()->findItem('knife_0')->itemName)->toBe('Учебный нож')
-        ->and(shopCatalog()->findItem('heal_0')->itemType)->toBe(TypeEnum::POTION)
-        ->and(shopCatalog()->findItem('heal_0')->profile)->toBe(ProfileEnum::HEAL)
-        ->and(shopCatalog()->findItem('heal_0')->effectValue)->toBe(40)
-        ->and(shopCatalog()->findItem('stamina_0')->profile)->toBe(ProfileEnum::STAMINA)
-        ->and(shopCatalog()->potionStaminaHeal())->toBe(25);
+        ->and(bagCatalog()->findPotion('heal_0')->profile)->toBe(ProfileEnum::HEAL)
+        ->and(bagCatalog()->findPotion('heal_0')->effectValue)->toBe(40)
+        ->and(bagCatalog()->findPotion('stamina_0')->profile)->toBe(ProfileEnum::STAMINA)
+        ->and(bagCatalog()->potionStaminaHeal())->toBe(25);
 });
 
 it('lists novice and tier weapons from hardcoded novice ids', function (): void {
@@ -38,11 +36,11 @@ it('lists novice and tier weapons from hardcoded novice ids', function (): void 
 });
 
 it('hides disabled and out-of-shop weapons from shop lists', function (): void {
-    $disabled = Equipment::query()->findOrFail('knife_0');
+    $disabled = BackpackCatalog::query()->findOrFail('knife_0');
     $disabled->enabled = false;
     $disabled->save();
 
-    $outOfShop = Equipment::query()->findOrFail('sword_0');
+    $outOfShop = BackpackCatalog::query()->findOrFail('sword_0');
     $outOfShop->in_shop = false;
     $outOfShop->save();
 
@@ -53,7 +51,7 @@ it('hides disabled and out-of-shop weapons from shop lists', function (): void {
 });
 
 it('finds trashed and disabled equipment for already owned lookup', function (): void {
-    $equipment = Equipment::query()->findOrFail('axe_0');
+    $equipment = BackpackCatalog::query()->findOrFail('axe_0');
     $equipment->enabled = false;
     $equipment->save();
     $equipment->delete();
@@ -68,33 +66,33 @@ it('finds trashed and disabled equipment for already owned lookup', function ():
 
 it('syncs inventory item_name when equipment name changes', function (): void {
     $character = characters()->createDraft(7001);
-    inventory()->addItem($character->tg_id, 'knife_0');
+    backpack()->addItem($character->tg_id, 'knife_0');
 
-    $equipment = Equipment::query()->findOrFail('knife_0');
+    $equipment = BackpackCatalog::query()->findOrFail('knife_0');
     $equipment->name = 'Новый учебный нож';
     $equipment->save();
 
-    expect(Inventory::query()->where('tg_id', $character->tg_id)->where('item_id', 'knife_0')->value('item_name'))
+    expect(BackpackItem::query()->where('tg_id', $character->tg_id)->where('catalog_id', 'knife_0')->value('item_name'))
         ->toBe('Новый учебный нож')
         ->and(shopCatalog()->findItem('knife_0')->itemName)->toBe('Новый учебный нож');
 });
 
-it('blocks force delete when item exists in inventories', function (): void {
+it('blocks force delete when item exists in backpack', function (): void {
     $character = characters()->createDraft(7002);
-    inventory()->addItem($character->tg_id, 'axe_0');
+    backpack()->addItem($character->tg_id, 'axe_0');
 
-    $equipment = Equipment::query()->findOrFail('axe_0');
+    $equipment = BackpackCatalog::query()->findOrFail('axe_0');
     $equipment->delete();
 
     expect($equipment->fresh()->trashed())->toBeTrue()
-        ->and($equipment->isReferencedByInventory())->toBeTrue()
-        ->and(App\Filament\Resources\Equipment\EquipmentResource::canForceDelete($equipment))->toBeFalse();
+        ->and($equipment->isReferencedByBackpack())->toBeTrue()
+        ->and(App\Filament\Resources\BackpackCatalog\BackpackCatalogResource::canForceDelete($equipment))->toBeFalse();
 });
 
-it('combat potion heal reads effect_value from equipment', function (): void {
+it('combat potion heal reads effect_value from bag catalog', function (): void {
     expect(combat()->potionHeal())->toBe(40);
 
-    $potion = Equipment::query()->findOrFail('heal_0');
+    $potion = App\Models\BagCatalog::query()->findOrFail('heal_0');
     $potion->effect_value = 55;
     $potion->save();
 
@@ -102,7 +100,7 @@ it('combat potion heal reads effect_value from equipment', function (): void {
 });
 
 it('buys weapon for gold vip wallet', function (): void {
-    $equipment = Equipment::query()->findOrFail('sword_0');
+    $equipment = BackpackCatalog::query()->findOrFail('sword_0');
     $equipment->currency = CurrencyEnum::GOLD;
     $equipment->price = 3;
     $equipment->save();
@@ -117,7 +115,7 @@ it('buys weapon for gold vip wallet', function (): void {
     expect($buy->ok)->toBeTrue()
         ->and($buy->character->gold)->toBe(0)
         ->and($buy->character->silver)->toBe(0)
-        ->and(inventory()->owns($character->tg_id, 'sword_0'))->toBeTrue();
+        ->and(backpack()->owns($character->tg_id, 'sword_0'))->toBeTrue();
 
     $poor = characters()->createDraft(7004);
     $poor->silver = 100;
@@ -129,7 +127,7 @@ it('buys weapon for gold vip wallet', function (): void {
 });
 
 it('rejects buying weapons hidden from shop', function (): void {
-    $equipment = Equipment::query()->findOrFail('hammer_0');
+    $equipment = BackpackCatalog::query()->findOrFail('hammer_0');
     $equipment->enabled = false;
     $equipment->save();
 
@@ -144,7 +142,7 @@ it('invalidates catalog cache and recovers from corrupt cache payload', function
     expect(shopCatalog()->findItem('club_0')->weaponDamageMin)->toBe(3)
         ->and(shopCatalog()->findItem('club_0')->weaponDamageMax)->toBe(4);
 
-    $equipment = Equipment::query()->findOrFail('club_0');
+    $equipment = BackpackCatalog::query()->findOrFail('club_0');
     $equipment->weapon_damage_min = 9;
     $equipment->weapon_damage_max = 11;
     $equipment->save();
@@ -152,7 +150,7 @@ it('invalidates catalog cache and recovers from corrupt cache payload', function
     expect(shopCatalog()->findItem('club_0')->weaponDamageMin)->toBe(9)
         ->and(shopCatalog()->findItem('club_0')->weaponDamageMax)->toBe(11);
 
-    Cache::put('equipment.catalog.v5', Collection::make([
+    Cache::put('backpack.catalog.v1', Collection::make([
         'broken' => new class
         {
             public string $x = 'incomplete-like';
@@ -163,8 +161,8 @@ it('invalidates catalog cache and recovers from corrupt cache payload', function
 });
 
 it('seeder is idempotent', function (): void {
-    $before = Equipment::query()->count();
-    $this->seed(EquipmentSeeder::class);
+    $before = BackpackCatalog::query()->count();
+    $this->seed(BackpackCatalogSeeder::class);
 
-    expect(Equipment::query()->count())->toBe($before);
+    expect(BackpackCatalog::query()->count())->toBe($before);
 });

@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
-use App\Models\Equipment;
-use App\Services\Gem\GemService;
+use App\Models\BackpackCatalog;
+use App\Services\Bag\BagService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
 
 it('adds extra durability loss per pierce on win', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8601));
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $knuckles->durability = 10;
     $knuckles->save();
 
     loadout()->applyFightWearAfterWin($p, 3);
     $knuckles->refresh();
 
-    $loss = Equipment::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
+    $loss = BackpackCatalog::query()->findOrFail(shopCatalog()->starterKnucklesId())->durability_loss_per_fight;
     $perPierce = gameConfig()->settings()['wear']['extraLossPerPierce'];
 
     expect($knuckles->durability)->toBe(10 - $loss - (3 * $perPierce));
@@ -28,31 +28,30 @@ it('reduces break chance for premium characters', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.30]));
 
     $p = characters()->createDraft(8603);
-    $p->gem_pouch = gemPouch('sapphire_0');
     $p->premium_until = now()->addDay();
     $p->save();
+    $p = grantGem($p, 'sapphire_0', 1);
 
     $p = giveAndEquipStarterKnuckles($p);
-    $knuckles = inventory()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
-    $socket = app(GemService::class)->socket($p, $knuckles->id, 0);
-    $broken = app(GemService::class)->breakSocketedOnLose($socket->character);
+    $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
+    $socket = socketGem($p, $knuckles, 'sapphire_0');
+    $broken = app(BagService::class)->breakSocketedOnLose($socket->character);
     $knuckles->refresh();
 
     // base 40%, premium -15% => 25%; roll 0.30*100=30 >= 25 → keep
     expect($broken)->toBe([])
-        ->and(app(GemService::class)->socketedGemIds($knuckles))->toBe(['sapphire_0'])
-        ->and(app(GemService::class)->socketedInstances($knuckles)[0]['durability'])->toBe(10);
+        ->and(app(BagService::class)->socketedGemIds($knuckles))->toBe(['sapphire_0'])
+        ->and(app(BagService::class)->socketedInstances($knuckles)->first()->durability)->toBe(10);
 });
 
 it('allows any gem type in an open socket', function (): void {
     $p = characters()->createDraft(8605);
-    $p->gem_pouch = gemPouch('sapphire_0');
-    $p->save();
+    $p = grantGem($p, 'sapphire_0', 1);
 
-    inventory()->addItem($p->tg_id, 'knife_0');
-    $knife = inventory()->findOwned($p->tg_id, 'knife_0');
+    backpack()->addItem($p->tg_id, 'knife_0');
+    $knife = backpack()->findOwned($p->tg_id, 'knife_0');
 
-    expect(app(GemService::class)->socket($p, $knife->id, 0)->ok)->toBeTrue();
+    expect(socketGem($p, $knife, 'sapphire_0')->ok)->toBeTrue();
 });
 
 it('grants starter gem on shop quest finish', function (): void {
@@ -69,11 +68,10 @@ it('grants starter gem on shop quest finish', function (): void {
     $p = onboarding()->finishStatsQuest($p)->character;
     $p = onboarding()->finishEquipQuest($p)->character;
     $res = onboarding()->finishShopQuestClaim($p, shopCatalog()->freeTrainerItemId());
-    $pouch = app(GemService::class)->pouch($res->character);
 
     expect($res->ok)->toBeTrue()
         ->and($res->character->onboarding_step)->toBe(OnboardingStepEnum::DONE)
         ->and($ob['starterGemId'])->toBe('ruby_0')
-        ->and(pouchHasGem($pouch, 'ruby_0'))->toBeTrue()
-        ->and($pouch[0]['durability'])->toBe(10);
+        ->and(hasLooseGem($res->character, 'ruby_0'))->toBeTrue()
+        ->and(looseGem($res->character, 'ruby_0')->durability)->toBe(10);
 });

@@ -6,9 +6,9 @@ namespace App\Quest;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Services\Backpack\BackpackService;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\InventoryService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Game\ActionResult;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +28,7 @@ final class StatsQuest
     public function __construct(
         private readonly GameConfig $config,
         private readonly CharacterService $characters,
-        private readonly InventoryService $inventory,
+        private readonly BackpackService $backpack,
         private readonly ShopCatalog $shop,
     ) {}
 
@@ -51,14 +51,14 @@ final class StatsQuest
                 return ActionResult::fail(__('errors.spend_all_points'));
             }
 
-            if (! $this->inventory->owns($character->tg_id, $this->shop->mailShirtId())) {
+            if (! $this->backpack->owns($character->tg_id, $this->shop->mailShirtId())) {
                 $mailShirtId = $this->shop->mailShirtId();
 
-                if (! $this->inventory->canAcceptItem($character, $mailShirtId)) {
+                if (! $this->backpack->canAcceptItem($character)) {
                     return ActionResult::fail(__('errors.inventory_full'));
                 }
 
-                $this->inventory->addItem($character->tg_id, $mailShirtId);
+                $this->backpack->addItem($character->tg_id, $mailShirtId);
             }
 
             $reward = $this->reward();

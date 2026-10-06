@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Shop;
 
-use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Equipment;
+use App\Models\BackpackCatalog;
 use App\Support\Equipment\EquipmentCatalogRow;
 use App\Support\Equipment\EquipmentDef;
 use Illuminate\Support\Collection;
@@ -16,7 +15,7 @@ use RuntimeException;
 
 final class ShopCatalog
 {
-    private const string CACHE_KEY = 'equipment.catalog.v19';
+    private const string CACHE_KEY = 'backpack.catalog.v1';
 
     private const string STARTER_ARMOR_ID = 'heavy_0';
 
@@ -40,30 +39,10 @@ final class ShopCatalog
         Cache::forget(self::CACHE_KEY);
     }
 
-    public function potionPrice(): int
-    {
-        return $this->shopPotion(ProfileEnum::HEAL)->price;
-    }
-
-    public function shopPotionId(): string
-    {
-        return $this->shopPotion(ProfileEnum::HEAL)->itemId;
-    }
-
-    public function staminaPotionPrice(): int
-    {
-        return $this->shopPotion(ProfileEnum::STAMINA)->price;
-    }
-
-    public function shopStaminaPotionId(): string
-    {
-        return $this->shopPotion(ProfileEnum::STAMINA)->itemId;
-    }
-
-    public function isShopWeapon(string $itemId): bool
+    public function isShopWeapon(string $catalogId): bool
     {
         foreach ($this->cachedRows() as $row) {
-            if ($row->def->itemId !== $itemId) {
+            if ($row->def->itemId !== $catalogId) {
                 continue;
             }
 
@@ -75,7 +54,7 @@ final class ShopCatalog
                 return false;
             }
 
-            if (self::isNoviceWeaponId($itemId)) {
+            if (self::isNoviceWeaponId($catalogId)) {
                 return true;
             }
 
@@ -85,10 +64,10 @@ final class ShopCatalog
         return false;
     }
 
-    public function isShopGear(string $itemId): bool
+    public function isShopGear(string $catalogId): bool
     {
         foreach ($this->cachedRows() as $row) {
-            if ($row->def->itemId !== $itemId) {
+            if ($row->def->itemId !== $catalogId) {
                 continue;
             }
 
@@ -114,10 +93,10 @@ final class ShopCatalog
         return false;
     }
 
-    public function isShopJewelry(string $itemId): bool
+    public function isShopJewelry(string $catalogId): bool
     {
         foreach ($this->cachedRows() as $row) {
-            if ($row->def->itemId !== $itemId) {
+            if ($row->def->itemId !== $catalogId) {
                 continue;
             }
 
@@ -143,23 +122,23 @@ final class ShopCatalog
         return false;
     }
 
-    public function isShopMerchandise(string $itemId): bool
+    public function isShopMerchandise(string $catalogId): bool
     {
-        if ($this->isShopWeapon($itemId)) {
+        if ($this->isShopWeapon($catalogId)) {
             return true;
         }
 
-        if ($this->isShopGear($itemId)) {
+        if ($this->isShopGear($catalogId)) {
             return true;
         }
 
-        return $this->isShopJewelry($itemId);
+        return $this->isShopJewelry($catalogId);
     }
 
-    public function isEquippable(string $itemId): bool
+    public function isEquippable(string $catalogId): bool
     {
         foreach ($this->cachedRows() as $row) {
-            if ($row->def->itemId !== $itemId) {
+            if ($row->def->itemId !== $catalogId) {
                 continue;
             }
 
@@ -243,28 +222,6 @@ final class ShopCatalog
         }
 
         return $this->sortedDefs($items);
-    }
-
-    public function potionHeal(): int
-    {
-        $potion = $this->shopPotion(ProfileEnum::HEAL);
-
-        if ($potion->effectValue === null) {
-            throw new RuntimeException('Shop heal potion effect_value missing.');
-        }
-
-        return $potion->effectValue;
-    }
-
-    public function potionStaminaHeal(): int
-    {
-        $potion = $this->shopPotion(ProfileEnum::STAMINA);
-
-        if ($potion->effectValue === null) {
-            throw new RuntimeException('Shop stamina potion effect_value missing.');
-        }
-
-        return $potion->effectValue;
     }
 
     public function mailShirtId(): string
@@ -354,27 +311,27 @@ final class ShopCatalog
         throw new RuntimeException("Unknown shop mode: {$mode}");
     }
 
-    public function findItem(string $itemId): EquipmentDef
+    public function findItem(string $catalogId): EquipmentDef
     {
         foreach ($this->cachedRows() as $row) {
-            if ($row->def->itemId === $itemId) {
+            if ($row->def->itemId === $catalogId) {
                 return $row->def;
             }
         }
 
-        $equipment = Equipment::withTrashed()->where('item_id', $itemId)->first();
+        $catalog = BackpackCatalog::withTrashed()->where('catalog_id', $catalogId)->first();
 
-        if ($equipment === null) {
-            throw new RuntimeException("Unknown item {$itemId}");
+        if ($catalog === null) {
+            throw new RuntimeException("Unknown item {$catalogId}");
         }
 
-        return $equipment->toEquipmentDef();
+        return $catalog->toEquipmentDef();
     }
 
-    public function hasItem(string $itemId): bool
+    public function hasItem(string $catalogId): bool
     {
         try {
-            $this->findItem($itemId);
+            $this->findItem($catalogId);
         } catch (RuntimeException) {
             return false;
         }
@@ -387,9 +344,9 @@ final class ShopCatalog
         return $this->findItem(self::STARTER_ARMOR_ID);
     }
 
-    private static function isNoviceWeaponId(string $itemId): bool
+    private static function isNoviceWeaponId(string $catalogId): bool
     {
-        return in_array($itemId, self::NOVICE_WEAPON_IDS, true);
+        return in_array($catalogId, self::NOVICE_WEAPON_IDS, true);
     }
 
     /**
@@ -407,35 +364,6 @@ final class ShopCatalog
             SlotEnum::GLOVES,
             SlotEnum::SHIELD,
         ];
-    }
-
-    private function shopPotion(ProfileEnum $profile): EquipmentDef
-    {
-        if ($profile !== ProfileEnum::HEAL && $profile !== ProfileEnum::STAMINA) {
-            throw new RuntimeException('Shop potion profile must be HEAL or STAMINA.');
-        }
-
-        foreach ($this->cachedRows() as $row) {
-            if (! $row->enabled) {
-                continue;
-            }
-
-            if (! $row->inShop) {
-                continue;
-            }
-
-            if ($row->def->itemType !== TypeEnum::POTION) {
-                continue;
-            }
-
-            if ($row->def->profile !== $profile) {
-                continue;
-            }
-
-            return $row->def;
-        }
-
-        throw new RuntimeException('Shop potion missing in equipment catalog for ' . $profile->value . '.');
     }
 
     /**
@@ -461,15 +389,15 @@ final class ShopCatalog
             $rows = new Collection;
 
             foreach (
-                Equipment::query()
+                BackpackCatalog::query()
                     ->orderBy('sort_order')
-                    ->orderBy('item_id')
-                    ->get() as $equipment
+                    ->orderBy('catalog_id')
+                    ->get() as $catalog
             ) {
-                $rows->put($equipment->item_id, new EquipmentCatalogRow(
-                    $equipment->toEquipmentDef(),
-                    $equipment->enabled,
-                    $equipment->in_shop,
+                $rows->put($catalog->catalog_id, new EquipmentCatalogRow(
+                    $catalog->toEquipmentDef(),
+                    $catalog->enabled,
+                    $catalog->in_shop,
                 ));
             }
 

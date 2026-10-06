@@ -9,7 +9,7 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
 
     $buy = shopService()->buyWeapon($p->tg_id, 'knife_0');
     expect($buy->ok)->toBeTrue()
-        ->and(inventory()->owns($p->tg_id, 'knife_0'))->toBeTrue();
+        ->and(backpack()->owns($p->tg_id, 'knife_0'))->toBeTrue();
 
     expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse();
 
@@ -18,34 +18,33 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p->save();
     expect(shopService()->buyPotion($p->tg_id)->ok)->toBeFalse();
 
-    $p->silver = shopCatalog()->potionPrice();
+    $p->silver = bagCatalog()->potionPrice();
     $p->save();
     $potion = shopService()->buyPotion($p->tg_id);
     expect($potion->ok)->toBeTrue()
-        ->and(inventory()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::HEAL))->toBe(1)
-        ->and(inventory()->owns($p->tg_id, shopCatalog()->shopPotionId()))->toBeTrue();
+        ->and(bag()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::HEAL))->toBe(1)
+        ->and(bag()->loosePotions($potion->character)->first()->catalog_id)->toBe(bagCatalog()->shopPotionId());
 
-    $p->silver = shopCatalog()->staminaPotionPrice();
+    $p->silver = bagCatalog()->staminaPotionPrice();
     $p->save();
     $stamina = shopService()->buyStaminaPotion($p->tg_id);
     expect($stamina->ok)->toBeTrue()
-        ->and(inventory()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::STAMINA))->toBe(1)
-        ->and(inventory()->owns($p->tg_id, shopCatalog()->shopStaminaPotionId()))->toBeTrue();
+        ->and(bag()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::STAMINA))->toBe(1);
 });
 
 it('equip weapon and armor', function (): void {
     $p = characters()->createDraft(5002);
-    inventory()->addItem($p->tg_id, 'axe_0');
-    inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
+    backpack()->addItem($p->tg_id, 'axe_0');
+    backpack()->addItem($p->tg_id, shopCatalog()->mailShirtId());
 
-    $weapon = inventory()->findOwned($p->tg_id, 'axe_0');
+    $weapon = backpack()->findOwned($p->tg_id, 'axe_0');
     $eq = loadout()->equip($p, $weapon->id);
     expect($eq->ok)->toBeTrue();
     $weapon->refresh();
     expect($weapon->isEquipped())->toBeTrue()
         ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 
-    $armor = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
+    $armor = backpack()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
     $eqArmor = loadout()->equip($eq->character, $armor->id);
     expect($eqArmor->ok)->toBeTrue();
     $armor->refresh();

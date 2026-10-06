@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
+use App\Models\BackpackItem;
+use App\Models\BagItem;
 use App\Models\Character;
-use App\Models\Inventory;
+use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
+use App\Services\Backpack\RepairService;
+use App\Services\Bag\BagCatalog;
+use App\Services\Bag\BagService;
 use App\Services\Character\CharacterService;
 use App\Services\Combat\CombatService;
 use App\Services\Fight\FightService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\InventoryService;
-use App\Services\Inventory\LoadoutService;
-use App\Services\Inventory\RepairService;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
+use App\Support\Game\ActionResult;
 use App\Support\Game\Fighter;
 use App\Support\Game\Mf;
 use App\Support\Random\FakeRandomSource;
@@ -31,14 +35,24 @@ function shopCatalog(): ShopCatalog
     return app(ShopCatalog::class);
 }
 
+function bagCatalog(): BagCatalog
+{
+    return app(BagCatalog::class);
+}
+
 function characters(): CharacterService
 {
     return app(CharacterService::class);
 }
 
-function inventory(): InventoryService
+function backpack(): BackpackService
 {
-    return app(InventoryService::class);
+    return app(BackpackService::class);
+}
+
+function bag(): BagService
+{
+    return app(BagService::class);
 }
 
 function loadout(): LoadoutService
@@ -71,12 +85,12 @@ function combat(): CombatService
     return app(CombatService::class);
 }
 
-function giveStarterKnuckles(int $tgId): Inventory
+function giveStarterKnuckles(int $tgId): BackpackItem
 {
     $itemId = shopCatalog()->starterKnucklesId();
-    inventory()->addItem($tgId, $itemId);
+    backpack()->addItem($tgId, $itemId);
 
-    return inventory()->findOwned($tgId, $itemId);
+    return backpack()->findOwned($tgId, $itemId);
 }
 
 function giveAndEquipStarterKnuckles(Character $character): Character
@@ -93,11 +107,11 @@ function giveAndEquipStarterKnuckles(Character $character): Character
 
 function equipItemToSlot(Character $character, string $itemId, SlotEnum $slot): Character
 {
-    if (! inventory()->owns($character->tg_id, $itemId)) {
-        inventory()->addItem($character->tg_id, $itemId);
+    if (! backpack()->owns($character->tg_id, $itemId)) {
+        backpack()->addItem($character->tg_id, $itemId);
     }
 
-    $row = inventory()->findOwned($character->tg_id, $itemId);
+    $row = backpack()->findOwned($character->tg_id, $itemId);
     $equip = loadout()->equipToSlot($character, $row->id, $slot);
 
     if (! $equip->ok || ! $equip->character instanceof Character) {
@@ -115,35 +129,59 @@ function fakeRandom(array $values): void
     app()->instance(RandomSourceContract::class, new FakeRandomSource($values));
 }
 
-/**
- * @return list<array{gem_id: string, durability: int}>
- */
-function gemPouch(string $gemId, int $durability = 10, int $qty = 1): array
+function grantGem(Character $character, string $gemId, int $qty = 1): Character
 {
-    $rows = [];
-
-    for ($i = 0; $i < $qty; $i++) {
-        $rows[] = [
-            'gem_id' => $gemId,
-            'durability' => $durability,
-        ];
-    }
-
-    return $rows;
+    return bag()->grantGem($character, $gemId, $qty);
 }
 
-/**
- * @param  list<array{gem_id: string, durability: int}>  $pouch
- */
-function pouchHasGem(array $pouch, string $gemId): bool
+function grantGemDurability(Character $character, string $gemId, int $durability): Character
 {
-    foreach ($pouch as $instance) {
-        if ($instance['gem_id'] === $gemId) {
+    $character = grantGem($character, $gemId, 1);
+    $gem = null;
+
+    foreach (bag()->looseGems($character) as $row) {
+        if ($row->catalog_id === $gemId) {
+            $gem = $row;
+        }
+    }
+
+    if (! $gem instanceof Illuminate\Database\Eloquent\Model) {
+        throw new RuntimeException("No loose gem {$gemId} for character {$character->tg_id}.");
+    }
+
+    $gem->durability = $durability;
+    $gem->save();
+
+    return $character->fresh();
+}
+
+function looseGem(Character $character, string $gemId): BagItem
+{
+    foreach (bag()->looseGems($character) as $gem) {
+        if ($gem->catalog_id === $gemId) {
+            return $gem;
+        }
+    }
+
+    throw new RuntimeException("No loose gem {$gemId} for character {$character->tg_id}.");
+}
+
+function hasLooseGem(Character $character, string $gemId): bool
+{
+    foreach (bag()->looseGems($character) as $gem) {
+        if ($gem->catalog_id === $gemId) {
             return true;
         }
     }
 
     return false;
+}
+
+function socketGem(Character $character, BackpackItem $item, string $gemId): ActionResult
+{
+    $gem = looseGem($character, $gemId);
+
+    return bag()->socket($character, $item->id, $gem->id);
 }
 
 /**

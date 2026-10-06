@@ -19,7 +19,7 @@ it('createDraft from onboarding.start', function (): void {
         ->and($p->max_hp)->toBe(characters()->baseMaxHp($cfg['vitality']))
         ->and($p->current_stamina)->toBe(characters()->maxStaminaFromStrength($cfg['strength']))
         ->and($p->max_stamina)->toBe(characters()->maxStaminaFromStrength($cfg['strength']))
-        ->and(inventory()->owns($p->tg_id, shopCatalog()->starterKnucklesId()))->toBeFalse();
+        ->and(backpack()->owns($p->tg_id, shopCatalog()->starterKnucklesId()))->toBeFalse();
 });
 
 it('maxHp includes armor bonus', function (): void {
@@ -29,8 +29,8 @@ it('maxHp includes armor bonus', function (): void {
 
     expect($without)->toBe($p->vitality * $charCfg['perVitality']);
 
-    inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
-    $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
+    backpack()->addItem($p->tg_id, shopCatalog()->mailShirtId());
+    $mail = backpack()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
     loadout()->equip($p, $mail->id);
 
     expect(characters()->maxHp($p))->toBe($without + shopCatalog()->mailShirt()->statBonus);
@@ -226,8 +226,8 @@ it('statsScreenText shows body and total mf blocks', function (): void {
     $p->stat_points = 2;
     $p->save();
 
-    inventory()->addItem($p->tg_id, shopCatalog()->mailShirtId());
-    $mail = inventory()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
+    backpack()->addItem($p->tg_id, shopCatalog()->mailShirtId());
+    $mail = backpack()->findOwned($p->tg_id, shopCatalog()->mailShirtId());
     loadout()->equip($p, $mail->id);
 
     $fresh = $p->fresh();

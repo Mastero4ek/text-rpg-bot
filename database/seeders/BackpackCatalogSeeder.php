@@ -9,28 +9,28 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Equipment;
+use App\Models\BackpackCatalog;
 use App\Services\Shop\ShopCatalog;
 use Illuminate\Database\Seeder;
 
-final class EquipmentSeeder extends Seeder
+final class BackpackCatalogSeeder extends Seeder
 {
     public function run(): void
     {
         app(ShopCatalog::class)->forgetCache();
 
         foreach ($this->catalog() as $row) {
-            $equipment = Equipment::query()->updateOrCreate(
-                ['item_id' => $row['item_id']],
+            $catalog = BackpackCatalog::query()->updateOrCreate(
+                ['catalog_id' => $row['catalog_id']],
                 $row,
             );
 
-            $equipment->clearMediaCollection('image');
+            $catalog->clearMediaCollection('image');
         }
     }
 
     /**
-     * Initial catalog snapshot for fresh installs / tests. Runtime SoT = `equipment` table.
+     * Initial catalog snapshot for fresh installs / tests. Runtime SoT = `backpack_catalog` table.
      *
      * @return list<array<string, mixed>>
      */
@@ -38,7 +38,7 @@ final class EquipmentSeeder extends Seeder
     {
         $rows = [
             [
-                'item_id' => 'knuckles_0',
+                'catalog_id' => 'knuckles_0',
                 'name' => 'Учебный кастет',
                 'description' => 'Класс «кастет»: уворот и крит. Базовый экземпляр на 0 уровне.',
                 'item_type' => TypeEnum::WEAPON,
@@ -57,12 +57,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 2,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 0,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'knife_0',
+                'catalog_id' => 'knife_0',
                 'name' => 'Учебный нож',
                 'description' => 'Лёгкий учебный клинок. Чуть повышает уворот и шанс крита.',
                 'item_type' => TypeEnum::WEAPON,
@@ -81,12 +80,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 2,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 1,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'axe_0',
+                'catalog_id' => 'axe_0',
                 'name' => 'Учебный топор',
                 'description' => 'Тяжёлый учебный топор. Бьёт сильнее и чаще критикует.',
                 'item_type' => TypeEnum::WEAPON,
@@ -105,12 +103,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 2,
                 'mf_crit' => 6,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 2,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'club_0',
+                'catalog_id' => 'club_0',
                 'name' => 'Учебная дубина',
                 'description' => 'Простая дубина тренера. Держит антиуворот и антикрит.',
                 'item_type' => TypeEnum::WEAPON,
@@ -129,12 +126,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 4,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 4,
-                'effect_value' => null,
                 'sort_order' => 3,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'sword_0',
+                'catalog_id' => 'sword_0',
                 'name' => 'Учебный меч',
                 'description' => 'Учебный меч. Баланс уворота и антиуворота.',
                 'item_type' => TypeEnum::WEAPON,
@@ -153,12 +149,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 6,
                 'mf_crit' => 2,
                 'mf_anti_crit' => 2,
-                'effect_value' => null,
                 'sort_order' => 4,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'hammer_0',
+                'catalog_id' => 'hammer_0',
                 'name' => 'Учебный молот',
                 'description' => 'Учебный молот. Крит и антиуворот.',
                 'item_type' => TypeEnum::WEAPON,
@@ -177,12 +172,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 8,
                 'mf_crit' => 8,
                 'mf_anti_crit' => 2,
-                'effect_value' => null,
                 'sort_order' => 5,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'heavy_0',
+                'catalog_id' => 'heavy_0',
                 'name' => 'Учебная кольчуга',
                 'description' => 'Кольчуга новобранца. Запас HP и базовая броня груди.',
                 'item_type' => TypeEnum::ARMOR,
@@ -201,12 +195,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 6,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'heavy_1',
+                'catalog_id' => 'heavy_1',
                 'name' => 'Учебный баклер',
                 'description' => 'Лёгкий щит. Второй блок в раунде и антикрит.',
                 'item_type' => TypeEnum::ARMOR,
@@ -225,12 +218,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 2,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 8,
-                'effect_value' => null,
                 'sort_order' => 7,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'mobile_0',
+                'catalog_id' => 'mobile_0',
                 'name' => 'Учебный шлем',
                 'description' => 'Лёгкий шлем новичка. Чуть повышает запас HP и уворот.',
                 'item_type' => TypeEnum::ARMOR,
@@ -249,12 +241,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 8,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'mobile_1',
+                'catalog_id' => 'mobile_1',
                 'name' => 'Учебные сапоги',
                 'description' => 'Лёгкие сапоги новичка. Чуть повышают запас HP и антиуворот.',
                 'item_type' => TypeEnum::ARMOR,
@@ -273,12 +264,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 2,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 9,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'mobile_2',
+                'catalog_id' => 'mobile_2',
                 'name' => 'Учебные штаны',
                 'description' => 'Простые штаны новичка. Броня пояса и чуть HP.',
                 'item_type' => TypeEnum::ARMOR,
@@ -297,12 +287,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 1,
-                'effect_value' => null,
                 'sort_order' => 10,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'mobile_3',
+                'catalog_id' => 'mobile_3',
                 'name' => 'Учебные перчатки',
                 'description' => 'Лёгкие перчатки новичка. Чуть антикрита и HP.',
                 'item_type' => TypeEnum::ARMOR,
@@ -321,12 +310,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 2,
-                'effect_value' => null,
                 'sort_order' => 11,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'focus_0',
+                'catalog_id' => 'focus_0',
                 'name' => 'Кольцо ученика',
                 'description' => 'Простое кольцо ученика. Чуть уворота.',
                 'item_type' => TypeEnum::JEWELRY,
@@ -345,12 +333,11 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 12,
                 'repairable' => true,
             ],
             [
-                'item_id' => 'vital_0',
+                'catalog_id' => 'vital_0',
                 'name' => 'Амулет ученика',
                 'description' => 'Амулет ученика. Запас HP.',
                 'item_type' => TypeEnum::JEWELRY,
@@ -369,62 +356,13 @@ final class EquipmentSeeder extends Seeder
                 'mf_anti_dodge' => 0,
                 'mf_crit' => 0,
                 'mf_anti_crit' => 0,
-                'effect_value' => null,
                 'sort_order' => 13,
                 'repairable' => true,
-            ],
-            [
-                'item_id' => 'heal_0',
-                'name' => 'Зелье лечения',
-                'description' => 'Флакон красного зелья. Восстанавливает HP в бою.',
-                'item_type' => TypeEnum::POTION,
-                'slot' => SlotEnum::POCKET,
-                'profile' => ProfileEnum::HEAL,
-                'in_shop' => true,
-                'enabled' => true,
-                'price' => 15,
-                'currency' => CurrencyEnum::SILVER,
-                'repair_tier' => RepairEnum::NORMAL,
-                'weapon_damage_min' => 0,
-                'weapon_damage_max' => 0,
-                'stat_bonus' => 0,
-                'armor' => 0,
-                'mf_dodge' => 0,
-                'mf_anti_dodge' => 0,
-                'mf_crit' => 0,
-                'mf_anti_crit' => 0,
-                'effect_value' => 40,
-                'sort_order' => 14,
-                'repairable' => false,
-            ],
-            [
-                'item_id' => 'stamina_0',
-                'name' => 'Зелье выносливости',
-                'description' => 'Флакон зелёного зелья. Восстанавливает выносливость в бою.',
-                'item_type' => TypeEnum::POTION,
-                'slot' => SlotEnum::POCKET,
-                'profile' => ProfileEnum::STAMINA,
-                'in_shop' => true,
-                'enabled' => true,
-                'price' => 12,
-                'currency' => CurrencyEnum::SILVER,
-                'repair_tier' => RepairEnum::NORMAL,
-                'weapon_damage_min' => 0,
-                'weapon_damage_max' => 0,
-                'stat_bonus' => 0,
-                'armor' => 0,
-                'mf_dodge' => 0,
-                'mf_anti_dodge' => 0,
-                'mf_crit' => 0,
-                'mf_anti_crit' => 0,
-                'effect_value' => 25,
-                'sort_order' => 15,
-                'repairable' => false,
             ],
         ];
 
         foreach ($rows as $idx => $row) {
-            foreach ($this->reqsForItem($row['item_id']) as $key => $value) {
+            foreach ($this->reqsForItem($row['catalog_id']) as $key => $value) {
                 $rows[$idx][$key] = $value;
             }
         }
@@ -432,7 +370,7 @@ final class EquipmentSeeder extends Seeder
         for ($i = 0; $i < count($rows); $i++) {
             $rows[$i]['sort_order'] = $i;
 
-            if ($rows[$i]['item_type'] === TypeEnum::POTION || $rows[$i]['item_type'] === TypeEnum::JEWELRY) {
+            if ($rows[$i]['item_type'] === TypeEnum::JEWELRY) {
                 continue;
             }
 
@@ -456,9 +394,9 @@ final class EquipmentSeeder extends Seeder
     /**
      * @return array<string, int>
      */
-    private function reqsForItem(string $itemId): array
+    private function reqsForItem(string $catalogId): array
     {
-        return match ($itemId) {
+        return match ($catalogId) {
             'sword_0' => ['req_level' => 1, 'req_strength' => 1, 'req_agility' => 1],
             'hammer_0' => ['req_level' => 1, 'req_strength' => 2, 'req_instinct' => 1],
             'heavy_1' => ['req_vitality' => 1],

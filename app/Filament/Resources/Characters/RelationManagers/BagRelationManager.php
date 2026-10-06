@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\RelationManagers;
 
 use App\Actions\Character\CharacterSetBagMaxRowsAction;
-use App\Filament\Resources\Characters\Tables\GemPouchTable;
+use App\Filament\Resources\Characters\Tables\BagTable;
 use App\Models\Character;
-use App\Services\Gem\GemService;
+use App\Services\Bag\BagService;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\EmbeddedTable;
@@ -29,7 +29,7 @@ final class BagRelationManager extends RelationManager
 {
     public ?int $bagMaxRows = null;
 
-    protected static string $relationship = 'inventories';
+    protected static string $relationship = 'bagItems';
 
     protected static bool $isLazy = false;
 
@@ -56,7 +56,7 @@ final class BagRelationManager extends RelationManager
             $component->bagMaxRows = $owner->bag_max_rows;
         }
 
-        $current = app(GemService::class)->bagRowCount($owner);
+        $current = app(BagService::class)->bagRowCount($owner);
         $editable = ! $component->isReadOnly();
 
         return new HtmlString(
@@ -127,7 +127,7 @@ final class BagRelationManager extends RelationManager
                 ->recordActions([]);
         }
 
-        return GemPouchTable::configure($table, $owner, ! $this->isReadOnly())
+        return BagTable::configure($table, $owner, ! $this->isReadOnly())
             ->recordAction(null);
     }
 

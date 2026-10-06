@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Filament\Resources\Gems\Pages\CreateGem;
-use App\Filament\Resources\Gems\Pages\EditGem;
-use App\Filament\Resources\Gems\Pages\ListGems;
-use App\Filament\Resources\Gems\Pages\ViewGem;
-use App\Models\Gem;
+use App\Filament\Resources\BagCatalog\Pages\CreateBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\EditBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\ListBagCatalog;
+use App\Filament\Resources\BagCatalog\Pages\ViewBagCatalog;
+use App\Models\BagCatalog;
 use App\Models\User;
-use App\Services\Gem\GemCatalog;
+use App\Services\Bag\BagCatalog as BagCatalogService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -24,26 +25,26 @@ beforeEach(function (): void {
 });
 
 it('lists and views gem catalog', function (): void {
-    $gem = Gem::query()->findOrFail('ruby_0');
+    $gem = BagCatalog::query()->findOrFail('ruby_0');
 
-    livewire(ListGems::class)
+    livewire(ListBagCatalog::class)
         ->assertOk()
         ->assertCanSeeTableRecords([$gem]);
 
-    livewire(ViewGem::class, [
+    livewire(ViewBagCatalog::class, [
         'record' => $gem->getKey(),
     ])
         ->assertOk()
         ->assertSchemaStateSet([
-            'gem_id' => 'ruby_0',
+            'catalog_id' => 'ruby_0',
             'name' => 'Рубин ученика',
         ]);
 });
 
 it('creates ruby emerald sapphire and diamond via filament form', function (): void {
-    $rubyId = Gem::nextGemIdForType(GemTypeEnum::RUBY);
+    $rubyId = BagCatalog::nextCatalogIdForType(GemTypeEnum::RUBY);
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Кастомный рубин',
             'type' => GemTypeEnum::RUBY->value,
@@ -52,12 +53,12 @@ it('creates ruby emerald sapphire and diamond via filament form', function (): v
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Gem::query()->findOrFail($rubyId)->mf_crit)->toBe(6)
-        ->and(app(GemCatalog::class)->find($rubyId)->mf->crit)->toBe(6);
+    expect(BagCatalog::query()->findOrFail($rubyId)->mf_crit)->toBe(6)
+        ->and(app(BagCatalogService::class)->findGem($rubyId)->mf->crit)->toBe(6);
 
-    $emeraldId = Gem::nextGemIdForType(GemTypeEnum::EMERALD);
+    $emeraldId = BagCatalog::nextCatalogIdForType(GemTypeEnum::EMERALD);
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Кастомный изумруд',
             'type' => GemTypeEnum::EMERALD->value,
@@ -67,13 +68,13 @@ it('creates ruby emerald sapphire and diamond via filament form', function (): v
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Gem::query()->findOrFail($emeraldId)->type)->toBe(GemTypeEnum::EMERALD)
-        ->and(Gem::query()->findOrFail($emeraldId)->mf_dodge)->toBe(5)
-        ->and(Gem::query()->findOrFail($emeraldId)->mf_crit)->toBe(0);
+    expect(BagCatalog::query()->findOrFail($emeraldId)->type)->toBe(GemTypeEnum::EMERALD)
+        ->and(BagCatalog::query()->findOrFail($emeraldId)->mf_dodge)->toBe(5)
+        ->and(BagCatalog::query()->findOrFail($emeraldId)->mf_crit)->toBe(0);
 
-    $sapphireId = Gem::nextGemIdForType(GemTypeEnum::SAPPHIRE);
+    $sapphireId = BagCatalog::nextCatalogIdForType(GemTypeEnum::SAPPHIRE);
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Кастомный сапфир',
             'type' => GemTypeEnum::SAPPHIRE->value,
@@ -83,11 +84,11 @@ it('creates ruby emerald sapphire and diamond via filament form', function (): v
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Gem::query()->findOrFail($sapphireId)->mf_anti_crit)->toBe(7);
+    expect(BagCatalog::query()->findOrFail($sapphireId)->mf_anti_crit)->toBe(7);
 
-    $diamondId = Gem::nextGemIdForType(GemTypeEnum::DIAMOND);
+    $diamondId = BagCatalog::nextCatalogIdForType(GemTypeEnum::DIAMOND);
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Кастомный алмаз',
             'type' => GemTypeEnum::DIAMOND->value,
@@ -98,17 +99,17 @@ it('creates ruby emerald sapphire and diamond via filament form', function (): v
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Gem::query()->findOrFail($diamondId)->mf_anti_dodge)->toBe(9)
-        ->and(Gem::query()->findOrFail($diamondId)->in_shop)->toBeFalse();
+    expect(BagCatalog::query()->findOrFail($diamondId)->mf_anti_dodge)->toBe(9)
+        ->and(BagCatalog::query()->findOrFail($diamondId)->in_shop)->toBeFalse();
 });
 
 it('uploads spatie media art on create', function (): void {
     Storage::fake('public');
 
     $file = UploadedFile::fake()->image('ruby.png', 40, 40);
-    $gemId = Gem::nextGemIdForType(GemTypeEnum::RUBY);
+    $gemId = BagCatalog::nextCatalogIdForType(GemTypeEnum::RUBY);
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Рубин с артом',
             'image' => [$file],
@@ -116,11 +117,11 @@ it('uploads spatie media art on create', function (): void {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Gem::query()->findOrFail($gemId)->hasMedia('image'))->toBeTrue();
+    expect(BagCatalog::query()->findOrFail($gemId)->hasMedia('image'))->toBeTrue();
 });
 
 it('validates non-negative price and mf', function (): void {
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Плохой',
             'price' => -1,
@@ -134,9 +135,9 @@ it('validates non-negative price and mf', function (): void {
 });
 
 it('edits gem name and exposes it in catalog', function (): void {
-    $gem = Gem::query()->findOrFail('ruby_0');
+    $gem = BagCatalog::query()->findOrFail('ruby_0');
 
-    livewire(EditGem::class, [
+    livewire(EditBagCatalog::class, [
         'record' => $gem->getKey(),
     ])
         ->fillForm([
@@ -145,63 +146,62 @@ it('edits gem name and exposes it in catalog', function (): void {
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect(app(GemCatalog::class)->find('ruby_0')->name)->toBe('Рубин героя');
+    expect(app(BagCatalogService::class)->findGem('ruby_0')->name)->toBe('Рубин героя');
 });
 
 it('deletes restores and force deletes via edit page actions', function (): void {
-    $gem = Gem::factory()->create([
-        'gem_id' => 'temp_ruby',
+    $gem = BagCatalog::factory()->create([
+        'catalog_id' => 'temp_ruby',
         'name' => 'Временный рубин',
         'in_shop' => false,
     ]);
 
-    livewire(EditGem::class, [
+    livewire(EditBagCatalog::class, [
         'record' => $gem->getKey(),
     ])
         ->callAction(DeleteAction::class);
 
-    expect(Gem::withTrashed()->findOrFail('temp_ruby')->trashed())->toBeTrue();
+    expect(BagCatalog::withTrashed()->findOrFail('temp_ruby')->trashed())->toBeTrue();
 
-    livewire(EditGem::class, [
+    livewire(EditBagCatalog::class, [
         'record' => 'temp_ruby',
     ])
         ->callAction(RestoreAction::class);
 
-    expect(Gem::query()->findOrFail('temp_ruby')->trashed())->toBeFalse();
+    expect(BagCatalog::query()->findOrFail('temp_ruby')->trashed())->toBeFalse();
 
-    livewire(EditGem::class, [
+    livewire(EditBagCatalog::class, [
         'record' => 'temp_ruby',
     ])
         ->callAction(DeleteAction::class)
         ->callAction(ForceDeleteAction::class);
 
-    expect(Gem::withTrashed()->where('gem_id', 'temp_ruby')->exists())->toBeFalse();
+    expect(BagCatalog::withTrashed()->where('catalog_id', 'temp_ruby')->exists())->toBeFalse();
 });
 
 it('hides force delete when gem is in pouch', function (): void {
     $character = characters()->createDraft(9201);
-    $character->gem_pouch = gemPouch('ruby_0');
-    $character->save();
+    grantGem($character, 'ruby_0', 1);
 
-    $gem = Gem::query()->findOrFail('ruby_0');
+    $gem = BagCatalog::query()->findOrFail('ruby_0');
     $gem->delete();
 
-    livewire(EditGem::class, [
+    livewire(EditBagCatalog::class, [
         'record' => $gem->getKey(),
     ])
         ->assertActionHidden(ForceDeleteAction::class);
 });
 
-it('filters gem table by type and shop flags', function (): void {
-    $ruby = Gem::query()->findOrFail('ruby_0');
-    $diamond = Gem::query()->findOrFail('diamond_0');
+it('filters gem table by profile and shop flags', function (): void {
+    $ruby = BagCatalog::query()->findOrFail('ruby_0');
+    $diamond = BagCatalog::query()->findOrFail('diamond_0');
 
-    livewire(ListGems::class)
-        ->filterTable('type', GemTypeEnum::RUBY->value)
+    livewire(ListBagCatalog::class)
+        ->filterTable('profile_display', GemTypeEnum::RUBY->value)
         ->assertCanSeeTableRecords([$ruby])
         ->assertCanNotSeeTableRecords([$diamond]);
 
-    livewire(ListGems::class)
+    livewire(ListBagCatalog::class)
         ->filterTable('in_shop', true)
         ->assertCanSeeTableRecords([$ruby])
         ->assertCanNotSeeTableRecords([$diamond]);
@@ -210,23 +210,23 @@ it('filters gem table by type and shop flags', function (): void {
 it('rejects guests from gem resource', function (): void {
     auth()->logout();
 
-    $this->get(ListGems::getUrl())->assertRedirect();
+    $this->get(ListBagCatalog::getUrl())->assertRedirect();
 });
 
 it('clones gem into create form without primary key', function (): void {
-    $source = Gem::query()->findOrFail('ruby_0');
-    $nextId = Gem::nextGemIdForType(GemTypeEnum::RUBY);
+    $source = BagCatalog::query()->findOrFail('ruby_0');
+    $nextId = BagCatalog::nextCatalogIdForType(GemTypeEnum::RUBY);
 
-    livewire(ViewGem::class, [
+    livewire(ViewBagCatalog::class, [
         'record' => $source->getKey(),
     ])
         ->assertActionHasLabel('clone', __('admin.actions.clone.label'))
         ->callAction('clone')
-        ->assertRedirect(CreateGem::getUrl());
+        ->assertRedirect(CreateBagCatalog::getUrl());
 
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->assertSchemaStateSet([
-            'gem_id' => $nextId,
+            'catalog_id' => $nextId,
             'name' => $source->name,
             'mf_crit' => $source->mf_crit,
             'price' => $source->price,
@@ -235,7 +235,7 @@ it('clones gem into create form without primary key', function (): void {
 });
 
 it('resets irrelevant mf fields when type changes', function (): void {
-    livewire(CreateGem::class)
+    livewire(CreateBagCatalog::class)
         ->fillForm(gemForm([
             'name' => 'Смена типа',
             'type' => GemTypeEnum::RUBY->value,
@@ -248,7 +248,7 @@ it('resets irrelevant mf fields when type changes', function (): void {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $created = Gem::query()->where('name', 'Смена типа')->firstOrFail();
+    $created = BagCatalog::query()->where('name', 'Смена типа')->firstOrFail();
 
     expect($created->type)->toBe(GemTypeEnum::EMERALD)
         ->and($created->mf_dodge)->toBe(5)
@@ -264,6 +264,7 @@ function gemForm(array $overrides): array
     return array_merge([
         'name' => 'Тестовый камень',
         'description' => 'Описание',
+        'kind' => BagKindEnum::GEM->value,
         'type' => GemTypeEnum::RUBY->value,
         'enabled' => true,
         'in_shop' => true,

@@ -11,49 +11,40 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
  * @property int $tg_id
- * @property string $item_id
+ * @property string $catalog_id
  * @property string $item_name
  * @property TypeEnum $item_type
  * @property SlotEnum|null $slot
  * @property int|null $durability
  * @property int|null $max_durability
- * @property list<mixed>|null $socketed_gems
- * @property int $quantity
  * @property CarbonInterface|null $created_at
  * @property-read Character|null $character
- * @property-read Equipment|null $equipment
+ * @property-read BackpackCatalog|null $catalog
  * @property-read LoadoutSlot|null $loadoutSlot
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, BagItem> $socketedGems
  *
  * @method static Builder<static> equipped()
  * @method static Builder<static> unequipped()
  */
 #[Fillable([
     'tg_id',
-    'item_id',
+    'catalog_id',
     'item_name',
     'item_type',
     'slot',
     'durability',
     'max_durability',
-    'socketed_gems',
-    'quantity',
     'created_at',
 ])]
-final class Inventory extends Model
+final class BackpackItem extends Model
 {
     public const UPDATED_AT = null;
-
-    /**
-     * @var array<string, mixed>
-     */
-    protected $attributes = [
-        'quantity' => 1,
-    ];
 
     /**
      * @return BelongsTo<Character, $this>
@@ -64,11 +55,11 @@ final class Inventory extends Model
     }
 
     /**
-     * @return BelongsTo<Equipment, $this>
+     * @return BelongsTo<BackpackCatalog, $this>
      */
-    public function equipment(): BelongsTo
+    public function catalog(): BelongsTo
     {
-        return $this->belongsTo(Equipment::class, 'item_id', 'item_id')->withTrashed();
+        return $this->belongsTo(BackpackCatalog::class, 'catalog_id', 'catalog_id')->withTrashed();
     }
 
     public function isEquipped(): bool
@@ -85,7 +76,15 @@ final class Inventory extends Model
      */
     public function loadoutSlot(): HasOne
     {
-        return $this->hasOne(LoadoutSlot::class, 'inventory_id');
+        return $this->hasOne(LoadoutSlot::class, 'backpack_item_id');
+    }
+
+    /**
+     * @return HasMany<BagItem, $this>
+     */
+    public function socketedGems(): HasMany
+    {
+        return $this->hasMany(BagItem::class, 'backpack_item_id');
     }
 
     /**
@@ -99,8 +98,6 @@ final class Inventory extends Model
             'slot' => SlotEnum::class,
             'durability' => 'integer',
             'max_durability' => 'integer',
-            'socketed_gems' => 'array',
-            'quantity' => 'integer',
             'created_at' => 'datetime',
         ];
     }

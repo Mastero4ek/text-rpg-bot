@@ -6,9 +6,9 @@ namespace App\Quest;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Services\Backpack\LoadoutService;
 use App\Services\Character\CharacterService;
 use App\Services\Game\GameConfig;
-use App\Services\Inventory\LoadoutService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Game\ActionResult;
 use Illuminate\Support\Facades\DB;

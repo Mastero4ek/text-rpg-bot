@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Gem\GemTypeEnum;
-use App\Services\Gem\GemCatalog;
+use App\Services\Bag\BagCatalog as BagCatalogService;
+use App\Support\Bag\PotionDef;
 use App\Support\Game\Mf;
 use App\Support\Gem\GemDef;
 use Carbon\CarbonInterface;
-use Database\Factories\GemFactory;
+use Database\Factories\BagCatalogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,15 +23,18 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
- * @property string $gem_id
+ * @property string $catalog_id
+ * @property BagKindEnum $kind
  * @property string $name
  * @property string|null $description
- * @property GemTypeEnum $type
  * @property bool $in_shop
  * @property bool $enabled
  * @property int $price
  * @property CurrencyEnum $currency
- * @property int $max_durability
+ * @property ProfileEnum|null $profile
+ * @property int|null $effect_value
+ * @property GemTypeEnum|null $type
+ * @property int|null $max_durability
  * @property int $mf_dodge
  * @property int $mf_anti_dodge
  * @property int $mf_crit
@@ -39,14 +45,17 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property CarbonInterface|null $deleted_at
  */
 #[Fillable([
-    'gem_id',
+    'catalog_id',
+    'kind',
     'name',
     'description',
-    'type',
     'in_shop',
     'enabled',
     'price',
     'currency',
+    'profile',
+    'effect_value',
+    'type',
     'max_durability',
     'mf_dodge',
     'mf_anti_dodge',
@@ -54,9 +63,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'mf_anti_crit',
     'sort_order',
 ])]
-final class Gem extends Model implements HasMedia
+final class BagCatalog extends Model implements HasMedia
 {
-    /** @use HasFactory<GemFactory> */
+    /** @use HasFactory<BagCatalogFactory> */
     use HasFactory;
 
     use InteractsWithMedia;
@@ -64,56 +73,26 @@ final class Gem extends Model implements HasMedia
 
     public $incrementing = false;
 
-    protected $primaryKey = 'gem_id';
+    protected $primaryKey = 'catalog_id';
 
     protected $keyType = 'string';
 
-    protected $table = 'gems';
+    protected $table = 'bag_catalog';
 
-    public static function nextGemIdForType(GemTypeEnum $type): string
+    public static function nextCatalogIdForType(GemTypeEnum $type): string
     {
-        $prefix = mb_strtolower($type->value);
-        $pattern = '/^' . preg_quote($prefix, '/') . '_(\d+)$/';
-        $max = -1;
+        return self::nextCatalogIdForPrefix(mb_strtolower($type->value));
+    }
 
-        $ids = self::query()
-            ->withTrashed()
-            ->where('gem_id', 'like', $prefix . '_%')
-            ->pluck('gem_id');
-
-        foreach ($ids as $gemId) {
-            if (! is_string($gemId)) {
-                continue;
-            }
-
-            if (preg_match($pattern, $gemId, $matches) !== 1) {
-                continue;
-            }
-
-            $n = (int) $matches[1];
-
-            if ($n > $max) {
-                $max = $n;
-            }
-        }
-
-        return $prefix . '_' . ($max + 1);
+    public static function nextCatalogIdForProfile(ProfileEnum $profile): string
+    {
+        return self::nextCatalogIdForPrefix(mb_strtolower($profile->value));
     }
 
     public function isReferenced(): bool
     {
-        $needle = '%"gem_id":"' . $this->gem_id . '"%';
-
-        if (
-            Character::query()
-                ->where('gem_pouch', 'like', $needle)
-                ->exists()
-        ) {
-            return true;
-        }
-
-        return Inventory::query()
-            ->where('socketed_gems', 'like', $needle)
+        return BagItem::query()
+            ->where('catalog_id', $this->catalog_id)
             ->exists();
     }
 
@@ -126,8 +105,20 @@ final class Gem extends Model implements HasMedia
 
     public function toGemDef(): GemDef
     {
+        if ($this->kind !== BagKindEnum::GEM) {
+            throw new RuntimeException("Bag catalog {$this->catalog_id} is not a gem.");
+        }
+
+        if (! $this->type instanceof GemTypeEnum) {
+            throw new RuntimeException("Gem {$this->catalog_id} has no type.");
+        }
+
+        if ($this->max_durability === null) {
+            throw new RuntimeException("Gem {$this->catalog_id} has no durability.");
+        }
+
         return new GemDef(
-            $this->gem_id,
+            $this->catalog_id,
             $this->type,
             $this->name,
             $this->description,
@@ -145,41 +136,90 @@ final class Gem extends Model implements HasMedia
         );
     }
 
+    public function toPotionDef(): PotionDef
+    {
+        if ($this->kind !== BagKindEnum::POTION) {
+            throw new RuntimeException("Bag catalog {$this->catalog_id} is not a potion.");
+        }
+
+        if (! $this->profile instanceof ProfileEnum) {
+            throw new RuntimeException("Potion {$this->catalog_id} has no profile.");
+        }
+
+        if ($this->effect_value === null) {
+            throw new RuntimeException("Potion {$this->catalog_id} has no effect_value.");
+        }
+
+        return new PotionDef(
+            $this->catalog_id,
+            $this->name,
+            $this->description,
+            $this->profile,
+            $this->effect_value,
+            $this->price,
+            $this->currency,
+            $this->in_shop,
+            $this->enabled,
+        );
+    }
+
     protected static function booted(): void
     {
-        self::saving(function (Gem $gem): void {
-            foreach (['price', 'max_durability', 'mf_dodge', 'mf_anti_dodge', 'mf_crit', 'mf_anti_crit'] as $attribute) {
-                $raw = $gem->getAttributes()[$attribute] ?? null;
+        self::saving(function (BagCatalog $catalog): void {
+            foreach (['price', 'mf_dodge', 'mf_anti_dodge', 'mf_crit', 'mf_anti_crit'] as $attribute) {
+                $raw = $catalog->getAttributes()[$attribute] ?? null;
 
                 if ($raw === null) {
-                    $gem->{$attribute} = 0;
+                    $catalog->{$attribute} = 0;
                 }
             }
 
-            $column = $gem->type->mfColumn();
-            $kept = (int) ($gem->getAttributes()[$column] ?? 0);
+            if ($catalog->kind === BagKindEnum::GEM) {
+                $catalog->profile = null;
+                $catalog->effect_value = null;
 
-            if ($kept < 1) {
-                throw new RuntimeException('Gem type MF must be >= 1.');
+                if (! $catalog->type instanceof GemTypeEnum) {
+                    throw new RuntimeException('Gem type is required.');
+                }
+
+                $column = $catalog->type->mfColumn();
+                $kept = (int) ($catalog->getAttributes()[$column] ?? 0);
+
+                if ($kept < 1) {
+                    throw new RuntimeException('Gem type MF must be >= 1.');
+                }
+
+                $catalog->mf_dodge = 0;
+                $catalog->mf_anti_dodge = 0;
+                $catalog->mf_crit = 0;
+                $catalog->mf_anti_crit = 0;
+                $catalog->{$column} = $kept;
+
+                if ($catalog->max_durability === null || $catalog->max_durability < 1) {
+                    throw new RuntimeException('Gem max_durability must be >= 1.');
+                }
+
+                return;
             }
 
-            $gem->mf_dodge = 0;
-            $gem->mf_anti_dodge = 0;
-            $gem->mf_crit = 0;
-            $gem->mf_anti_crit = 0;
-            $gem->{$column} = $kept;
+            $catalog->type = null;
+            $catalog->max_durability = null;
+            $catalog->mf_dodge = 0;
+            $catalog->mf_anti_dodge = 0;
+            $catalog->mf_crit = 0;
+            $catalog->mf_anti_crit = 0;
         });
 
         self::saved(function (): void {
-            app(GemCatalog::class)->forgetCache();
+            app(BagCatalogService::class)->forgetCache();
         });
 
         self::deleted(function (): void {
-            app(GemCatalog::class)->forgetCache();
+            app(BagCatalogService::class)->forgetCache();
         });
 
         self::restored(function (): void {
-            app(GemCatalog::class)->forgetCache();
+            app(BagCatalogService::class)->forgetCache();
         });
     }
 
@@ -189,11 +229,14 @@ final class Gem extends Model implements HasMedia
     protected function casts(): array
     {
         return [
-            'type' => GemTypeEnum::class,
+            'kind' => BagKindEnum::class,
             'in_shop' => 'boolean',
             'enabled' => 'boolean',
             'price' => 'integer',
             'currency' => CurrencyEnum::class,
+            'profile' => ProfileEnum::class,
+            'effect_value' => 'integer',
+            'type' => GemTypeEnum::class,
             'max_durability' => 'integer',
             'mf_dodge' => 'integer',
             'mf_anti_dodge' => 'integer',
@@ -201,5 +244,34 @@ final class Gem extends Model implements HasMedia
             'mf_anti_crit' => 'integer',
             'sort_order' => 'integer',
         ];
+    }
+
+    private static function nextCatalogIdForPrefix(string $prefix): string
+    {
+        $pattern = '/^' . preg_quote($prefix, '/') . '_(\d+)$/';
+        $max = -1;
+
+        $ids = self::query()
+            ->withTrashed()
+            ->where('catalog_id', 'like', $prefix . '_%')
+            ->pluck('catalog_id');
+
+        foreach ($ids as $catalogId) {
+            if (! is_string($catalogId)) {
+                continue;
+            }
+
+            if (preg_match($pattern, $catalogId, $matches) !== 1) {
+                continue;
+            }
+
+            $n = (int) $matches[1];
+
+            if ($n > $max) {
+                $max = $n;
+            }
+        }
+
+        return $prefix . '_' . ($max + 1);
     }
 }

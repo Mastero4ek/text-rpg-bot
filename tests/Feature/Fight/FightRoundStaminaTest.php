@@ -7,8 +7,8 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
+use App\Services\Backpack\LoadoutService;
 use App\Services\Fight\FightRoundService;
-use App\Services\Inventory\LoadoutService;
 use Illuminate\Support\Facades\Bus;
 
 it('splits loadout mf by body and each hand', function (): void {
