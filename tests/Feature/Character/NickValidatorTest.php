@@ -14,23 +14,22 @@ it('accepts valid latin and cyrillic nicks', function (): void {
 
 it('rejects short long and illegal alphabet', function (): void {
     $validator = app(NickValidator::class);
-    $limits = gameConfig()->onboarding()['nick'];
 
     expect($validator->validate('ab'))->toBe(__('errors.nick_invalid', [
-        'nickMin' => $limits['min'],
-        'nickMax' => $limits['max'],
+        'nickMin' => NickValidator::MIN_LENGTH,
+        'nickMax' => NickValidator::MAX_LENGTH,
     ]))
-        ->and($validator->validate(str_repeat('a', $limits['max'] + 1)))->toBe(__('errors.nick_invalid', [
-            'nickMin' => $limits['min'],
-            'nickMax' => $limits['max'],
+        ->and($validator->validate(str_repeat('a', NickValidator::MAX_LENGTH + 1)))->toBe(__('errors.nick_invalid', [
+            'nickMin' => NickValidator::MIN_LENGTH,
+            'nickMax' => NickValidator::MAX_LENGTH,
         ]))
         ->and($validator->validate('hero@me'))->toBe(__('errors.nick_invalid', [
-            'nickMin' => $limits['min'],
-            'nickMax' => $limits['max'],
+            'nickMin' => NickValidator::MIN_LENGTH,
+            'nickMax' => NickValidator::MAX_LENGTH,
         ]))
         ->and($validator->validate('hero!'))->toBe(__('errors.nick_invalid', [
-            'nickMin' => $limits['min'],
-            'nickMax' => $limits['max'],
+            'nickMin' => NickValidator::MIN_LENGTH,
+            'nickMax' => NickValidator::MAX_LENGTH,
         ]));
 });
 

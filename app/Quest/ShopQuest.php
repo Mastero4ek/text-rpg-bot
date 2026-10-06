@@ -8,7 +8,6 @@ use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
-use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
@@ -26,8 +25,7 @@ use RuntimeException;
  * Что сделать: купить учебное оружие или забрать дубину у Тренера и экипировать.
  * Зелье квест не завершает.
  *
- * Награда (`onboarding.rewards.shopQuest`): exp + silver, level = graduateLevel,
- * full heal → `done`.
+ * Награда (`onboarding.rewards.shopQuest`): exp + silver, full heal → `done`.
  */
 final class ShopQuest
 {
@@ -36,7 +34,6 @@ final class ShopQuest
         private readonly CharacterService $characters,
         private readonly BackpackService $backpack,
         private readonly LoadoutService $loadout,
-        private readonly BagService $bag,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
     ) {}
@@ -120,40 +117,12 @@ final class ShopQuest
         $player = $eq->character;
         $reward = $this->reward();
         $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
-        $player->level = $this->graduateLevel();
         $player->current_hp = $this->characters->maxHp($player);
         $player->last_hp_update = now();
         $player->onboarding_step = OnboardingStepEnum::DONE;
         $player->save();
-        $player = $this->bag->grantGem($player, $this->starterGemId(), 1);
 
         return ActionResult::ok($player);
-    }
-
-    private function starterGemId(): string
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('starterGemId', $onboarding) || ! is_string($onboarding['starterGemId'])) {
-            throw new RuntimeException('onboarding.starterGemId missing.');
-        }
-
-        if ($onboarding['starterGemId'] === '') {
-            throw new RuntimeException('onboarding.starterGemId empty.');
-        }
-
-        return $onboarding['starterGemId'];
-    }
-
-    private function graduateLevel(): int
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('graduateLevel', $onboarding) || ! is_int($onboarding['graduateLevel'])) {
-            throw new RuntimeException('onboarding.graduateLevel missing.');
-        }
-
-        return $onboarding['graduateLevel'];
     }
 
     /**

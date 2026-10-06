@@ -44,7 +44,7 @@ it('grant exp rejects non positive amount', function (): void {
 });
 
 it('reset stats actions wrap character service', function (): void {
-    $start = gameConfig()->onboarding()['start'];
+    $start = gameConfig()->character()['start'];
     $p = characters()->createDraft(1203);
     $p->strength = 12;
     $p->gold = characters()->statResetGoldCost();

@@ -12,9 +12,9 @@ beforeEach(function (): void {
     ]);
 });
 
-it('replies banned and stops processing for soft deleted character', function (): void {
+it('replies archived and stops processing for soft deleted character', function (): void {
     $p = characters()->createDraft(1301);
-    $p->username = 'BannedHero';
+    $p->username = 'ArchivedHero';
     $p->save();
     $p->delete();
 
@@ -33,18 +33,18 @@ it('replies banned and stops processing for soft deleted character', function ()
     ])->assertOk();
 
     expect(Character::withTrashed()->findOrFail(1301)->trashed())->toBeTrue()
-        ->and(Character::withTrashed()->findOrFail(1301)->username)->toBe('BannedHero');
+        ->and(Character::withTrashed()->findOrFail(1301)->username)->toBe('ArchivedHero');
 
     Http::assertSent(function (Request $request): bool {
         if (! str_contains($request->url(), '/sendMessage')) {
             return false;
         }
 
-        return ($request['text'] ?? null) === __('errors.banned');
+        return ($request['text'] ?? null) === __('errors.archived');
     });
 });
 
-it('replies banned on callback for soft deleted character', function (): void {
+it('replies archived on callback for soft deleted character', function (): void {
     $p = characters()->createDraft(1302);
     $p->delete();
 
@@ -67,6 +67,60 @@ it('replies banned on callback for soft deleted character', function (): void {
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/sendMessage')
+            && ($request['text'] ?? null) === __('errors.archived');
+    });
+});
+
+it('replies banned while banned_until is in the future', function (): void {
+    $p = characters()->createDraft(1303);
+    $p->banned_until = now()->addDay();
+    $p->save();
+
+    $payload = [
+        'update_id' => 101,
+        'message' => [
+            'message_id' => 3,
+            'text' => '/start',
+            'from' => ['id' => 1303, 'is_bot' => false, 'first_name' => 'B'],
+            'chat' => ['id' => 1303, 'type' => 'private'],
+        ],
+    ];
+
+    $this->postJson('/telegram/webhook', $payload, [
+        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
+    ])->assertOk();
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendMessage')
             && ($request['text'] ?? null) === __('errors.banned');
+    });
+});
+
+it('allows play when banned_until is in the past', function (): void {
+    $p = characters()->createDraft(1304);
+    $p->onboarding_step = App\Enums\OnboardingStepEnum::DONE;
+    $p->username = 'Unbanned';
+    $p->banned_until = now()->subMinute();
+    $p->save();
+    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+
+    $payload = [
+        'update_id' => 102,
+        'message' => [
+            'message_id' => 4,
+            'text' => '/start',
+            'from' => ['id' => 1304, 'is_bot' => false, 'first_name' => 'B'],
+            'chat' => ['id' => 1304, 'type' => 'private'],
+        ],
+    ];
+
+    $this->postJson('/telegram/webhook', $payload, [
+        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
+    ])->assertOk();
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendMessage')
+            && ($request['text'] ?? null) !== __('errors.banned')
+            && ($request['text'] ?? null) !== __('errors.archived');
     });
 });

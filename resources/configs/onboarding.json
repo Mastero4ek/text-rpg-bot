@@ -1,25 +1,8 @@
 {
-  "start": {
-    "silver": 20,
-    "gold": 0,
-    "strength": 3,
-    "agility": 3,
-    "instinct": 3,
-    "vitality": 3,
-    "statPoints": 3,
-    "level": 0,
-    "exp": 0
-  },
   "rewards": {
-    "tutorialWin": { "exp": 15, "silver": 2 },
+    "tutorialQuest": { "exp": 15, "silver": 2 },
     "statsQuest": { "exp": 10, "silver": 0 },
     "equipQuest": { "exp": 10, "silver": 25 },
     "shopQuest": { "exp": 20, "silver": 5 }
-  },
-  "graduateLevel": 1,
-  "starterGemId": "ruby_0",
-  "nick": {
-    "min": 3,
-    "max": 20
   }
 }

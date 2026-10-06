@@ -6,8 +6,8 @@ use App\Enums\OnboardingStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
 
-it('createDraft from onboarding.start', function (): void {
-    $cfg = gameConfig()->onboarding()['start'];
+it('createDraft from settings.character.start', function (): void {
+    $cfg = gameConfig()->character()['start'];
     $p = characters()->createDraft(1001);
 
     expect($p->silver)->toBe($cfg['silver'])
@@ -162,7 +162,7 @@ it('spendStatPoint rejects bad or empty', function (): void {
 });
 
 it('resetStats returns body to start and totalEarned points', function (): void {
-    $start = gameConfig()->onboarding()['start'];
+    $start = gameConfig()->character()['start'];
     $p = characters()->createDraft(1018);
     $p->exp = 200;
     $p->level = 1;
@@ -206,7 +206,7 @@ it('resetStatsForGold spends gold and fails without enough', function (): void {
 
     expect($res->ok)->toBeTrue()
         ->and($res->character->gold)->toBe(0)
-        ->and($res->character->strength)->toBe(gameConfig()->onboarding()['start']['strength']);
+        ->and($res->character->strength)->toBe(gameConfig()->character()['start']['strength']);
 });
 
 it('profileText includes name and next exp threshold', function (): void {

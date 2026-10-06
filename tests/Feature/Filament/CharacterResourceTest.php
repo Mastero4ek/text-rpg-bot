@@ -93,7 +93,7 @@ it('rejects forbidden nick on edit', function (): void {
 });
 
 it('resets stats from edit form action', function (): void {
-    $start = gameConfig()->onboarding()['start'];
+    $start = gameConfig()->character()['start'];
     $character = characters()->createDraft(1503);
     $character->username = 'ResetHero';
     $character->strength = 12;

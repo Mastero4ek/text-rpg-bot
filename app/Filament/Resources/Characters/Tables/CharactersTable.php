@@ -7,7 +7,9 @@ namespace App\Filament\Resources\Characters\Tables;
 use App\Actions\Character\CharacterDeleteAction;
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Models\Character;
+use App\Services\CharacterService;
 use App\Services\GameConfig;
+use Carbon\CarbonInterface;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -17,8 +19,10 @@ use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,16 +55,24 @@ final class CharactersTable
                     ->numeric()
                     ->alignCenter()
                     ->sortable(),
-                TextColumn::make('silver')
-                    ->label(__('admin.labels.silver'))
-                    ->numeric()
+                IconColumn::make('banned')
+                    ->label(__('admin.labels.banned'))
                     ->alignCenter()
-                    ->sortable(),
-                TextColumn::make('gold')
-                    ->label(__('admin.labels.gold'))
-                    ->numeric()
+                    ->boolean()
+                    ->trueColor(Color::Green)
+                    ->falseColor(Color::Red)
+                    ->sortable(['banned_until'])
+                    ->getStateUsing(fn (Character $record): bool => app(CharacterService::class)->hasActiveBan($record))
+                    ->tooltip(fn (Character $record): ?string => self::untilTooltip($record->banned_until)),
+                IconColumn::make('premium')
+                    ->label(__('admin.labels.premium'))
                     ->alignCenter()
-                    ->sortable(),
+                    ->boolean()
+                    ->trueColor(Color::Green)
+                    ->falseColor(Color::Red)
+                    ->sortable(['premium_until'])
+                    ->getStateUsing(fn (Character $record): bool => app(CharacterService::class)->hasActivePremium($record))
+                    ->tooltip(fn (Character $record): ?string => self::untilTooltip($record->premium_until)),
                 TextColumn::make('created_at')
                     ->label(__('admin.labels.created_at'))
                     ->dateTime('d.m.Y')
@@ -84,6 +96,36 @@ final class CharactersTable
                 SelectFilter::make('level')
                     ->label(__('admin.labels.level'))
                     ->options(self::levelOptions())
+                    ->native(false),
+                TernaryFilter::make('banned')
+                    ->label(__('admin.labels.banned'))
+                    ->placeholder(__('admin.filters.all'))
+                    ->trueLabel(__('admin.filters.banned_only'))
+                    ->falseLabel(__('admin.filters.banned_without'))
+                    ->queries(
+                        true: fn (Builder $query): Builder => $query->where('banned_until', '>', now()),
+                        false: fn (Builder $query): Builder => $query
+                            ->where(function (Builder $inner): void {
+                                $inner->whereNull('banned_until')
+                                    ->orWhere('banned_until', '<=', now());
+                            }),
+                        blank: fn (Builder $query): Builder => $query,
+                    )
+                    ->native(false),
+                TernaryFilter::make('premium')
+                    ->label(__('admin.labels.premium'))
+                    ->placeholder(__('admin.filters.all'))
+                    ->trueLabel(__('admin.filters.premium_only'))
+                    ->falseLabel(__('admin.filters.premium_without'))
+                    ->queries(
+                        true: fn (Builder $query): Builder => $query->where('premium_until', '>', now()),
+                        false: fn (Builder $query): Builder => $query
+                            ->where(function (Builder $inner): void {
+                                $inner->whereNull('premium_until')
+                                    ->orWhere('premium_until', '<=', now());
+                            }),
+                        blank: fn (Builder $query): Builder => $query,
+                    )
                     ->native(false),
                 TrashedFilter::make()
                     ->label(__('admin.actions.trashed_filter.label'))
@@ -186,5 +228,18 @@ final class CharactersTable
         }
 
         return (string) $record->tg_id;
+    }
+
+    private static function untilTooltip(?CarbonInterface $until): ?string
+    {
+        if (! $until instanceof CarbonInterface) {
+            return null;
+        }
+
+        if (! $until->isFuture()) {
+            return null;
+        }
+
+        return $until->format('d.m.Y H:i');
     }
 }

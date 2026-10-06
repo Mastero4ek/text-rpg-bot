@@ -19,6 +19,7 @@ use App\Services\Fight\FightService;
 use App\Services\GameConfig;
 use App\Services\OnboardingService;
 use App\Services\Shop\ShopCatalog;
+use App\Support\NickValidator;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -149,13 +150,11 @@ final class OnboardingHandler
 
     private function resume(TelegramResponder $responder, Character $player): void
     {
-        $nick = $this->nickLimits();
-
         if ($player->onboarding_step === OnboardingStepEnum::NICK) {
             $responder->reply(
                 __('onboarding.welcome', [
-                    'nickMin' => $nick['min'],
-                    'nickMax' => $nick['max'],
+                    'nickMin' => NickValidator::MIN_LENGTH,
+                    'nickMax' => NickValidator::MAX_LENGTH,
                 ]),
                 TelegramKeyboards::removeReply(),
             );
@@ -412,7 +411,6 @@ final class OnboardingHandler
             $responder,
             $res->character,
             __('onboarding.graduated_buy', [
-                'level' => $this->graduateLevel(),
                 'profile' => $this->characters->profileText($res->character),
             ]),
         );
@@ -438,7 +436,6 @@ final class OnboardingHandler
             $responder,
             $res->character,
             __('onboarding.graduated_claim', [
-                'level' => $this->graduateLevel(),
                 'profile' => $this->characters->profileText($res->character),
             ]),
         );
@@ -472,26 +469,6 @@ final class OnboardingHandler
         );
     }
 
-    /**
-     * @return array{min: int, max: int}
-     */
-    private function nickLimits(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('nick', $onboarding) || ! is_array($onboarding['nick'])) {
-            throw new RuntimeException('onboarding.nick missing.');
-        }
-
-        $nick = $onboarding['nick'];
-
-        if (! is_int($nick['min']) || ! is_int($nick['max'])) {
-            throw new RuntimeException('onboarding.nick invalid.');
-        }
-
-        return ['min' => $nick['min'], 'max' => $nick['max']];
-    }
-
     private function requireCity(Character $player): City
     {
         $player->loadMissing('city');
@@ -521,16 +498,5 @@ final class OnboardingHandler
         }
 
         return ['exp' => $row['exp'], 'silver' => $row['silver']];
-    }
-
-    private function graduateLevel(): int
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('graduateLevel', $onboarding) || ! is_int($onboarding['graduateLevel'])) {
-            throw new RuntimeException('onboarding.graduateLevel missing.');
-        }
-
-        return $onboarding['graduateLevel'];
     }
 }

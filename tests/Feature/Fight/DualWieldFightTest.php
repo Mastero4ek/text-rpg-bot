@@ -17,19 +17,23 @@ use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\FightHandler;
 use Illuminate\Support\Facades\Http;
 
-it('sets attackSlots to 2 only with dual weapons in both hands from dualWieldMinLevel', function (): void {
+it('sets attackSlots to 2 with dual weapons when level meets dualWieldMinLevel', function (): void {
+    $minLevel = gameConfig()->combat()['dualWieldMinLevel'];
     $p = characters()->createDraft(8501);
+    $p->level = $minLevel;
+    $p->save();
     $p = giveAndEquipStarterKnuckles($p);
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
-    expect($p->level)->toBe(0)
-        ->and(app(LoadoutService::class)->forCharacter($p)->attackSlots)->toBe(1)
+    expect(app(LoadoutService::class)->forCharacter($p)->attackSlots)->toBe(2)
         ->and(app(LoadoutService::class)->forCharacter($p)->offHandDamageMax)->toBeGreaterThan(0);
 
-    $p->level = 1;
-    $p->save();
+    if ($minLevel > 0) {
+        $p->level = $minLevel - 1;
+        $p->save();
 
-    expect(app(LoadoutService::class)->forCharacter($p)->attackSlots)->toBe(2);
+        expect(app(LoadoutService::class)->forCharacter($p)->attackSlots)->toBe(1);
+    }
 });
 
 it('asks for second attack zone when dual-wield is active', function (): void {
