@@ -6,6 +6,7 @@ namespace App\Telegram;
 
 use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
+use App\Services\CharacterService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -21,6 +22,7 @@ final class UpdateProcessor
 {
     public function __construct(
         private readonly TelegramClient $client,
+        private readonly CharacterService $characters,
         private readonly OnboardingHandler $onboarding,
         private readonly MenuHandler $menu,
         private readonly ShopHandler $shop,
@@ -42,7 +44,7 @@ final class UpdateProcessor
 
             $responder = new TelegramResponder($this->client, $update);
 
-            if ($this->replyIfBanned($update, $responder)) {
+            if ($this->replyIfBlocked($update, $responder)) {
                 return;
             }
 
@@ -69,7 +71,7 @@ final class UpdateProcessor
         }
     }
 
-    private function replyIfBanned(TelegramUpdate $update, TelegramResponder $responder): bool
+    private function replyIfBlocked(TelegramUpdate $update, TelegramResponder $responder): bool
     {
         $character = Character::withTrashed()->find($update->userId());
 
@@ -77,13 +79,19 @@ final class UpdateProcessor
             return false;
         }
 
-        if (! $character->trashed()) {
-            return false;
+        if ($character->trashed()) {
+            $responder->reply(__('errors.archived'), null);
+
+            return true;
         }
 
-        $responder->reply(__('errors.banned'), null);
+        if ($this->characters->hasActiveBan($character)) {
+            $responder->reply(__('errors.banned'), null);
 
-        return true;
+            return true;
+        }
+
+        return false;
     }
 
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void

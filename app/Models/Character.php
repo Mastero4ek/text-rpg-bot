@@ -42,6 +42,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $backpack_max_rows
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
+ * @property CarbonInterface|null $banned_until
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
@@ -76,6 +77,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'backpack_max_rows',
     'arena_points',
     'premium_until',
+    'banned_until',
 ])]
 final class Character extends Model implements HasMedia
 {
@@ -172,6 +174,7 @@ final class Character extends Model implements HasMedia
             'backpack_max_rows' => 'integer',
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
+            'banned_until' => 'datetime',
         ];
     }
 }

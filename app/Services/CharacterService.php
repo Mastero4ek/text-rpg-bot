@@ -144,6 +144,7 @@ final class CharacterService
             $character->backpack_max_rows = $this->defaultBackpackMaxRows();
             $character->arena_points = 0;
             $character->premium_until = null;
+            $character->banned_until = null;
             $character->save();
 
             return $character;
@@ -247,6 +248,15 @@ final class CharacterService
 
             return $character;
         });
+    }
+
+    public function hasActiveBan(Character $character): bool
+    {
+        if (! $character->banned_until instanceof CarbonInterface) {
+            return false;
+        }
+
+        return $character->banned_until->isFuture();
     }
 
     public function hasActivePremium(Character $character): bool
@@ -781,13 +791,13 @@ final class CharacterService
      */
     private function onboardingStartConfig(): array
     {
-        $onboarding = $this->config->onboarding();
+        $character = $this->config->character();
 
-        if (! array_key_exists('start', $onboarding) || ! is_array($onboarding['start'])) {
-            throw new RuntimeException('onboarding.start missing.');
+        if (! array_key_exists('start', $character) || ! is_array($character['start'])) {
+            throw new RuntimeException('settings.character.start missing.');
         }
 
-        $start = $onboarding['start'];
+        $start = $character['start'];
 
         return [
             'silver' => $this->intField($start, 'silver'),

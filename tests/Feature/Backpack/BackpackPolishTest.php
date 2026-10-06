@@ -54,8 +54,7 @@ it('allows any gem type in an open socket', function (): void {
     expect(socketGem($p, $knife, 'sapphire_0')->ok)->toBeTrue();
 });
 
-it('grants starter gem on shop quest finish', function (): void {
-    $ob = gameConfig()->onboarding();
+it('shop quest finish does not grant starter gem', function (): void {
     $p = onboarding()->ensurePlayer(8606);
     $p = onboarding()->setNick($p, 'GemStart')->character;
     $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
@@ -71,7 +70,5 @@ it('grants starter gem on shop quest finish', function (): void {
 
     expect($res->ok)->toBeTrue()
         ->and($res->character->onboarding_step)->toBe(OnboardingStepEnum::DONE)
-        ->and($ob['starterGemId'])->toBe('ruby_0')
-        ->and(hasLooseGem($res->character, 'ruby_0'))->toBeTrue()
-        ->and(looseGem($res->character, 'ruby_0')->durability)->toBe(10);
+        ->and(hasLooseGem($res->character, 'ruby_0'))->toBeFalse();
 });

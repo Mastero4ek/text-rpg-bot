@@ -37,6 +37,7 @@ return new class extends Migration
             $table->unsignedInteger('backpack_max_rows')->default(50);
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();
+            $table->timestamp('banned_until')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

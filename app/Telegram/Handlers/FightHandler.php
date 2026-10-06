@@ -616,10 +616,10 @@ final class FightHandler
             throw new RuntimeException('onboarding.rewards missing.');
         }
 
-        $row = $onboarding['rewards']['tutorialWin'] ?? null;
+        $row = $onboarding['rewards']['tutorialQuest'] ?? null;
 
         if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
-            throw new RuntimeException('tutorialWin reward missing.');
+            throw new RuntimeException('tutorialQuest reward missing.');
         }
 
         return ['exp' => $row['exp'], 'silver' => $row['silver']];

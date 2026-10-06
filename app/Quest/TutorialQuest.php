@@ -23,7 +23,7 @@ use RuntimeException;
  * Что сделать: победить солдата (стойка → удар → блок). Зелье в туториале
  * недоступно. Поражение: full heal (шаг остаётся / откат на intro в хендлере).
  *
- * Награда (`onboarding.rewards.tutorialWin`): exp + silver → `quest_stats`.
+ * Награда (`onboarding.rewards.tutorialQuest`): exp + silver → `quest_stats`.
  */
 final class TutorialQuest
 {
@@ -57,7 +57,7 @@ final class TutorialQuest
     public function onWin(Character $character): Character
     {
         return DB::transaction(function () use ($character): Character {
-            $reward = $this->reward('tutorialWin');
+            $reward = $this->reward('tutorialQuest');
             $this->characters->addExpSilver($character, $reward['exp'], $reward['silver']);
             $character->onboarding_step = OnboardingStepEnum::QUEST_STATS;
             $character->save();

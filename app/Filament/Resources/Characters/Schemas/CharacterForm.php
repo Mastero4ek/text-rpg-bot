@@ -207,31 +207,40 @@ final class CharacterForm
                     ]),
                 Section::make(__('admin.sections.character_economy'))
                     ->icon(Heroicon::OutlinedBanknotes)
-                    ->columns(4)
+                    ->columns(1)
                     ->columnSpanFull()
                     ->collapsed()
                     ->collapsible()
                     ->schema([
-                        TextInput::make('silver')
-                            ->label(__('admin.labels.silver'))
-                            ->numeric()
-                            ->required()
-                            ->minValue(0),
-                        TextInput::make('gold')
-                            ->label(__('admin.labels.gold'))
-                            ->numeric()
-                            ->required()
-                            ->minValue(0),
-                        TextInput::make('arena_points')
-                            ->label(__('admin.labels.arena_points'))
-                            ->numeric()
-                            ->required()
-                            ->minValue(0),
-                        DateTimePicker::make('premium_until')
-                            ->label(__('admin.labels.premium_until'))
-                            ->displayFormat('d.m.Y H:i')
-                            ->seconds(false)
-                            ->native(false),
+                        Group::make([
+                            TextInput::make('silver')
+                                ->label(__('admin.labels.silver'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('gold')
+                                ->label(__('admin.labels.gold'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('arena_points')
+                                ->label(__('admin.labels.arena_points'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                        ])->columns(4)->columnSpanFull(),
+                        Group::make([
+                            DateTimePicker::make('premium_until')
+                                ->label(__('admin.labels.premium_until'))
+                                ->displayFormat('d.m.Y H:i')
+                                ->seconds(false)
+                                ->native(false),
+                            DateTimePicker::make('banned_until')
+                                ->label(__('admin.labels.banned_until'))
+                                ->displayFormat('d.m.Y H:i')
+                                ->seconds(false)
+                                ->native(false),
+                        ])->columns(4)->columnSpanFull(),
                     ]),
             ]);
     }

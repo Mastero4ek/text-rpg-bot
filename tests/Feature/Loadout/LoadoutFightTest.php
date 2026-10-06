@@ -9,6 +9,8 @@ use App\Enums\Fight\FightStepEnum;
 use App\Enums\OnboardingStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Services\Backpack\LoadoutService;
+use App\Support\Random\FakeRandomSource;
+use App\Support\Random\RandomSourceContract;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -126,6 +128,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
     Http::fake([
         'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
+    $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8105);
     $p->onboarding_step = OnboardingStepEnum::DONE;
@@ -139,6 +142,10 @@ it('asks for second defend zone when shield is equipped', function (): void {
     $p = $eq->character;
 
     $fight = fights()->createTraining($p, woodenSoldier($p));
+    $enemy = $fight->enemy;
+    $enemy['current_hp'] = 500;
+    $enemy['maxHp'] = 500;
+    $fight->enemy = $enemy;
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::DEFEND;
     $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::HEAD;
@@ -195,6 +202,7 @@ it('resolves after one defend zone without shield', function (): void {
     Http::fake([
         'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
+    $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8106);
     $p->onboarding_step = OnboardingStepEnum::DONE;
@@ -202,6 +210,10 @@ it('resolves after one defend zone without shield', function (): void {
     $p->save();
 
     $fight = fights()->createTraining($p, woodenSoldier($p));
+    $enemy = $fight->enemy;
+    $enemy['current_hp'] = 500;
+    $enemy['maxHp'] = 500;
+    $fight->enemy = $enemy;
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->player_attack = App\Enums\Fight\PlayerAttackEnum::CHEST;

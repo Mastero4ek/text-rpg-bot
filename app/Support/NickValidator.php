@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Services\GameConfig;
 use RuntimeException;
 
 final class NickValidator
 {
+    public const int MIN_LENGTH = 3;
+
+    public const int MAX_LENGTH = 20;
+
     /**
      * Стемы в lower; ё в нике схлопывается в е при проверке.
      * Не короче 3–4 символов без нужды — иначе режет нормальные ники.
@@ -511,20 +514,15 @@ final class NickValidator
         'suckdick',
     ];
 
-    public function __construct(
-        private readonly GameConfig $config,
-    ) {}
-
     public function validate(string $raw): ?string
     {
         $nick = mb_trim($raw);
-        $limits = $this->nickLimits();
-        $pattern = '/^[A-Za-zА-Яа-яЁё0-9_\- ]{' . $limits['min'] . ',' . $limits['max'] . '}$/u';
+        $pattern = '/^[A-Za-zА-Яа-яЁё0-9_\- ]{' . self::MIN_LENGTH . ',' . self::MAX_LENGTH . '}$/u';
 
         if (preg_match($pattern, $nick) !== 1) {
             return __('errors.nick_invalid', [
-                'nickMin' => $limits['min'],
-                'nickMax' => $limits['max'],
+                'nickMin' => self::MIN_LENGTH,
+                'nickMax' => self::MAX_LENGTH,
             ]);
         }
 
@@ -571,32 +569,5 @@ final class NickValidator
         }
 
         return $collapsed;
-    }
-
-    /**
-     * @return array{min: int, max: int}
-     */
-    private function nickLimits(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('nick', $onboarding) || ! is_array($onboarding['nick'])) {
-            throw new RuntimeException('onboarding.nick missing.');
-        }
-
-        $nick = $onboarding['nick'];
-
-        if (! array_key_exists('min', $nick) || ! is_int($nick['min'])) {
-            throw new RuntimeException('onboarding.nick.min missing.');
-        }
-
-        if (! array_key_exists('max', $nick) || ! is_int($nick['max'])) {
-            throw new RuntimeException('onboarding.nick.max missing.');
-        }
-
-        return [
-            'min' => $nick['min'],
-            'max' => $nick['max'],
-        ];
     }
 }

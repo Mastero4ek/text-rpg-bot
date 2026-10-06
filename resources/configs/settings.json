@@ -34,7 +34,7 @@
     },
     "combat": {
         "aiDefendChance": 0.55,
-        "dualWieldMinLevel": 1,
+        "dualWieldMinLevel": 0,
         "turnTimeoutSeconds": 180,
         "mfPerStat": 3,
         "stamina": {
@@ -93,6 +93,17 @@
         }
     },
     "character": {
+        "start": {
+            "silver": 20,
+            "gold": 0,
+            "strength": 3,
+            "agility": 3,
+            "instinct": 3,
+            "vitality": 3,
+            "statPoints": 3,
+            "level": 0,
+            "exp": 0
+        },
         "maxHp": {
             "perVitality": 6
         },

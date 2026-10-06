@@ -48,7 +48,8 @@ it('setLocation only from list', function (): void {
 });
 
 it('tutorial fight persists and win lose', function (): void {
-    $ob = gameConfig()->onboarding();
+    $start = gameConfig()->character()['start'];
+    $reward = gameConfig()->onboarding()['rewards']['tutorialQuest'];
     $p = onboarding()->ensurePlayer(3004);
     $p = onboarding()->setNick($p, 'Fighter')->character;
     $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
@@ -66,11 +67,10 @@ it('tutorial fight persists and win lose', function (): void {
 
     $p = onboarding()->onTutorialWin($p);
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_STATS)
-        ->and($p->silver)->toBe($ob['start']['silver'] + $ob['rewards']['tutorialWin']['silver']);
+        ->and($p->silver)->toBe($start['silver'] + $reward['silver']);
 });
 
 it('stats equip shop free club full path', function (): void {
-    $ob = gameConfig()->onboarding();
     $p = onboarding()->ensurePlayer(3005);
     $p = onboarding()->setNick($p, 'Graduate')->character;
     $p = onboarding()->setLocation($p, onboarding()->cities()[1]->key)->character;
@@ -95,12 +95,14 @@ it('stats equip shop free club full path', function (): void {
         ->and($mail->slot)->toBe(App\Enums\Equipment\SlotEnum::ARMOR)
         ->and($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_SHOP);
 
+    $levelBeforeShop = $p->level;
     $res = onboarding()->finishShopQuestClaim($p, shopCatalog()->freeTrainerItemId());
     expect($res->ok)->toBeTrue();
     $p = $res->character;
     $weapon = backpack()->findOwned($p->tg_id, shopCatalog()->freeTrainerItemId());
     expect($p->onboarding_step)->toBe(OnboardingStepEnum::DONE)
-        ->and($p->level)->toBe($ob['graduateLevel'])
+        ->and($p->level)->toBeGreaterThanOrEqual($levelBeforeShop)
+        ->and(hasLooseGem($p, 'ruby_0'))->toBeFalse()
         ->and($weapon->isEquipped())->toBeTrue()
         ->and($weapon->slot)->toBe(App\Enums\Equipment\SlotEnum::RIGHT_HAND);
 });

@@ -96,7 +96,10 @@ return [
         'player_max_stamina' => 'Макс. выносливость',
         'player_stamina' => 'Выносливость',
         'potions' => 'Зелья',
+        'premium' => 'Премиум',
         'premium_until' => 'Премиум до',
+        'banned' => 'Бан',
+        'banned_until' => 'Бан до',
         'price' => 'Цена',
         'repair_tier' => 'Тип ремонта',
         'repairable' => 'Ремонтируется',
@@ -206,6 +209,13 @@ return [
         'fight' => [
             'view' => 'Просмотр Боя',
         ],
+    ],
+    'filters' => [
+        'all' => 'Все',
+        'banned_only' => 'В бане',
+        'banned_without' => 'Без бана',
+        'premium_only' => 'С премиумом',
+        'premium_without' => 'Без премиума',
     ],
     'actions' => [
         'add' => 'Добавить',
