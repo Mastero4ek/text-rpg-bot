@@ -10,7 +10,7 @@ use App\Support\LangVariant;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Keyboards\TelegramKeyboards;
+use App\Telegram\Keyboards\RegistrationKeyboard;
 use RuntimeException;
 use Throwable;
 
@@ -75,7 +75,7 @@ final class RegistrationFlow
                 $responder,
                 $character,
                 $this->splashText($error),
-                TelegramKeyboards::splash(),
+                RegistrationKeyboard::splash(),
             );
 
             return;
@@ -86,7 +86,7 @@ final class RegistrationFlow
                 $responder,
                 $character,
                 $this->nickText($error),
-                TelegramKeyboards::nickBack(),
+                RegistrationKeyboard::nickBack(),
             );
 
             return;
@@ -100,7 +100,7 @@ final class RegistrationFlow
             $responder,
             $character,
             $this->cityText($character->username, $error),
-            TelegramKeyboards::city($this->registration->cities()),
+            RegistrationKeyboard::city($this->registration->cities()),
         );
     }
 

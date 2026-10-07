@@ -158,7 +158,7 @@ it('runs splash rise nick city happy path into intro', function (): void {
     ]);
 
     $player->refresh();
-    expect($player->progress_step)->toBe(ProgressStepEnum::DONE)
+    expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED)
         ->and($player->city_id)->toBe($city->id)
         ->and($player->birth_city_id)->toBe($city->id);
 
@@ -170,7 +170,7 @@ it('runs splash rise nick city happy path into intro', function (): void {
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], 'Центр города встречает тебя');
+            && str_contains((string) $request['text'], 'У ворот тебя останавливает');
     });
 
     Http::assertNotSent(function (Request $request): bool {

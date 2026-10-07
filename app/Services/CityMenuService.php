@@ -4,16 +4,35 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
-use App\Telegram\Keyboards\TelegramKeyboards;
+use App\Telegram\Keyboards\CityKeyboard;
 
 final class CityMenuService
 {
     public function __construct(
         private readonly CityQuery $cities,
     ) {}
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public function arenaMarkup(Character $character): ?array
+    {
+        $city = $this->currentCity($character);
+
+        if (! $city instanceof City) {
+            return null;
+        }
+
+        if (! $city->has_training && ! $city->has_arena) {
+            return null;
+        }
+
+        return CityKeyboard::arena($city);
+    }
 
     public function currentCity(Character $character): ?City
     {
@@ -30,19 +49,26 @@ final class CityMenuService
         return $character->city;
     }
 
-    public function homeText(Character $character): string
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public function gatesMarkup(Character $character): ?array
     {
         $city = $this->currentCity($character);
 
         if (! $city instanceof City) {
-            return __('errors.city_unavailable');
+            return null;
         }
 
-        return __('city.you_are_in');
+        if (! $city->has_portal && ! $city->has_forest) {
+            return null;
+        }
+
+        return CityKeyboard::gates($city);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}|null
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
      */
     public function homeMarkup(Character $character): ?array
     {
@@ -52,18 +78,51 @@ final class CityMenuService
             return null;
         }
 
-        return TelegramKeyboards::cityServices($city);
+        if ($character->progress_step === ProgressStepEnum::ARRIVED) {
+            return CityKeyboard::firstHome($city);
+        }
+
+        return CityKeyboard::services($city);
+    }
+
+    public function homeText(Character $character): string
+    {
+        $city = $this->currentCity($character);
+
+        if (! $city instanceof City) {
+            return __('errors.city_unavailable');
+        }
+
+        if ($character->progress_step === ProgressStepEnum::ARRIVED) {
+            return __('telegram.city.first_home');
+        }
+
+        return __('telegram.city.you_are_in');
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
     public function portalMarkup(Character $character): array
     {
         if ($character->city_id === null) {
-            return TelegramKeyboards::backToCity();
+            return CityKeyboard::backToCity();
         }
 
-        return TelegramKeyboards::portalTargets($this->cities->portalTargets($character->city_id));
+        return CityKeyboard::portalTargets($this->cities->portalTargets($character->city_id));
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public function tavernMarkup(Character $character): ?array
+    {
+        $city = $this->currentCity($character);
+
+        if (! $city instanceof City) {
+            return null;
+        }
+
+        return CityKeyboard::tavern($city);
     }
 }

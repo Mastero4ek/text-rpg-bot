@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Telegram\Handlers\Onboarding;
+namespace App\Telegram\Handlers;
 
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
@@ -21,7 +21,6 @@ use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Keyboards\TelegramKeyboards;
 use RuntimeException;
 
@@ -44,6 +43,18 @@ final class OnboardingHandler
     {
         $data = $update->callbackData();
         $responder->answerCallback();
+
+        if ($data === 'ob:hall') {
+            $this->enterHall($update, $responder);
+
+            return;
+        }
+
+        if ($data === 'ob:pass') {
+            $this->passHall($update, $responder);
+
+            return;
+        }
 
         if ($data === 'ob:intro_fight') {
             $this->introFight($update, $responder);
@@ -95,7 +106,7 @@ final class OnboardingHandler
         }
 
         if (
-            $player->progress_step === ProgressStepEnum::DONE
+            $player->progress_step->canPlayCity()
             || $this->registrationFlow->isActive($player)
         ) {
             return;
@@ -115,7 +126,7 @@ final class OnboardingHandler
         }
 
         if (
-            $player->progress_step === ProgressStepEnum::DONE
+            $player->progress_step->canPlayCity()
             || $this->registrationFlow->isActive($player)
         ) {
             return;
@@ -128,6 +139,59 @@ final class OnboardingHandler
     public function startIntro(TelegramResponder $responder): void
     {
         $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+    }
+
+    private function enterHall(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
+            $player->progress_step = ProgressStepEnum::INTRO;
+            $player->save();
+            $responder->edit(__('telegram.city.hall_gone'), TelegramKeyboards::clearInline());
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::INTRO) {
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step->canPlayCity()) {
+            return;
+        }
+
+        $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
+        $this->resume($responder, $player);
+    }
+
+    private function passHall(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::ARRIVED) {
+            return;
+        }
+
+        $player->progress_step = ProgressStepEnum::DONE;
+        $player->save();
+        $player = $this->characters->applyRegen($player);
+        $this->city->home($responder, $player);
     }
 
     private function resume(TelegramResponder $responder, Character $player): void

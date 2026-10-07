@@ -377,6 +377,7 @@ return [
         'SPLASH' => 'Старт',
         'SET_NICK' => 'Ник',
         'SET_CITY' => 'Город',
+        'ARRIVED' => 'Прибытие',
         'INTRO' => 'Интро',
         'TUTORIAL_FIGHT' => 'Туториал',
         'QUEST_STATS' => 'Квест статов',

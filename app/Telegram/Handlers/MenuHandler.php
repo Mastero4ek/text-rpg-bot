@@ -16,7 +16,6 @@ use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -33,6 +32,7 @@ use App\Services\Shop\ShopCatalog;
 use App\Support\Gem\GemMfText;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
 
 final class MenuHandler
@@ -70,7 +70,7 @@ final class MenuHandler
         }
 
         if ($data === 'menu:profile') {
-            $responder->edit($this->characters->profileText($player), TelegramKeyboards::backToCity());
+            $responder->edit($this->characters->profileText($player), CityKeyboard::backToCity());
 
             return;
         }
@@ -281,6 +281,61 @@ final class MenuHandler
         }
     }
 
+    public function handleCommand(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = $this->requireDone($update, $responder);
+
+        if (! $player instanceof Character) {
+            return;
+        }
+
+        if ($this->fights->exists($player->tg_id)) {
+            return;
+        }
+
+        $command = $update->botCommand();
+
+        if ($command === null) {
+            return;
+        }
+
+        if (
+            ! in_array($command, ['character', 'skills', 'backpack', 'bag'], true)
+        ) {
+            return;
+        }
+
+        $responder->deleteUpdateMessage();
+
+        if ($command === 'character') {
+            $responder->reply($this->characters->profileText($player), CityKeyboard::backToCity());
+
+            return;
+        }
+
+        if ($command === 'skills') {
+            $responder->reply(
+                $this->characters->statsScreenText($player),
+                TelegramKeyboards::statsScreen(
+                    $player->stat_points,
+                    $this->characters->statResetGoldCost(),
+                ),
+            );
+
+            return;
+        }
+
+        if ($command === 'backpack') {
+            [$text, $markup] = $this->backpackPanel($player, null);
+            $responder->reply($text, $markup);
+
+            return;
+        }
+
+        [$text, $markup] = $this->bagPanel($player);
+        $responder->reply($text, $markup);
+    }
+
     public function handleText(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $player = $this->requireDone($update, $responder);
@@ -296,7 +351,7 @@ final class MenuHandler
         $text = $update->text();
 
         if ($text === __('menu.profile')) {
-            $responder->reply($this->characters->profileText($player), TelegramKeyboards::backToCity());
+            $responder->reply($this->characters->profileText($player), CityKeyboard::backToCity());
 
             return;
         }
@@ -462,7 +517,10 @@ final class MenuHandler
         $responder->edit($text, ['inline_keyboard' => $buttons]);
     }
 
-    private function backpackScreen(TelegramResponder $responder, Character $player, ?TypeEnum $type): void
+    /**
+     * @return array{0: string, 1: array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}}
+     */
+    private function backpackPanel(Character $player, ?TypeEnum $type): array
     {
         $rows = $this->backpack->listByType($player->tg_id, $type);
         $current = $this->backpack->rowCount($player->tg_id);
@@ -520,10 +578,19 @@ final class MenuHandler
             $body = $this->backpack->backpackText($rows);
         }
 
-        $responder->edit($header . "\n\n" . $body, ['inline_keyboard' => $buttons]);
+        return [$header . "\n\n" . $body, ['inline_keyboard' => $buttons]];
     }
 
-    private function bagScreen(TelegramResponder $responder, Character $player): void
+    private function backpackScreen(TelegramResponder $responder, Character $player, ?TypeEnum $type): void
+    {
+        [$text, $markup] = $this->backpackPanel($player, $type);
+        $responder->edit($text, $markup);
+    }
+
+    /**
+     * @return array{0: string, 1: array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}}
+     */
+    private function bagPanel(Character $player): array
     {
         $potions = $this->bag->loosePotions($player);
         $gems = $this->bag->looseGems($player);
@@ -587,7 +654,13 @@ final class MenuHandler
             $text = $header;
         }
 
-        $responder->edit($text, ['inline_keyboard' => $buttons]);
+        return [$text, ['inline_keyboard' => $buttons]];
+    }
+
+    private function bagScreen(TelegramResponder $responder, Character $player): void
+    {
+        [$text, $markup] = $this->bagPanel($player);
+        $responder->edit($text, $markup);
     }
 
     private function itemCardScreen(
@@ -1300,7 +1373,7 @@ final class MenuHandler
             return null;
         }
 
-        if ($player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->progress_step->canPlayCity()) {
             $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;

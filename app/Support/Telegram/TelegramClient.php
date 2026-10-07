@@ -124,6 +124,16 @@ final class TelegramClient
         return $json['result']['message_id'];
     }
 
+    /**
+     * @param  list<array{command: string, description: string}>  $commands
+     */
+    public function setMyCommands(array $commands): void
+    {
+        $this->post('setMyCommands', [
+            'commands' => json_encode($commands, JSON_THROW_ON_ERROR),
+        ]);
+    }
+
     public function setWebhook(string $url, string $secretToken): void
     {
         $this->post('setWebhook', [

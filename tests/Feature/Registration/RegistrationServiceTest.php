@@ -52,7 +52,7 @@ it('setLocation only from enabled list', function (): void {
     expect($res->ok)->toBeTrue()
         ->and($res->character->city_id)->toBe($city->id)
         ->and($res->character->birth_city_id)->toBe($city->id)
-        ->and($res->character->progress_step)->toBe(ProgressStepEnum::DONE);
+        ->and($res->character->progress_step)->toBe(ProgressStepEnum::ARRIVED);
 });
 
 it('rise and backToSplash move between splash and nick', function (): void {

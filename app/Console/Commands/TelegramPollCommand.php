@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\BotCommandsSync;
 use App\Support\Telegram\TelegramClient;
 use App\Telegram\UpdateProcessor;
 use Illuminate\Console\Command;
@@ -16,7 +17,7 @@ final class TelegramPollCommand extends Command
 
     protected $description = 'Long-poll Telegram updates (dev). Refuses when TELEGRAM_WEBHOOK_URL is set.';
 
-    public function handle(TelegramClient $client, UpdateProcessor $processor): int
+    public function handle(TelegramClient $client, UpdateProcessor $processor, BotCommandsSync $commands): int
     {
         $webhookUrl = config('bot.webhook_url');
 
@@ -38,6 +39,12 @@ final class TelegramPollCommand extends Command
             $client->deleteWebhook();
         } catch (Throwable $e) {
             $this->warn('deleteWebhook: ' . $e->getMessage());
+        }
+
+        try {
+            $commands->sync();
+        } catch (Throwable $e) {
+            $this->warn('setMyCommands: ' . $e->getMessage());
         }
 
         $this->info('Polling Telegram updates…');

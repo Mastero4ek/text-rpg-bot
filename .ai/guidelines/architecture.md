@@ -34,7 +34,8 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 | What | Where |
 |------|-------|
-| Telegram handlers / keyboards | `app/Telegram/` (`Handlers/Registration/`, `Handlers/Onboarding/`) |
+| Telegram handlers | `app/Telegram/Handlers/` (плоско, без подпапок по флоу) |
+| Telegram keyboards | `app/Telegram/Keyboards/` (`CityKeyboard`, `RegistrationKeyboard`, `TelegramKeyboards`) |
 | Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Onboarding/`; иначе корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/` для nick/location на регистрации) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |

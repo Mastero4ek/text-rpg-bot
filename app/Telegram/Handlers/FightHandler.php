@@ -32,6 +32,7 @@ use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -605,7 +606,7 @@ final class FightHandler
             return null;
         }
 
-        if ($player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->progress_step->canPlayCity()) {
             $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
@@ -658,7 +659,7 @@ final class FightHandler
                     'exp' => $reward['exp'],
                     'silver' => $reward['silver'],
                 ]),
-                TelegramKeyboards::backToCity(),
+                CityKeyboard::backToCity(),
             );
 
             return;
@@ -670,7 +671,7 @@ final class FightHandler
         $player->last_stamina_update = now();
         $player->save();
         $this->clearFight->handle($player->tg_id);
-        $responder->edit($text . __('combat.lose'), TelegramKeyboards::backToCity());
+        $responder->edit($text . __('combat.lose'), CityKeyboard::backToCity());
     }
 
     private function isHallFight(Fight $fight): bool

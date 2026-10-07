@@ -11,7 +11,6 @@ use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\MenuHandler;
-use App\Telegram\Keyboards\TelegramKeyboards;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -86,7 +85,7 @@ it('does not wear gear or break gems after hall win', function (): void {
         ->and(bag()->socketedInstances($knuckles)->count())->toBe(1);
 });
 
-it('shows arena stub without creating a fight', function (): void {
+it('shows arena submenu without creating a fight', function (): void {
     $p = characters()->createDraft(9123);
     $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_YASEN);
@@ -99,7 +98,7 @@ it('shows arena stub without creating a fight', function (): void {
     expect(fights()->exists($p->tg_id))->toBeFalse();
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageText')
-            && ($request['text'] ?? null) === __('city.arena_stub');
+            && ($request['text'] ?? null) === __('telegram.city.arena');
     });
 });
 
@@ -119,7 +118,7 @@ it('sends personal reply keyboard after done /start', function (): void {
         ],
     ]);
 
-    app(App\Telegram\Handlers\Registration\RegistrationHandler::class)->handleStart(
+    app(App\Telegram\Handlers\RegistrationHandler::class)->handleStart(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -135,7 +134,7 @@ it('sends personal reply keyboard after done /start', function (): void {
             return false;
         }
 
-        return str_contains($markup, 'resize_keyboard');
+        return str_contains($markup, 'remove_keyboard');
     });
 });
 
@@ -150,7 +149,7 @@ it('sends splash keyboard on registration start', function (): void {
         ],
     ]);
 
-    app(App\Telegram\Handlers\Registration\RegistrationHandler::class)->handleStart(
+    app(App\Telegram\Handlers\RegistrationHandler::class)->handleStart(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -171,12 +170,11 @@ it('sends splash keyboard on registration start', function (): void {
     });
 });
 
-it('exposes personal reply labels from lang', function (): void {
-    $markup = TelegramKeyboards::personalReply();
-
-    expect($markup['keyboard'][0][0]['text'])->toBe(__('menu.profile'))
-        ->and($markup['keyboard'][0][1]['text'])->toBe(__('menu.inv'))
-        ->and($markup['keyboard'][0][2]['text'])->toBe(__('menu.stats'));
+it('exposes bot command descriptions from lang', function (): void {
+    expect(__('telegram.commands.character'))->toBe('Персонаж')
+        ->and(__('telegram.commands.skills'))->toBe('Навыки')
+        ->and(__('telegram.commands.backpack'))->toBe('Рюкзак')
+        ->and(__('telegram.commands.bag'))->toBe('Сумка');
 });
 
 function cityCallback(int $tgId, string $data): TelegramUpdate

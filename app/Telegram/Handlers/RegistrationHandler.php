@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Telegram\Handlers\Registration;
+namespace App\Telegram\Handlers;
 
 use App\Actions\Registration\SetLocationAction;
 use App\Actions\Registration\SetNickAction;
@@ -15,7 +15,6 @@ use App\Services\Registration\RegistrationService;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Keyboards\TelegramKeyboards;
 use RuntimeException;
 
@@ -45,6 +44,13 @@ final class RegistrationHandler
                     'profile' => $this->characters->profileText($player),
                 ]),
             );
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
+            $player = $this->characters->applyRegen($player);
+            $this->city->sendHomePanel($responder, $player);
 
             return;
         }

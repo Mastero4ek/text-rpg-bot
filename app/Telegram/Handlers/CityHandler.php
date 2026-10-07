@@ -6,7 +6,6 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\City\CityHospitalHealAction;
 use App\Actions\City\CityPortalAction;
-use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -21,6 +20,7 @@ use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
 use RuntimeException;
 
@@ -59,14 +59,26 @@ final class CityHandler
             return;
         }
 
-        if ($data === 'city:shop') {
-            $this->openShop($responder, $player);
+        if ($data === 'city:arena') {
+            $this->arena($responder, $player);
 
             return;
         }
 
-        if ($data === 'city:smith') {
-            $this->openSmith($responder, $player);
+        if ($data === 'city:board') {
+            $this->board($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:forest') {
+            $this->forest($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:gates') {
+            $this->gates($responder, $player);
 
             return;
         }
@@ -89,14 +101,26 @@ final class CityHandler
             return;
         }
 
-        if ($data === 'city:arena') {
-            $this->arena($responder, $player);
+        if ($data === 'city:pvp') {
+            $this->pvp($responder, $player);
 
             return;
         }
 
-        if ($data === 'city:forest') {
-            $this->forest($responder, $player);
+        if ($data === 'city:shop') {
+            $this->openShop($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:smith') {
+            $this->openSmith($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:tavern') {
+            $this->tavern($responder, $player);
 
             return;
         }
@@ -115,7 +139,7 @@ final class CityHandler
 
     public function sendHome(TelegramResponder $responder, Character $player, string $text): void
     {
-        $responder->reply($text, TelegramKeyboards::personalReply());
+        $responder->reply($text, TelegramKeyboards::removeReply());
         $responder->reply($this->cityMenu->homeText($player), $this->cityMenu->homeMarkup($player));
     }
 
@@ -129,15 +153,28 @@ final class CityHandler
 
     private function arena(TelegramResponder $responder, Character $player): void
     {
-        $city = $this->cityMenu->currentCity($player);
+        $markup = $this->cityMenu->arenaMarkup($player);
 
-        if (! $city instanceof City || ! $city->has_arena) {
+        if ($markup === null) {
             $responder->reply(__('errors.city_unavailable'), null);
 
             return;
         }
 
-        $responder->edit(__('city.arena_stub'), TelegramKeyboards::backToCity());
+        $responder->edit(__('telegram.city.arena'), $markup);
+    }
+
+    private function board(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City) {
+            $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.board_empty'), CityKeyboard::tavern($city));
     }
 
     private function forest(TelegramResponder $responder, Character $player): void
@@ -166,12 +203,25 @@ final class CityHandler
         }
 
         if ($buttons === []) {
-            $responder->edit(__('city.forest_empty'), TelegramKeyboards::backToCity());
+            $responder->edit(__('telegram.city.forest_empty'), CityKeyboard::backToCity());
 
             return;
         }
 
         $responder->edit(__('combat.pick_enemy'), TelegramKeyboards::fightPick($buttons));
+    }
+
+    private function gates(TelegramResponder $responder, Character $player): void
+    {
+        $markup = $this->cityMenu->gatesMarkup($player);
+
+        if ($markup === null) {
+            $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.gates'), $markup);
     }
 
     private function goldCost(): int
@@ -200,8 +250,8 @@ final class CityHandler
         }
 
         $responder->edit(
-            __('city.hospital_done', ['gold' => $this->goldCost()]),
-            TelegramKeyboards::backToCity(),
+            __('telegram.city.hospital_done', ['gold' => $this->goldCost()]),
+            CityKeyboard::backToCity(),
         );
     }
 
@@ -241,7 +291,20 @@ final class CityHandler
             return;
         }
 
-        $responder->edit(__('city.portal_title'), $this->cityMenu->portalMarkup($player));
+        $responder->edit(__('telegram.city.portal_title'), $this->cityMenu->portalMarkup($player));
+    }
+
+    private function pvp(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_arena) {
+            $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.pvp_empty'), CityKeyboard::arena($city));
     }
 
     private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
@@ -267,13 +330,26 @@ final class CityHandler
             return null;
         }
 
-        if ($player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->progress_step->canPlayCity()) {
             $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
         }
 
         return $player;
+    }
+
+    private function tavern(TelegramResponder $responder, Character $player): void
+    {
+        $markup = $this->cityMenu->tavernMarkup($player);
+
+        if ($markup === null) {
+            $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.tavern'), $markup);
     }
 
     private function training(TelegramUpdate $update, TelegramResponder $responder, Character $player): void

@@ -7,7 +7,6 @@ namespace App\Telegram\Handlers;
 use App\Actions\Backpack\BackpackSellAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Queries\City\CityQuery;
@@ -247,7 +246,7 @@ final class ShopHandler
             return null;
         }
 
-        if ($player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->progress_step->canPlayCity()) {
             $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
@@ -383,7 +382,7 @@ final class ShopHandler
         }
 
         $buttons[] = [[
-            'text' => __('menu.shop'),
+            'text' => __('telegram.city.btn_smith'),
             'callback_data' => 'city:shop',
         ]];
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
-use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Services\CharacterService;
 use App\Services\Registration\RegistrationFlow;
@@ -14,8 +13,8 @@ use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\MenuHandler;
-use App\Telegram\Handlers\Onboarding\OnboardingHandler;
-use App\Telegram\Handlers\Registration\RegistrationHandler;
+use App\Telegram\Handlers\OnboardingHandler;
+use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\ShopHandler;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -107,7 +106,7 @@ final class UpdateProcessor
         if (
             $player instanceof Character
             && ! $this->registrationFlow->isActive($player)
-            && $player->progress_step !== ProgressStepEnum::DONE
+            && ! $player->progress_step->canPlayCity()
         ) {
             $this->onboarding->handleStart($update, $responder);
         }
@@ -186,7 +185,13 @@ final class UpdateProcessor
     {
         $character = Character::query()->find($update->userId());
 
-        if ($character instanceof Character && $character->progress_step === ProgressStepEnum::DONE) {
+        if ($character instanceof Character && $character->progress_step->canPlayCity()) {
+            if ($update->botCommand() !== null) {
+                $this->menu->handleCommand($update, $responder);
+
+                return;
+            }
+
             $this->menu->handleText($update, $responder);
 
             return;

@@ -159,7 +159,7 @@ final class RegistrationService
 
             $character->birth_city_id = $city->id;
             $character->city_id = $city->id;
-            $character->progress_step = ProgressStepEnum::DONE;
+            $character->progress_step = ProgressStepEnum::ARRIVED;
             $character->save();
 
             return ActionResult::ok($character);
