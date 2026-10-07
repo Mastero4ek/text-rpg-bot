@@ -186,6 +186,34 @@ final class TelegramKeyboards
     }
 
     /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function splash(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.registration.btn_rise'), 'ob:rise')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function nickBack(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.registration.btn_back'), 'ob:back')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     */
+    public static function clearInline(): array
+    {
+        return self::inline([]);
+    }
+
+    /**
      * @param  list<City>  $cities
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
      */

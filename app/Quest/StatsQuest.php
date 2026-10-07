@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Quest;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Services\Backpack\BackpackService;
@@ -72,7 +72,7 @@ final class StatsQuest
 
             $reward = $this->reward();
             $this->characters->addExpSilver($character, $reward['exp'], $reward['silver']);
-            $character->onboarding_step = OnboardingStepEnum::QUEST_EQUIP;
+            $character->progress_step = ProgressStepEnum::QUEST_EQUIP;
             $character->save();
 
             return ActionResult::ok($character);

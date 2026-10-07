@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\Bag\BagKindEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -45,7 +45,7 @@ final class CharacterSeeder extends Seeder
 
             $character->birth_city_id = $city->id;
             $character->city_id = $city->id;
-            $character->onboarding_step = OnboardingStepEnum::DONE;
+            $character->progress_step = ProgressStepEnum::DONE;
             $character->level = $row['level'];
             $character->exp = $row['exp'];
             $character->silver = $row['silver'];

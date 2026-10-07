@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Characters\Schemas;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Models\Character;
 use App\Services\CharacterService;
+use App\Support\LangVariant;
 use App\Support\NickValidator;
 use Closure;
 use Filament\Actions\Action;
@@ -79,7 +80,7 @@ final class CharacterForm
                                             }
 
                                             if (app(CharacterService::class)->usernameTakenByOther($nick, $record->tg_id)) {
-                                                $fail(__('errors.nick_taken'));
+                                                $fail(LangVariant::pick('telegram.registration.errors.nick_taken'));
                                             }
                                         };
                                     }),

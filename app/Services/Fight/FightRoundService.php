@@ -21,6 +21,7 @@ use App\Support\Enemy;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Mf;
 use App\Support\PotionDef;
+use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 
 final class FightRoundService
@@ -138,7 +139,7 @@ final class FightRoundService
                 if ($fresh->username === null) {
                     $drinkName = __('common.you');
                 } else {
-                    $drinkName = $fresh->username;
+                    $drinkName = TelegramHtml::escape($fresh->username);
                 }
 
                 if ($profile === ProfileEnum::STAMINA) {

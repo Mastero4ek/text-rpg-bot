@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Support\Telegram\TelegramClient;
@@ -21,7 +21,7 @@ beforeEach(function (): void {
 
 it('lists only enabled forest enemies with city pivot', function (): void {
     $p = characters()->createDraft(7401);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->level = 4;
     $p = placeInCity($p, City::KEY_YASEN);
 
@@ -56,7 +56,7 @@ it('lists only enabled forest enemies with city pivot', function (): void {
 
 it('starts training fight by catalog_id', function (): void {
     $p = characters()->createDraft(7402);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_YASEN);
 
     $update = fightCallback($p->tg_id, 'fight:start:chance_wanderer');

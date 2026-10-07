@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Actions\Backpack\BackpackEquipToSlotAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\LoadoutSlot;
 use App\Quest\ShopQuest;
@@ -115,7 +115,7 @@ it('updates backpack_max_rows through action and rejects values below one', func
 it('blocks trainer club claim when backpack is full', function (): void {
     $p = characters()->createDraft(6307);
     $p->backpack_max_rows = 1;
-    $p->onboarding_step = OnboardingStepEnum::QUEST_SHOP;
+    $p->progress_step = ProgressStepEnum::QUEST_SHOP;
     $p->save();
 
     backpack()->addItem($p->tg_id, 'knife_0');
@@ -125,6 +125,6 @@ it('blocks trainer club claim when backpack is full', function (): void {
 
     expect($finish->ok)->toBeFalse()
         ->and($finish->error)->toBe(__('errors.inventory_full'))
-        ->and($p->fresh()->onboarding_step)->toBe(OnboardingStepEnum::QUEST_SHOP)
+        ->and($p->fresh()->progress_step)->toBe(ProgressStepEnum::QUEST_SHOP)
         ->and(backpack()->owns($p->tg_id, $trainerId))->toBeFalse();
 });

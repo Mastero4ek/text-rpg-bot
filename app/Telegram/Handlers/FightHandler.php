@@ -13,7 +13,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
@@ -26,8 +26,10 @@ use App\Services\EnemyService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\FightStatusFormatter;
+use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -48,6 +50,7 @@ final class FightHandler
         private readonly EnemyApplyWinLootAction $winLoot,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
+        private readonly RegistrationFlow $registration,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
         private readonly CityQuery $cityQuery,
@@ -455,7 +458,7 @@ final class FightHandler
             $this->clearFight->handle($player->tg_id);
             $responder->edit($text . __('onboarding.tutorial_lose'), null);
             $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
-            $player->onboarding_step = OnboardingStepEnum::INTRO;
+            $player->progress_step = ProgressStepEnum::INTRO;
             $player->save();
 
             return;
@@ -552,7 +555,7 @@ final class FightHandler
             return '';
         }
 
-        return __('combat.gear_broke', ['names' => implode(', ', $broken)]);
+        return __('combat.gear_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
     }
 
     /**
@@ -564,7 +567,7 @@ final class FightHandler
             return '';
         }
 
-        return __('combat.drop', ['names' => implode(', ', $names)]);
+        return __('combat.drop', ['names' => TelegramHtml::escapeJoin($names, ', ')]);
     }
 
     /**
@@ -576,7 +579,7 @@ final class FightHandler
             return '';
         }
 
-        return __('combat.gems_broke', ['names' => implode(', ', $broken)]);
+        return __('combat.gems_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
     }
 
     private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
@@ -596,8 +599,14 @@ final class FightHandler
         $player = $this->characters->applyRegen($player);
         $player = $this->loadout->dropUnmetEquipped($player);
 
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+        if ($this->registration->isActive($player)) {
+            $this->registration->showNudge($responder, $player);
+
+            return null;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::DONE) {
+            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
         }

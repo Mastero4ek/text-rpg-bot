@@ -37,13 +37,13 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 | What | Where |
 |------|-------|
-| Telegram handlers / keyboards | `app/Telegram/` |
-| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`; иначе корень) |
-| Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` |
+| Telegram handlers / keyboards | `app/Telegram/` (`Handlers/Registration/`, `Handlers/Onboarding/`) |
+| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Onboarding/`; иначе корень) |
+| Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/SetNickAction`, `SetLocationAction`) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quest/` |
 | Models | `app/Models/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Enemy/`; иначе корень) |
-| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Enemy/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `OnboardingStepEnum`, `StatKeyEnum` |
+| Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Enemy/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `ProgressStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
 | Filament presentation helpers | `app/Filament/Support/` (не путать с `app/Support/`) |
 | Domain / SDK glue | `app/Support/` (подпапки при ≥2 файлах: `Combat/`, `Equipment/`, `Gem/`, `Random/`, `Telegram/`; иначе корень) |
@@ -79,7 +79,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 ## Document map
 
 - `.ai/guidelines/` — always-on agent rules; `.ai/rules/` — path-scoped rules.
-- `docs/` — канон домена: CHARACTER / EQUIPMENT / BACKPACK / BAG.
+- `docs/` — индекс; игра — `docs/game/`; Telegram — `docs/telegram/`.
 
 ## Out of scope
 

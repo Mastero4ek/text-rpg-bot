@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Services\CharacterService;
+use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\MenuHandler;
-use App\Telegram\Handlers\OnboardingHandler;
+use App\Telegram\Handlers\Onboarding\OnboardingHandler;
+use App\Telegram\Handlers\Registration\RegistrationHandler;
 use App\Telegram\Handlers\ShopHandler;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -23,6 +25,8 @@ final class UpdateProcessor
     public function __construct(
         private readonly TelegramClient $client,
         private readonly CharacterService $characters,
+        private readonly RegistrationHandler $registration,
+        private readonly RegistrationFlow $registrationFlow,
         private readonly OnboardingHandler $onboarding,
         private readonly MenuHandler $menu,
         private readonly ShopHandler $shop,
@@ -55,7 +59,7 @@ final class UpdateProcessor
             }
 
             if ($update->isStartCommand()) {
-                $this->onboarding->handleStart($update, $responder);
+                $this->routeStart($update, $responder);
 
                 return;
             }
@@ -94,11 +98,44 @@ final class UpdateProcessor
         return false;
     }
 
+    private function routeStart(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $this->registration->handleStart($update, $responder);
+
+        $player = Character::query()->find($update->userId());
+
+        if (
+            $player instanceof Character
+            && ! $this->registrationFlow->isActive($player)
+            && $player->progress_step !== ProgressStepEnum::DONE
+        ) {
+            $this->onboarding->handleStart($update, $responder);
+        }
+    }
+
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
 
+        if (
+            $data === 'ob:rise'
+            || $data === 'ob:back'
+            || str_starts_with($data, 'ob:city:')
+        ) {
+            $this->registration->handleCallback($update, $responder);
+
+            return;
+        }
+
         if (str_starts_with($data, 'ob:')) {
+            $player = Character::query()->find($update->userId());
+
+            if ($player instanceof Character && $this->registrationFlow->isActive($player)) {
+                $this->registration->handleCallback($update, $responder);
+
+                return;
+            }
+
             $this->onboarding->handleCallback($update, $responder);
 
             return;
@@ -149,8 +186,14 @@ final class UpdateProcessor
     {
         $character = Character::query()->find($update->userId());
 
-        if ($character instanceof Character && $character->onboarding_step === OnboardingStepEnum::DONE) {
+        if ($character instanceof Character && $character->progress_step === ProgressStepEnum::DONE) {
             $this->menu->handleText($update, $responder);
+
+            return;
+        }
+
+        if ($character instanceof Character && $this->registrationFlow->isActive($character)) {
+            $this->registration->handleText($update, $responder);
 
             return;
         }

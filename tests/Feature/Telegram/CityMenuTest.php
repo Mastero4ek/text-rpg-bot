@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
@@ -23,7 +23,7 @@ beforeEach(function (): void {
 
 it('does not start a fight from menu:fight', function (): void {
     $p = characters()->createDraft(9120);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_YASEN);
 
     app(MenuHandler::class)->handleCallback(
@@ -37,7 +37,7 @@ it('does not start a fight from menu:fight', function (): void {
 it('starts hall fight with wooden_soldier without forest pivot', function (): void {
     EnemyCatalog::query()->findOrFail(EnemyCatalog::TUTORIAL_CATALOG_ID)->cities()->sync([]);
     $p = characters()->createDraft(9121);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'Hall';
     $p = placeInCity($p, City::KEY_KURGAN);
 
@@ -53,7 +53,7 @@ it('starts hall fight with wooden_soldier without forest pivot', function (): vo
 
 it('does not wear gear or break gems after hall win', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(9122));
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'HallWin';
     $p = placeInCity($p, City::KEY_YASEN);
     $p = grantGem($p, 'ruby_0', 1);
@@ -88,7 +88,7 @@ it('does not wear gear or break gems after hall win', function (): void {
 
 it('shows arena stub without creating a fight', function (): void {
     $p = characters()->createDraft(9123);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_YASEN);
 
     app(CityHandler::class)->handleCallback(
@@ -106,7 +106,7 @@ it('shows arena stub without creating a fight', function (): void {
 it('sends personal reply keyboard after done /start', function (): void {
     $p = characters()->createDraft(9124);
     $p->username = 'DoneHero';
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_YASEN);
 
     $update = new TelegramUpdate([
@@ -119,7 +119,7 @@ it('sends personal reply keyboard after done /start', function (): void {
         ],
     ]);
 
-    app(App\Telegram\Handlers\OnboardingHandler::class)->handleStart(
+    app(App\Telegram\Handlers\Registration\RegistrationHandler::class)->handleStart(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -139,7 +139,7 @@ it('sends personal reply keyboard after done /start', function (): void {
     });
 });
 
-it('removes reply keyboard on onboarding nick prompt', function (): void {
+it('sends splash keyboard on registration start', function (): void {
     $update = new TelegramUpdate([
         'update_id' => 9125,
         'message' => [
@@ -150,7 +150,7 @@ it('removes reply keyboard on onboarding nick prompt', function (): void {
         ],
     ]);
 
-    app(App\Telegram\Handlers\OnboardingHandler::class)->handleStart(
+    app(App\Telegram\Handlers\Registration\RegistrationHandler::class)->handleStart(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -166,7 +166,8 @@ it('removes reply keyboard on onboarding nick prompt', function (): void {
             return false;
         }
 
-        return str_contains($markup, 'remove_keyboard');
+        return str_contains($markup, 'ob:rise')
+            && str_contains((string) $request['text'], mb_trim(__('telegram.registration.splash')));
     });
 });
 

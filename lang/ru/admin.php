@@ -90,7 +90,7 @@ return [
         'mf_crit' => 'Критческий удар',
         'mf_dodge' => 'Уворот',
         'name' => 'Название',
-        'onboarding_step' => 'Онбординг',
+        'progress_step' => 'Онбординг',
         'player_hp' => 'HP',
         'player_max_hp' => 'Макс. HP',
         'player_max_stamina' => 'Макс. выносливость',
@@ -373,9 +373,10 @@ return [
             'body' => 'Персонаж «:nick» появился в локации «:location»',
         ],
     ],
-    'onboarding_steps' => [
-        'NICK' => 'Ник',
-        'CITY' => 'Город',
+    'progress_steps' => [
+        'SPLASH' => 'Старт',
+        'SET_NICK' => 'Ник',
+        'SET_CITY' => 'Город',
         'INTRO' => 'Интро',
         'TUTORIAL_FIGHT' => 'Туториал',
         'QUEST_STATS' => 'Квест статов',

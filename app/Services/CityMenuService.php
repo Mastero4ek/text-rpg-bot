@@ -38,7 +38,7 @@ final class CityMenuService
             return __('errors.city_unavailable');
         }
 
-        return __('city.you_are_in', ['name' => $city->name]);
+        return __('city.you_are_in');
     }
 
     /**

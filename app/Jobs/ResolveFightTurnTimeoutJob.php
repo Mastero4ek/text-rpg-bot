@@ -8,7 +8,7 @@ use App\Actions\Backpack\BackpackApplyFightWearAction;
 use App\Actions\Bag\BagGemBreakOnLoseAction;
 use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
@@ -16,9 +16,10 @@ use App\Services\CharacterService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramClient;
+use App\Support\Telegram\TelegramHtml;
 use App\Telegram\Keyboards\TelegramKeyboards;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -241,7 +242,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
                 );
             }
 
-            $player->onboarding_step = OnboardingStepEnum::INTRO;
+            $player->progress_step = ProgressStepEnum::INTRO;
             $player->save();
 
             return;
@@ -360,7 +361,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return '';
         }
 
-        return __('combat.drop', ['names' => implode(', ', $names)]);
+        return __('combat.drop', ['names' => TelegramHtml::escapeJoin($names, ', ')]);
     }
 
     /**
@@ -372,7 +373,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return '';
         }
 
-        return __('combat.gear_broke', ['names' => implode(', ', $broken)]);
+        return __('combat.gear_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
     }
 
     /**
@@ -384,7 +385,7 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return '';
         }
 
-        return __('combat.gems_broke', ['names' => implode(', ', $broken)]);
+        return __('combat.gems_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
     }
 
     /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Quest;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
@@ -119,7 +119,7 @@ final class ShopQuest
         $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
         $player->current_hp = $this->characters->maxHp($player);
         $player->last_hp_update = now();
-        $player->onboarding_step = OnboardingStepEnum::DONE;
+        $player->progress_step = ProgressStepEnum::DONE;
         $player->save();
 
         return ActionResult::ok($player);

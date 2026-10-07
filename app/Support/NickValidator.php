@@ -517,17 +517,15 @@ final class NickValidator
     public function validate(string $raw): ?string
     {
         $nick = mb_trim($raw);
+
+        if (str_contains($raw, '@') || str_contains($nick, '@')) {
+            return LangVariant::pick('telegram.registration.errors.nick_forbidden');
+        }
+
         $pattern = '/^[A-Za-zА-Яа-яЁё0-9_\- ]{' . self::MIN_LENGTH . ',' . self::MAX_LENGTH . '}$/u';
 
         if (preg_match($pattern, $nick) !== 1) {
-            return __('errors.nick_invalid', [
-                'nickMin' => self::MIN_LENGTH,
-                'nickMax' => self::MAX_LENGTH,
-            ]);
-        }
-
-        if (str_contains($nick, '@')) {
-            return __('errors.nick_forbidden');
+            return LangVariant::pick('telegram.registration.errors.nick_invalid');
         }
 
         $folded = $this->foldForBanCheck($nick);
@@ -540,7 +538,7 @@ final class NickValidator
             }
 
             if (str_contains($folded, $stemFolded)) {
-                return __('errors.nick_forbidden');
+                return LangVariant::pick('telegram.registration.errors.nick_forbidden');
             }
         }
 

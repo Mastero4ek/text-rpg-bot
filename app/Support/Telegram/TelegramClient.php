@@ -17,6 +17,17 @@ final class TelegramClient
         ]);
     }
 
+    public function deleteMessage(int|string $chatId, int $messageId): void
+    {
+        try {
+            $this->post('deleteMessage', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+            ]);
+        } catch (RuntimeException) {
+        }
+    }
+
     public function deleteWebhook(): void
     {
         $this->post('deleteWebhook', []);
@@ -35,6 +46,7 @@ final class TelegramClient
             'chat_id' => $chatId,
             'message_id' => $messageId,
             'text' => $text,
+            'parse_mode' => 'HTML',
         ];
 
         if ($replyMarkup !== null) {
@@ -91,6 +103,7 @@ final class TelegramClient
         $params = [
             'chat_id' => $chatId,
             'text' => $text,
+            'parse_mode' => 'HTML',
         ];
 
         if ($replyMarkup !== null) {

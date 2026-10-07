@@ -7,7 +7,7 @@ use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackCatalog;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
@@ -62,7 +62,7 @@ it('builds item card with damage range durability and empty gem socket', functio
     ]);
 
     $p = characters()->createDraft(8702);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->level = 1;
     $p->agility = 2;
     $p->instinct = 1;
@@ -266,7 +266,7 @@ it('shows gear screen broken line through menu callback', function (): void {
     ]);
 
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8708));
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'BrokenGear';
     $p->save();
 

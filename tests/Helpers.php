@@ -19,7 +19,8 @@ use App\Services\CombatService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\ActionResult;
@@ -82,6 +83,11 @@ function fights(): FightService
 function onboarding(): OnboardingService
 {
     return app(OnboardingService::class);
+}
+
+function registration(): RegistrationService
+{
+    return app(RegistrationService::class);
 }
 
 function combat(): CombatService

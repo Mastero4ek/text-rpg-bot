@@ -6,7 +6,7 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\City\CityHospitalHealAction;
 use App\Actions\City\CityPortalAction;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -16,7 +16,8 @@ use App\Services\CityMenuService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -38,6 +39,7 @@ final class CityHandler
         private readonly LoadoutService $loadout,
         private readonly MenuHandler $menu,
         private readonly OnboardingService $onboarding,
+        private readonly RegistrationFlow $registration,
         private readonly ShopHandler $shop,
     ) {}
 
@@ -115,6 +117,14 @@ final class CityHandler
     {
         $responder->reply($text, TelegramKeyboards::personalReply());
         $responder->reply($this->cityMenu->homeText($player), $this->cityMenu->homeMarkup($player));
+    }
+
+    public function sendHomePanel(TelegramResponder $responder, Character $player): void
+    {
+        $responder->reply(
+            $this->cityMenu->homeText($player),
+            $this->cityMenu->homeMarkup($player),
+        );
     }
 
     private function arena(TelegramResponder $responder, Character $player): void
@@ -251,8 +261,14 @@ final class CityHandler
         $player = $this->characters->applyRegen($player);
         $player = $this->loadout->dropUnmetEquipped($player);
 
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+        if ($this->registration->isActive($player)) {
+            $this->registration->showNudge($responder, $player);
+
+            return null;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::DONE) {
+            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
         }

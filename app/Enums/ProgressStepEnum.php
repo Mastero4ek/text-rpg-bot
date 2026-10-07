@@ -8,12 +8,13 @@ use Filament\Support\Colors\Color;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum OnboardingStepEnum: string implements HasColor, HasLabel
+enum ProgressStepEnum: string implements HasColor, HasLabel
 {
-    case CITY = 'CITY';
+    case SPLASH = 'SPLASH';
+    case SET_NICK = 'SET_NICK';
+    case SET_CITY = 'SET_CITY';
     case DONE = 'DONE';
     case INTRO = 'INTRO';
-    case NICK = 'NICK';
     case QUEST_EQUIP = 'QUEST_EQUIP';
     case QUEST_SHOP = 'QUEST_SHOP';
     case QUEST_STATS = 'QUEST_STATS';
@@ -25,19 +26,21 @@ enum OnboardingStepEnum: string implements HasColor, HasLabel
     public function getColor(): array
     {
         return match ($this) {
-            self::NICK => Color::Gray,
-            self::CITY => Color::Slate,
+            self::SPLASH => Color::Zinc,
+            self::SET_NICK => Color::Gray,
+            self::SET_CITY => Color::Slate,
+            self::DONE => Color::Green,
             self::INTRO => Color::Sky,
-            self::TUTORIAL_FIGHT => Color::Amber,
-            self::QUEST_STATS => Color::Indigo,
             self::QUEST_EQUIP => Color::Violet,
             self::QUEST_SHOP => Color::Orange,
-            self::DONE => Color::Green,
+            self::QUEST_STATS => Color::Indigo,
+            self::TUTORIAL_FIGHT => Color::Amber,
+
         };
     }
 
     public function getLabel(): string
     {
-        return __('admin.onboarding_steps.' . $this->value);
+        return __('admin.progress_steps.' . $this->value);
     }
 }

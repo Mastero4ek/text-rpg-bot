@@ -7,7 +7,7 @@ namespace App\Telegram\Handlers;
 use App\Actions\Backpack\BackpackSellAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Queries\City\CityQuery;
@@ -16,10 +16,12 @@ use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationFlow;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\Equipment\EquipmentDef;
+use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -33,6 +35,7 @@ final class ShopHandler
         private readonly BagCatalog $bagCatalog,
         private readonly LoadoutService $loadout,
         private readonly OnboardingService $onboarding,
+        private readonly RegistrationFlow $registration,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
         private readonly BackpackSellAction $sellItem,
@@ -88,7 +91,9 @@ final class ShopHandler
                 return;
             }
 
-            $responder->reply(__('shop.bought_weapon', ['name' => $res->def->itemName]), null);
+            $responder->reply(__('shop.bought_weapon', [
+                'name' => TelegramHtml::escape($res->def->itemName),
+            ]), null);
 
             return;
         }
@@ -108,7 +113,9 @@ final class ShopHandler
                 return;
             }
 
-            $responder->reply(__('shop.bought_gear', ['name' => $res->def->itemName]), null);
+            $responder->reply(__('shop.bought_gear', [
+                'name' => TelegramHtml::escape($res->def->itemName),
+            ]), null);
 
             return;
         }
@@ -234,8 +241,14 @@ final class ShopHandler
         $player = $this->characters->applyRegen($player);
         $player = $this->loadout->dropUnmetEquipped($player);
 
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+        if ($this->registration->isActive($player)) {
+            $this->registration->showNudge($responder, $player);
+
+            return null;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::DONE) {
+            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
         }

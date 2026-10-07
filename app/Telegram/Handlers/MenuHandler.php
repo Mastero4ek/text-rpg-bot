@@ -16,7 +16,7 @@ use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -27,7 +27,8 @@ use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\Fight\FightService;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationFlow;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Gem\GemMfText;
 use App\Support\Telegram\TelegramResponder;
@@ -45,6 +46,7 @@ final class MenuHandler
         private readonly LoadoutService $loadout,
         private readonly RepairService $repairs,
         private readonly OnboardingService $onboarding,
+        private readonly RegistrationFlow $registration,
         private readonly BackpackRepairAction $repair,
         private readonly BackpackRepairAllAction $repairAll,
         private readonly BackpackRepairVipAction $repairVip,
@@ -1292,8 +1294,14 @@ final class MenuHandler
         $player = $this->characters->applyRegen($player);
         $player = $this->loadout->dropUnmetEquipped($player);
 
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+        if ($this->registration->isActive($player)) {
+            $this->registration->showNudge($responder, $player);
+
+            return null;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::DONE) {
+            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
 
             return null;
         }

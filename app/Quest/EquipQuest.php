@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Quest;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Services\Backpack\LoadoutService;
 use App\Services\CharacterService;
@@ -44,7 +44,7 @@ final class EquipQuest
             $player = $res->character;
             $reward = $this->reward();
             $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
-            $player->onboarding_step = OnboardingStepEnum::QUEST_SHOP;
+            $player->progress_step = ProgressStepEnum::QUEST_SHOP;
             $player->save();
 
             return ActionResult::ok($player);

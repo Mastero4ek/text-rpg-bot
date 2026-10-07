@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Backpack\BackpackCatalog;
 use App\Services\Bag\BagService;
@@ -55,9 +55,9 @@ it('allows any gem type in an open socket', function (): void {
 });
 
 it('shop quest finish does not grant starter gem', function (): void {
-    $p = onboarding()->ensurePlayer(8606);
-    $p = onboarding()->setNick($p, 'GemStart')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
+    $p = registration()->ensurePlayer(8606);
+    $p = registration()->setNick($p, 'GemStart')->character;
+    $p = registration()->setLocation($p, registration()->cities()[0]->key)->character;
     $p = onboarding()->onTutorialWin($p);
 
     while ($p->stat_points > 0) {
@@ -69,6 +69,6 @@ it('shop quest finish does not grant starter gem', function (): void {
     $res = onboarding()->finishShopQuestClaim($p, shopCatalog()->freeTrainerItemId());
 
     expect($res->ok)->toBeTrue()
-        ->and($res->character->onboarding_step)->toBe(OnboardingStepEnum::DONE)
+        ->and($res->character->progress_step)->toBe(ProgressStepEnum::DONE)
         ->and(hasLooseGem($res->character, 'ruby_0'))->toBeFalse();
 });

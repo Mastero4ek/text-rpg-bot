@@ -7,7 +7,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Fight;
 use App\Services\Fight\FightRoundService;
@@ -102,7 +102,7 @@ it('win persists hp at least one even if session hp is zero', function (): void 
     ]);
 
     $p = characters()->createDraft(1403);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'WinFloor';
     $p->save();
 
@@ -140,7 +140,7 @@ it('lose persists zero hp and zero stamina', function (): void {
     ]);
 
     $p = characters()->createDraft(1404);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'LoseZero';
     $p->current_stamina = 40;
     $p->save();

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('username')->nullable();
             $table->foreignId('birth_city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->foreignId('city_id')->nullable()->constrained('cities')->restrictOnDelete();
-            $table->string('onboarding_step')->default(OnboardingStepEnum::NICK->value);
+            $table->string('progress_step')->default(ProgressStepEnum::SPLASH->value);
             $table->unsignedInteger('level')->default(0);
             $table->unsignedInteger('exp')->default(0);
             $table->unsignedInteger('silver')->default(20);
@@ -38,6 +38,9 @@ return new class extends Migration
             $table->unsignedInteger('arena_points')->default(0);
             $table->timestamp('premium_until')->nullable();
             $table->timestamp('banned_until')->nullable();
+            $table->unsignedBigInteger('tg_chat_id')->nullable();
+            $table->unsignedBigInteger('tg_message_id')->nullable();
+            $table->json('tg_pending_delete_ids')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

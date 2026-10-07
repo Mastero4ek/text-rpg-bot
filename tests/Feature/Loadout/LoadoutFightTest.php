@@ -6,7 +6,7 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Random\FakeRandomSource;
@@ -131,7 +131,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8105);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'ShieldHero';
     $p->save();
 
@@ -205,7 +205,7 @@ it('resolves after one defend zone without shield', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8106);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'NoShield';
     $p->save();
 

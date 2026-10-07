@@ -98,7 +98,7 @@ it('replies banned while banned_until is in the future', function (): void {
 
 it('allows play when banned_until is in the past', function (): void {
     $p = characters()->createDraft(1304);
-    $p->onboarding_step = App\Enums\OnboardingStepEnum::DONE;
+    $p->progress_step = App\Enums\ProgressStepEnum::DONE;
     $p->username = 'Unbanned';
     $p->banned_until = now()->subMinute();
     $p->save();

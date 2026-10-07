@@ -21,6 +21,7 @@ use App\Support\Equipment\EquipmentDef;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Gem\GemMfText;
 use App\Support\Mf;
+use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -393,12 +394,12 @@ final class LoadoutService
             } elseif (! $this->rowGivesBonuses($row)) {
                 $lines[] = __('profile.gear_slot_broken', [
                     'slot' => $slot->getLabel(),
-                    'name' => $row->item_name,
+                    'name' => TelegramHtml::escape($row->item_name),
                 ]);
             } else {
                 $lines[] = __('profile.gear_slot_item', [
                     'slot' => $slot->getLabel(),
-                    'name' => $row->item_name,
+                    'name' => TelegramHtml::escape($row->item_name),
                     'bonus' => $this->slotBonusText($slot, $row),
                 ]);
             }

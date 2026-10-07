@@ -29,6 +29,31 @@ final class TelegramResponder
         $this->client->answerCallbackQuery($this->update->callbackQueryId());
     }
 
+    public function chatId(): int|string
+    {
+        return $this->update->chatId();
+    }
+
+    public function deleteUpdateMessage(): void
+    {
+        $this->deleteMessage($this->update->messageId());
+    }
+
+    public function deleteMessage(int $messageId): void
+    {
+        $this->client->deleteMessage($this->update->chatId(), $messageId);
+    }
+
+    /**
+     * @param  list<int>  $messageIds
+     */
+    public function deleteMessages(array $messageIds): void
+    {
+        foreach ($messageIds as $messageId) {
+            $this->deleteMessage($messageId);
+        }
+    }
+
     /**
      * @param  array<string, mixed>|null  $replyMarkup
      */
@@ -42,9 +67,22 @@ final class TelegramResponder
      */
     public function edit(string $text, ?array $replyMarkup): void
     {
-        $this->client->editMessageText(
+        $this->editAt(
             $this->update->chatId(),
             $this->update->messageId(),
+            $text,
+            $replyMarkup,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function editAt(int|string $chatId, int $messageId, string $text, ?array $replyMarkup): void
+    {
+        $this->client->editMessageText(
+            $chatId,
+            $messageId,
             $text,
             $replyMarkup,
         );
