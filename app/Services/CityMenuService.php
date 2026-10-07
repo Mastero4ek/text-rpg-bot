@@ -27,10 +27,6 @@ final class CityMenuService
             return null;
         }
 
-        if (! $city->has_training && ! $city->has_arena) {
-            return null;
-        }
-
         return CityKeyboard::arena($city);
     }
 
@@ -57,10 +53,6 @@ final class CityMenuService
         $city = $this->currentCity($character);
 
         if (! $city instanceof City) {
-            return null;
-        }
-
-        if (! $city->has_portal && ! $city->has_forest) {
             return null;
         }
 
@@ -112,6 +104,21 @@ final class CityMenuService
         return CityKeyboard::portalTargets($this->cities->portalTargets($character->city_id));
     }
 
+    public function tavernHasNpc(Character $character): bool
+    {
+        $city = $this->currentCity($character);
+
+        if (! $city instanceof City) {
+            return false;
+        }
+
+        if ($city->has_healer || $city->has_blacksmith || $city->has_buyer) {
+            return true;
+        }
+
+        return $character->onboarding_skipped;
+    }
+
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
      */
@@ -123,6 +130,6 @@ final class CityMenuService
             return null;
         }
 
-        return CityKeyboard::tavern($city);
+        return CityKeyboard::tavern($city, $character);
     }
 }

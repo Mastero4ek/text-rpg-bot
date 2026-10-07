@@ -58,7 +58,7 @@ final class ShopService
                 return ActionResult::fail(__('common.press_start'));
             }
 
-            $shopGate = $this->requireShopCity($character);
+            $shopGate = $this->requireBlacksmithCity($character);
 
             if ($shopGate instanceof ActionResult) {
                 return $shopGate;
@@ -172,7 +172,7 @@ final class ShopService
                 return ActionResult::fail($this->notEnoughMessage($potion->currency));
             }
 
-            $shopGate = $this->requireShopCity($character);
+            $shopGate = $this->requireBuyerCity($character);
 
             if ($shopGate instanceof ActionResult) {
                 return $shopGate;
@@ -227,16 +227,31 @@ final class ShopService
         return __('errors.not_enough_silver');
     }
 
-    private function requireShopCity(Character $character): ActionResult|City
+    private function requireBlacksmithCity(Character $character): ActionResult|City
     {
         if ($character->city_id === null) {
-            return ActionResult::fail(__('errors.no_shop'));
+            return ActionResult::fail(__('errors.no_blacksmith'));
         }
 
         $city = City::query()->find($character->city_id);
 
-        if (! $city instanceof City || ! $city->enabled || ! $city->has_shop) {
-            return ActionResult::fail(__('errors.no_shop'));
+        if (! $city instanceof City || ! $city->enabled || ! $city->has_blacksmith) {
+            return ActionResult::fail(__('errors.no_blacksmith'));
+        }
+
+        return $city;
+    }
+
+    private function requireBuyerCity(Character $character): ActionResult|City
+    {
+        if ($character->city_id === null) {
+            return ActionResult::fail(__('errors.no_buyer'));
+        }
+
+        $city = City::query()->find($character->city_id);
+
+        if (! $city instanceof City || ! $city->enabled || ! $city->has_buyer) {
+            return ActionResult::fail(__('errors.no_buyer'));
         }
 
         return $city;

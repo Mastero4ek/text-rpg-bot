@@ -164,8 +164,32 @@ final class ShopHandler
 
     public function show(TelegramResponder $responder, Character $player): void
     {
+        $this->showGear($responder, $player);
+    }
+
+    public function showBuyer(TelegramResponder $responder, Character $player): void
+    {
         if ($player->city_id === null) {
-            $responder->reply(__('errors.no_shop'), null);
+            $responder->reply(__('errors.no_buyer'), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('telegram.city.buyer', [
+                'silver' => $player->silver,
+            ]),
+            TelegramKeyboards::buyerShop(
+                $this->bagCatalog->potionPrice(),
+                $this->bagCatalog->staminaPotionPrice(),
+            ),
+        );
+    }
+
+    public function showGear(TelegramResponder $responder, Character $player): void
+    {
+        if ($player->city_id === null) {
+            $responder->reply(__('errors.no_blacksmith'), null);
 
             return;
         }
@@ -205,12 +229,7 @@ final class ShopHandler
                 'current' => $this->backpack->rowCount($player->tg_id),
                 'max' => $this->backpack->maxRows($player),
             ]),
-            TelegramKeyboards::fullShop(
-                $weapons,
-                $wearables,
-                $this->bagCatalog->potionPrice(),
-                $this->bagCatalog->staminaPotionPrice(),
-            ),
+            TelegramKeyboards::gearShop($weapons, $wearables),
         );
     }
 
@@ -382,8 +401,8 @@ final class ShopHandler
         }
 
         $buttons[] = [[
-            'text' => __('telegram.city.btn_smith'),
-            'callback_data' => 'city:shop',
+            'text' => __('telegram.city.btn_back'),
+            'callback_data' => 'city:blacksmith',
         ]];
 
         if ($hasSellable) {

@@ -63,6 +63,17 @@ function cityDone(int $tgId, string $nick, string $cityKey = City::KEY_YASEN): C
 {
     $player = cityArrived($tgId, $nick, $cityKey);
     $player->progress_step = ProgressStepEnum::DONE;
+    $player->onboarding_skipped = false;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function citySkipped(int $tgId, string $nick, string $cityKey = City::KEY_YASEN): Character
+{
+    $player = cityArrived($tgId, $nick, $cityKey);
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->onboarding_skipped = true;
     $player->save();
 
     return $player->fresh();
@@ -124,6 +135,8 @@ it('shows first home with pass and hall cta after arrival', function (): void {
     assertCityEditMarkupHas('"style":"success"');
     assertCityEditMarkupHas('city:gates');
     assertCityEditMarkupHas('city:tavern');
+    assertCityEditMarkupHas('city:board');
+    assertCityEditMarkupHas('city:arena');
 });
 
 it('enters onboarding hall from first home cta', function (): void {
@@ -132,7 +145,8 @@ it('enters onboarding hall from first home cta', function (): void {
     cityFlowCallback($player->tg_id, 9, 'ob:hall');
 
     $player->refresh();
-    expect($player->progress_step)->toBe(ProgressStepEnum::INTRO);
+    expect($player->progress_step)->toBe(ProgressStepEnum::INTRO)
+        ->and($player->onboarding_skipped)->toBeFalse();
 
     assertCityEditHas(mb_trim(__('telegram.city.hall_gone')));
     assertCitySendHas(mb_trim(__('onboarding.intro')));
@@ -144,7 +158,8 @@ it('skips onboarding via pass and shows ordinary home', function (): void {
     cityFlowCallback($player->tg_id, 9, 'ob:pass');
 
     $player->refresh();
-    expect($player->progress_step)->toBe(ProgressStepEnum::DONE);
+    expect($player->progress_step)->toBe(ProgressStepEnum::DONE)
+        ->and($player->onboarding_skipped)->toBeTrue();
 
     assertCityEditHas(mb_trim(__('telegram.city.you_are_in')));
     Http::assertSent(function (Request $request): bool {
@@ -161,7 +176,7 @@ it('skips onboarding via pass and shows ordinary home', function (): void {
     });
 });
 
-it('keeps hub open on arrived and opens tavern', function (): void {
+it('opens tavern with npcs and board stays on root', function (): void {
     $player = cityArrived(9604, 'TavernOpen');
 
     cityFlowCallback($player->tg_id, 9, 'city:tavern');
@@ -170,8 +185,20 @@ it('keeps hub open on arrived and opens tavern', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED);
 
     assertCityEditHas(mb_trim(__('telegram.city.tavern')));
-    assertCityEditMarkupHas('city:board');
-    assertCityEditMarkupHas('city:hospital');
+    assertCityEditMarkupHas('city:healer');
+    assertCityEditMarkupHas('city:blacksmith');
+    assertCityEditMarkupHas('city:buyer');
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/editMessageText')) {
+            return false;
+        }
+
+        $markup = $request['reply_markup'] ?? '';
+
+        return is_string($markup)
+            && str_contains($markup, 'city:healer')
+            && ! str_contains($markup, 'city:board');
+    });
 });
 
 it('resumes first home on start while arrived', function (): void {
@@ -196,18 +223,6 @@ it('welcome back on start when done shows ordinary home', function (): void {
 
     assertCitySendHas('С возвращением');
     assertCitySendHas(mb_trim(__('telegram.city.you_are_in')));
-    Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
-            return false;
-        }
-
-        $text = (string) $request['text'];
-        $markup = $request['reply_markup'] ?? '';
-
-        return str_contains($text, mb_trim(__('telegram.city.you_are_in')))
-            && is_string($markup)
-            && ! str_contains($markup, 'ob:hall');
-    });
 });
 
 it('opens gates and arena from ordinary home', function (): void {
@@ -221,25 +236,24 @@ it('opens gates and arena from ordinary home', function (): void {
     cityFlowCallback($player->tg_id, 9, 'city:arena');
     assertCityEditHas(mb_trim(__('telegram.city.arena')));
     assertCityEditMarkupHas('city:training');
-    assertCityEditMarkupHas('city:pvp');
+    assertCityEditMarkupHas('city:fights');
 });
 
-it('shows board stub from tavern', function (): void {
+it('shows board stub from root', function (): void {
     $player = cityDone(9608, 'BoardHero');
 
     cityFlowCallback($player->tg_id, 9, 'city:board');
 
     assertCityEditHas(mb_trim(__('telegram.city.board_empty')));
-    assertCityEditMarkupHas('city:board');
 });
 
-it('shows pvp stub without creating a fight', function (): void {
+it('shows fights stub without creating a fight', function (): void {
     $player = cityDone(9609, 'PvpHero');
 
-    cityFlowCallback($player->tg_id, 9, 'city:pvp');
+    cityFlowCallback($player->tg_id, 9, 'city:fights');
 
     expect(fights()->exists($player->tg_id))->toBeFalse();
-    assertCityEditHas(mb_trim(__('telegram.city.pvp_empty')));
+    assertCityEditHas(mb_trim(__('telegram.city.fights_empty')));
 });
 
 it('blocks city callbacks during mid onboarding', function (): void {
@@ -258,14 +272,14 @@ it('blocks city callbacks during mid onboarding', function (): void {
     });
 });
 
-it('rejects shop in city without shop flag', function (): void {
-    $player = cityDone(9611, 'NoShop', City::KEY_KURGAN);
+it('rejects buyer in city without buyer flag', function (): void {
+    $player = cityDone(9611, 'NoBuyer', City::KEY_KURGAN);
 
-    cityFlowCallback($player->tg_id, 9, 'city:shop');
+    cityFlowCallback($player->tg_id, 9, 'city:buyer');
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.no_shop')));
+            && str_contains((string) $request['text'], mb_trim(__('errors.no_buyer')));
     });
 });
 
@@ -294,16 +308,12 @@ it('rejects forest when player has no hp', function (): void {
     });
 });
 
-it('hides gates button when city has neither portal nor forest', function (): void {
+it('shows gates empty when city has neither portal nor forest', function (): void {
     $city = City::factory()->create([
         'name' => 'Безворотный',
         'enabled' => true,
         'has_portal' => false,
         'has_forest' => false,
-        'has_shop' => true,
-        'has_hospital' => true,
-        'has_arena' => true,
-        'has_training' => true,
     ]);
 
     $player = characters()->createDraft(9614);
@@ -313,28 +323,104 @@ it('hides gates button when city has neither portal nor forest', function (): vo
     $player->city_id = $city->id;
     $player->save();
 
-    cityFlowCallback($player->tg_id, 9, 'city:home');
+    cityFlowCallback($player->tg_id, 9, 'city:gates');
 
-    Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
-            return false;
-        }
-
-        $markup = $request['reply_markup'] ?? '';
-
-        return is_string($markup)
-            && str_contains($markup, 'city:tavern')
-            && ! str_contains($markup, 'city:gates');
-    });
+    assertCityEditHas(mb_trim(__('telegram.city.gates_empty')));
+    assertCityEditMarkupHas('city:home');
 });
 
-it('ignores pass and hall when already done', function (): void {
-    $player = cityDone(9615, 'AlreadyDone');
+it('shows overseer after skip and enters hall from tavern', function (): void {
+    $player = citySkipped(9615, 'SkipOverseer');
+
+    cityFlowCallback($player->tg_id, 9, 'city:tavern');
+    assertCityEditMarkupHas('city:overseer');
+
+    cityFlowCallback($player->tg_id, 10, 'city:overseer');
+    assertCityEditHas(mb_trim(__('telegram.city.overseer_skip')));
+    assertCityEditMarkupHas('ob:not_now');
+    assertCityEditMarkupHas('ob:hall');
+
+    cityFlowCallback($player->tg_id, 11, 'ob:hall');
+
+    $player->refresh();
+    expect($player->progress_step)->toBe(ProgressStepEnum::INTRO)
+        ->and($player->onboarding_skipped)->toBeFalse();
+});
+
+it('not now returns to tavern and keeps overseer', function (): void {
+    $player = citySkipped(9616, 'NotNow');
+
+    cityFlowCallback($player->tg_id, 9, 'city:overseer');
+    cityFlowCallback($player->tg_id, 10, 'ob:not_now');
+
+    $player->refresh();
+    expect($player->progress_step)->toBe(ProgressStepEnum::DONE)
+        ->and($player->onboarding_skipped)->toBeTrue();
+
+    assertCityEditHas(mb_trim(__('telegram.city.tavern')));
+    assertCityEditMarkupHas('city:overseer');
+});
+
+it('shows tavern empty when no npc flags and no skip', function (): void {
+    $city = City::factory()->create([
+        'name' => 'ПустаяТаверна',
+        'enabled' => true,
+        'has_healer' => false,
+        'has_blacksmith' => false,
+        'has_buyer' => false,
+    ]);
+
+    $player = characters()->createDraft(9617);
+    $player->username = 'EmptyTav';
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->onboarding_skipped = false;
+    $player->birth_city_id = $city->id;
+    $player->city_id = $city->id;
+    $player->save();
+
+    cityFlowCallback($player->tg_id, 9, 'city:tavern');
+
+    assertCityEditHas(mb_trim(__('telegram.city.tavern_empty')));
+});
+
+it('shows arena empty when both arena flags off', function (): void {
+    $city = City::factory()->create([
+        'name' => 'ТихаяАрена',
+        'enabled' => true,
+        'has_training_room' => false,
+        'has_fights_list' => false,
+    ]);
+
+    $player = characters()->createDraft(9618);
+    $player->username = 'EmptyArena';
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->birth_city_id = $city->id;
+    $player->city_id = $city->id;
+    $player->save();
+
+    cityFlowCallback($player->tg_id, 9, 'city:arena');
+
+    assertCityEditHas(mb_trim(__('telegram.city.arena_empty')));
+});
+
+it('ignores pass when already done and hall without skip', function (): void {
+    $player = cityDone(9619, 'AlreadyDone');
 
     cityFlowCallback($player->tg_id, 9, 'ob:pass');
     cityFlowCallback($player->tg_id, 9, 'ob:hall');
 
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::DONE)
+        ->and($player->onboarding_skipped)->toBeFalse()
         ->and(fights()->exists($player->tg_id))->toBeFalse();
+});
+
+it('opens blacksmith submenu', function (): void {
+    $player = cityDone(9620, 'SmithHero');
+
+    cityFlowCallback($player->tg_id, 9, 'city:blacksmith');
+
+    assertCityEditHas(mb_trim(__('telegram.city.blacksmith')));
+    assertCityEditMarkupHas('city:blacksmith:gear');
+    assertCityEditMarkupHas('city:blacksmith:repair');
 });

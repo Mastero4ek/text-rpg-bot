@@ -316,7 +316,7 @@ final class BagService
 
             $city = City::query()->find($character->city_id);
 
-            if (! $city instanceof City || ! $city->has_shop || ! $this->cityQuery->bagInCityShop($city->id, $catalogId)) {
+            if (! $city instanceof City || ! $city->has_buyer || ! $this->cityQuery->bagInCityShop($city->id, $catalogId)) {
                 return ActionResult::fail(__('errors.gem_not_in_shop'));
             }
 

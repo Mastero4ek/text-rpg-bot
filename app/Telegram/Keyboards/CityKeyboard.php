@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telegram\Keyboards;
 
+use App\Models\Character;
 use App\Models\City;
 
 final class CityKeyboard
@@ -17,12 +18,12 @@ final class CityKeyboard
     {
         $rows = [];
 
-        if ($city->has_training) {
+        if ($city->has_training_room) {
             $rows[] = [self::cb(__('telegram.city.btn_training'), 'city:training')];
         }
 
-        if ($city->has_arena) {
-            $rows[] = [self::cb(__('telegram.city.btn_pvp'), 'city:pvp')];
+        if ($city->has_fights_list) {
+            $rows[] = [self::cb(__('telegram.city.btn_fights'), 'city:fights')];
         }
 
         $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:home')];
@@ -37,6 +38,28 @@ final class CityKeyboard
     {
         return self::inline([
             [self::cb(__('telegram.city.btn_back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToTavern(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmith(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.city.btn_gear'), 'city:blacksmith:gear')],
+            [self::cb(__('telegram.city.btn_repair'), 'city:blacksmith:repair')],
+            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
         ]);
     }
 
@@ -80,6 +103,19 @@ final class CityKeyboard
     }
 
     /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerOffer(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.city.btn_not_now'), 'ob:not_now'),
+                self::cbSuccess(__('telegram.city.btn_hall'), 'ob:hall'),
+            ],
+        ]);
+    }
+
+    /**
      * @param  iterable<int, City>  $targets
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
@@ -110,21 +146,16 @@ final class CityKeyboard
      */
     public static function services(City $city): array
     {
-        $rows = [];
+        $rows = [
+            [self::cb(__('telegram.city.btn_gates'), 'city:gates')],
+            [self::cb(__('telegram.city.btn_tavern'), 'city:tavern')],
+        ];
 
-        if ($city->has_portal || $city->has_forest) {
-            $rows[] = [self::cb(__('telegram.city.btn_gates'), 'city:gates')];
+        if ($city->has_quest_board) {
+            $rows[] = [self::cb(__('telegram.city.btn_board'), 'city:board')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_tavern'), 'city:tavern')];
-
-        if ($city->has_shop) {
-            $rows[] = [self::cb(__('telegram.city.btn_smith'), 'city:shop')];
-        }
-
-        if ($city->has_training || $city->has_arena) {
-            $rows[] = [self::cb(__('telegram.city.btn_arena'), 'city:arena')];
-        }
+        $rows[] = [self::cb(__('telegram.city.btn_arena'), 'city:arena')];
 
         return self::inline($rows);
     }
@@ -132,15 +163,26 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function tavern(City $city): array
+    public static function tavern(City $city, Character $character): array
     {
         $rows = [];
 
-        if ($city->has_hospital) {
-            $rows[] = [self::cb(__('telegram.city.btn_healer'), 'city:hospital')];
+        if ($city->has_healer) {
+            $rows[] = [self::cb(__('telegram.city.btn_healer'), 'city:healer')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_board'), 'city:board')];
+        if ($city->has_blacksmith) {
+            $rows[] = [self::cb(__('telegram.city.btn_blacksmith'), 'city:blacksmith')];
+        }
+
+        if ($city->has_buyer) {
+            $rows[] = [self::cb(__('telegram.city.btn_buyer'), 'city:buyer')];
+        }
+
+        if ($character->onboarding_skipped) {
+            $rows[] = [self::cb(__('telegram.city.btn_overseer'), 'city:overseer')];
+        }
+
         $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:home')];
 
         return self::inline($rows);

@@ -373,7 +373,7 @@ final class MenuHandler
         }
     }
 
-    public function showSmith(TelegramResponder $responder, Character $player): void
+    public function showRepair(TelegramResponder $responder, Character $player): void
     {
         $this->smithScreen($responder, $player);
     }

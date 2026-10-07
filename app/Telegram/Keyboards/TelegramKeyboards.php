@@ -89,6 +89,19 @@ final class TelegramKeyboards
      * @param  list<EquipmentDef>  $gear
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerShop(int $healPotionPrice, int $staminaPotionPrice): array
+    {
+        return self::inline([
+            [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')],
+            [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')],
+            [self::cb(__('telegram.city.btn_gems'), 'smith:gems')],
+            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
+        ]);
+    }
+
     public static function fullShop(
         array $weapons,
         array $gear,
@@ -109,6 +122,29 @@ final class TelegramKeyboards
         $rows[] = [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')];
         $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
         $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @param  list<EquipmentDef>  $weapons
+     * @param  list<EquipmentDef>  $gear
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearShop(array $weapons, array $gear): array
+    {
+        $rows = [];
+
+        foreach ($weapons as $weapon) {
+            $rows[] = [self::weaponButton($weapon, 'shop:w:' . $weapon->itemId)];
+        }
+
+        foreach ($gear as $item) {
+            $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
+        }
+
+        $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
+        $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:blacksmith')];
 
         return self::inline($rows);
     }
@@ -151,11 +187,13 @@ final class TelegramKeyboards
     {
         $rows = [];
 
-        if ($city->has_shop) {
+        if ($city->has_blacksmith) {
             foreach ($shop->noviceWeapons() as $weapon) {
                 $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
             }
+        }
 
+        if ($city->has_buyer) {
             $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
         }
 

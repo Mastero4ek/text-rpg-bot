@@ -23,6 +23,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int|null $birth_city_id
  * @property int|null $city_id
  * @property ProgressStepEnum $progress_step
+ * @property bool $onboarding_skipped
  * @property int $level
  * @property int $exp
  * @property int $silver
@@ -61,6 +62,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'birth_city_id',
     'city_id',
     'progress_step',
+    'onboarding_skipped',
     'level',
     'exp',
     'silver',
@@ -161,6 +163,7 @@ final class Character extends Model implements HasMedia
             'birth_city_id' => 'integer',
             'city_id' => 'integer',
             'progress_step' => ProgressStepEnum::class,
+            'onboarding_skipped' => 'boolean',
             'level' => 'integer',
             'exp' => 'integer',
             'silver' => 'integer',

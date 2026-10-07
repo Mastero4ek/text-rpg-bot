@@ -37,13 +37,15 @@ it('shows catalog only in attached cities', function (): void {
         ->and($query->backpackInCityShop($kurgan->id, 'knife_0'))->toBeFalse();
 });
 
-it('rejects shop buy in kurgan even if pivot exists', function (): void {
+it('rejects shop buy when city has no blacksmith even if pivot exists', function (): void {
     $kurgan = City::query()->where('key', City::KEY_KURGAN)->firstOrFail();
+    $kurgan->has_blacksmith = false;
+    $kurgan->save();
     BackpackCatalog::query()->findOrFail('knife_0')->cities()->syncWithoutDetaching([$kurgan->id]);
     $p = placeInCity(characters()->createDraft(9111), City::KEY_KURGAN);
     $p->silver = 999;
     $p->save();
 
     expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_shop'));
+        ->and(shopService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_blacksmith'));
 });

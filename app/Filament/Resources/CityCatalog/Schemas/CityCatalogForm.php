@@ -77,13 +77,14 @@ final class CityCatalogForm
                     ->collapsed()
                     ->schema([
                         Group::make([
-                            Toggle::make('has_shop')->label(__('admin.labels.has_shop')),
-                            Toggle::make('has_smith')->label(__('admin.labels.has_smith')),
-                            Toggle::make('has_hospital')->label(__('admin.labels.has_hospital')),
+                            Toggle::make('has_blacksmith')->label(__('admin.labels.has_blacksmith')),
+                            Toggle::make('has_healer')->label(__('admin.labels.has_healer')),
+                            Toggle::make('has_buyer')->label(__('admin.labels.has_buyer')),
+                            Toggle::make('has_quest_board')->label(__('admin.labels.has_quest_board')),
                             Toggle::make('has_portal')->label(__('admin.labels.has_portal')),
-                            Toggle::make('has_arena')->label(__('admin.labels.has_arena')),
                             Toggle::make('has_forest')->label(__('admin.labels.has_forest')),
-                            Toggle::make('has_training')->label(__('admin.labels.has_training')),
+                            Toggle::make('has_fights_list')->label(__('admin.labels.has_fights_list')),
+                            Toggle::make('has_training_room')->label(__('admin.labels.has_training_room')),
                         ])->columns(3),
                     ]),
                 Section::make(__('admin.sections.city_economy'))

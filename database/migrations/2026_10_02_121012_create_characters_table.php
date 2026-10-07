@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('birth_city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->foreignId('city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->string('progress_step')->default(ProgressStepEnum::SPLASH->value);
+            $table->boolean('onboarding_skipped')->default(false);
             $table->unsignedInteger('level')->default(0);
             $table->unsignedInteger('exp')->default(0);
             $table->unsignedInteger('silver')->default(20);

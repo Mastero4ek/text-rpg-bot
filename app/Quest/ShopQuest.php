@@ -120,6 +120,7 @@ final class ShopQuest
         $player->current_hp = $this->characters->maxHp($player);
         $player->last_hp_update = now();
         $player->progress_step = ProgressStepEnum::DONE;
+        $player->onboarding_skipped = false;
         $player->save();
 
         return ActionResult::ok($player);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
-use App\Actions\City\CityHospitalHealAction;
+use App\Actions\City\CityHealerHealAction;
 use App\Actions\City\CityPortalAction;
 use App\Models\Character;
 use App\Models\City;
@@ -30,7 +30,7 @@ final class CityHandler
         private readonly CharacterService $characters,
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
-        private readonly CityHospitalHealAction $hospital,
+        private readonly CityHealerHealAction $healer,
         private readonly CityPortalAction $portal,
         private readonly EnemyService $enemies,
         private readonly FightService $fights,
@@ -71,6 +71,36 @@ final class CityHandler
             return;
         }
 
+        if ($data === 'city:buyer') {
+            $this->openBuyer($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:blacksmith') {
+            $this->blacksmith($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:blacksmith:gear') {
+            $this->openGear($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:blacksmith:repair') {
+            $this->openRepair($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:fights') {
+            $this->fightsList($responder, $player);
+
+            return;
+        }
+
         if ($data === 'city:forest') {
             $this->forest($responder, $player);
 
@@ -83,8 +113,14 @@ final class CityHandler
             return;
         }
 
-        if ($data === 'city:hospital') {
+        if ($data === 'city:healer') {
             $this->heal($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:overseer') {
+            $this->overseer($responder, $player);
 
             return;
         }
@@ -101,24 +137,6 @@ final class CityHandler
             return;
         }
 
-        if ($data === 'city:pvp') {
-            $this->pvp($responder, $player);
-
-            return;
-        }
-
-        if ($data === 'city:shop') {
-            $this->openShop($responder, $player);
-
-            return;
-        }
-
-        if ($data === 'city:smith') {
-            $this->openSmith($responder, $player);
-
-            return;
-        }
-
         if ($data === 'city:tavern') {
             $this->tavern($responder, $player);
 
@@ -127,8 +145,6 @@ final class CityHandler
 
         if ($data === 'city:training') {
             $this->training($update, $responder, $player);
-
-            return;
         }
     }
 
@@ -151,12 +167,24 @@ final class CityHandler
         );
     }
 
+    public function showTavern(TelegramResponder $responder, Character $player): void
+    {
+        $this->tavern($responder, $player);
+    }
+
     private function arena(TelegramResponder $responder, Character $player): void
     {
+        $city = $this->cityMenu->currentCity($player);
         $markup = $this->cityMenu->arenaMarkup($player);
 
-        if ($markup === null) {
+        if (! $city instanceof City || $markup === null) {
             $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        if (! $city->has_training_room && ! $city->has_fights_list) {
+            $responder->edit(__('telegram.city.arena_empty'), $markup);
 
             return;
         }
@@ -164,17 +192,43 @@ final class CityHandler
         $responder->edit(__('telegram.city.arena'), $markup);
     }
 
+    private function blacksmith(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_blacksmith) {
+            $responder->reply(__('errors.no_blacksmith'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.blacksmith'), CityKeyboard::blacksmith());
+    }
+
     private function board(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
 
-        if (! $city instanceof City) {
+        if (! $city instanceof City || ! $city->has_quest_board) {
             $responder->reply(__('errors.city_unavailable'), null);
 
             return;
         }
 
-        $responder->edit(__('telegram.city.board_empty'), CityKeyboard::tavern($city));
+        $responder->edit(__('telegram.city.board_empty'), CityKeyboard::backToCity());
+    }
+
+    private function fightsList(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_fights_list) {
+            $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.fights_empty'), CityKeyboard::arena($city));
     }
 
     private function forest(TelegramResponder $responder, Character $player): void
@@ -213,10 +267,17 @@ final class CityHandler
 
     private function gates(TelegramResponder $responder, Character $player): void
     {
+        $city = $this->cityMenu->currentCity($player);
         $markup = $this->cityMenu->gatesMarkup($player);
 
-        if ($markup === null) {
+        if (! $city instanceof City || $markup === null) {
             $responder->reply(__('errors.city_unavailable'), null);
+
+            return;
+        }
+
+        if (! $city->has_portal && ! $city->has_forest) {
+            $responder->edit(__('telegram.city.gates_empty'), $markup);
 
             return;
         }
@@ -241,7 +302,7 @@ final class CityHandler
 
     private function heal(TelegramResponder $responder, Character $player): void
     {
-        $res = $this->hospital->handle($player);
+        $res = $this->healer->handle($player);
 
         if (! $res->ok || ! $res->character instanceof Character) {
             $responder->reply(TelegramResponder::errorMessage($res->error), null);
@@ -250,35 +311,59 @@ final class CityHandler
         }
 
         $responder->edit(
-            __('telegram.city.hospital_done', ['gold' => $this->goldCost()]),
-            CityKeyboard::backToCity(),
+            __('telegram.city.healer_done', ['gold' => $this->goldCost()]),
+            CityKeyboard::backToTavern(),
         );
     }
 
-    private function openShop(TelegramResponder $responder, Character $player): void
+    private function openBuyer(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
 
-        if (! $city instanceof City || ! $city->has_shop) {
-            $responder->reply(__('errors.no_shop'), null);
+        if (! $city instanceof City || ! $city->has_buyer) {
+            $responder->reply(__('errors.no_buyer'), null);
 
             return;
         }
 
-        $this->shop->show($responder, $player);
+        $this->shop->showBuyer($responder, $player);
     }
 
-    private function openSmith(TelegramResponder $responder, Character $player): void
+    private function openGear(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
 
-        if (! $city instanceof City || ! $city->has_smith) {
-            $responder->reply(__('errors.no_smith'), null);
+        if (! $city instanceof City || ! $city->has_blacksmith) {
+            $responder->reply(__('errors.no_blacksmith'), null);
 
             return;
         }
 
-        $this->menu->showSmith($responder, $player);
+        $this->shop->showGear($responder, $player);
+    }
+
+    private function openRepair(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_blacksmith) {
+            $responder->reply(__('errors.no_blacksmith'), null);
+
+            return;
+        }
+
+        $this->menu->showRepair($responder, $player);
+    }
+
+    private function overseer(TelegramResponder $responder, Character $player): void
+    {
+        if (! $player->onboarding_skipped) {
+            $this->tavern($responder, $player);
+
+            return;
+        }
+
+        $responder->edit(__('telegram.city.overseer_skip'), CityKeyboard::overseerOffer());
     }
 
     private function portalScreen(TelegramResponder $responder, Character $player): void
@@ -292,19 +377,6 @@ final class CityHandler
         }
 
         $responder->edit(__('telegram.city.portal_title'), $this->cityMenu->portalMarkup($player));
-    }
-
-    private function pvp(TelegramResponder $responder, Character $player): void
-    {
-        $city = $this->cityMenu->currentCity($player);
-
-        if (! $city instanceof City || ! $city->has_arena) {
-            $responder->reply(__('errors.city_unavailable'), null);
-
-            return;
-        }
-
-        $responder->edit(__('telegram.city.pvp_empty'), CityKeyboard::arena($city));
     }
 
     private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
@@ -349,6 +421,12 @@ final class CityHandler
             return;
         }
 
+        if (! $this->cityMenu->tavernHasNpc($player)) {
+            $responder->edit(__('telegram.city.tavern_empty'), $markup);
+
+            return;
+        }
+
         $responder->edit(__('telegram.city.tavern'), $markup);
     }
 
@@ -356,7 +434,7 @@ final class CityHandler
     {
         $city = $this->cityMenu->currentCity($player);
 
-        if (! $city instanceof City || ! $city->has_training) {
+        if (! $city instanceof City || ! $city->has_training_room) {
             $responder->reply(__('errors.no_training'), null);
 
             return;

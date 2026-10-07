@@ -43,19 +43,20 @@ it('lists views and creates a city', function (): void {
             'name' => 'Дубрава',
             'portal_cost_silver' => 5,
             'enabled' => true,
-            'has_shop' => true,
-            'has_smith' => false,
-            'has_hospital' => true,
+            'has_blacksmith' => true,
+            'has_healer' => true,
+            'has_buyer' => false,
+            'has_quest_board' => true,
             'has_portal' => true,
-            'has_arena' => true,
+            'has_fights_list' => true,
             'has_forest' => false,
-            'has_training' => true,
+            'has_training_room' => true,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
     expect(City::query()->where('name', 'Дубрава')->firstOrFail()->key)->toBe('dubrava')
-        ->and(City::query()->where('name', 'Дубрава')->firstOrFail()->has_shop)->toBeTrue();
+        ->and(City::query()->where('name', 'Дубрава')->firstOrFail()->has_blacksmith)->toBeTrue();
 });
 
 it('rejects duplicate city name', function (): void {

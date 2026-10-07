@@ -50,6 +50,12 @@ final class OnboardingHandler
             return;
         }
 
+        if ($data === 'ob:not_now') {
+            $this->notNow($update, $responder);
+
+            return;
+        }
+
         if ($data === 'ob:pass') {
             $this->passHall($update, $responder);
 
@@ -153,6 +159,17 @@ final class OnboardingHandler
 
         if ($player->progress_step === ProgressStepEnum::ARRIVED) {
             $player->progress_step = ProgressStepEnum::INTRO;
+            $player->onboarding_skipped = false;
+            $player->save();
+            $responder->edit(__('telegram.city.hall_gone'), TelegramKeyboards::clearInline());
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::DONE && $player->onboarding_skipped) {
+            $player->progress_step = ProgressStepEnum::INTRO;
+            $player->onboarding_skipped = false;
             $player->save();
             $responder->edit(__('telegram.city.hall_gone'), TelegramKeyboards::clearInline());
             $this->startIntro($responder);
@@ -174,6 +191,24 @@ final class OnboardingHandler
         $this->resume($responder, $player);
     }
 
+    private function notNow(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if (! $player->onboarding_skipped || $player->progress_step !== ProgressStepEnum::DONE) {
+            return;
+        }
+
+        $player = $this->characters->applyRegen($player);
+        $this->city->showTavern($responder, $player);
+    }
+
     private function passHall(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $player = Character::query()->find($update->userId());
@@ -189,6 +224,7 @@ final class OnboardingHandler
         }
 
         $player->progress_step = ProgressStepEnum::DONE;
+        $player->onboarding_skipped = true;
         $player->save();
         $player = $this->characters->applyRegen($player);
         $this->city->home($responder, $player);
