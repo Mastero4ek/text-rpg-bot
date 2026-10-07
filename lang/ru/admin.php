@@ -409,7 +409,7 @@ return [
         'enemy_catalog_rewards' => 'Награды',
         'enemy_catalog_drops' => 'Дроп',
         'city_identity' => 'Идентичность',
-        'city_services' => 'Сервисы',
+        'city_services' => 'NPC и локации',
         'city_economy' => 'Экономика',
     ],
     'hints' => [

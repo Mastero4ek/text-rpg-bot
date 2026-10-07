@@ -71,7 +71,7 @@ final class CityCatalogForm
                         ]),
                     ]),
                 Section::make(__('admin.sections.city_services'))
-                    ->icon(Heroicon::OutlinedBuildingStorefront)
+                    ->icon(Heroicon::OutlinedMapPin)
                     ->columns(2)
                     ->columnSpanFull()
                     ->collapsed()
