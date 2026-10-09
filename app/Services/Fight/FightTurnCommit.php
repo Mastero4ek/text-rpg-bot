@@ -22,9 +22,9 @@ final readonly class FightTurnCommit
         return new self('noop', null, null, null);
     }
 
-    public static function potionDenied(): self
+    public static function potionDenied(Character $character, Fight $fight): self
     {
-        return new self('potion_denied', null, null, null);
+        return new self('potion_denied', $character, $fight, null);
     }
 
     public static function attack(Character $character, Fight $fight): self

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('kind')->default(FightKindEnum::PVE->value);
             $table->boolean('tutorial');
             $table->boolean('hall')->default(false);
+            $table->string('return_to')->nullable();
             $table->integer('player_hp');
             $table->integer('player_max_hp');
             $table->integer('player_stamina')->default(0);
@@ -30,10 +31,13 @@ return new class extends Migration
             $table->boolean('use_potion')->default(false);
             $table->unsignedInteger('pierce_count')->default(0);
             $table->json('log');
+            $table->json('last_round')->nullable();
             $table->timestamp('turn_deadline_at')->nullable();
             $table->unsignedInteger('turn_seq')->default(0);
             $table->unsignedBigInteger('tg_chat_id')->nullable();
             $table->unsignedBigInteger('tg_message_id')->nullable();
+            $table->unsignedBigInteger('tg_log_message_id')->nullable();
+            $table->string('tg_reply_kind')->nullable();
             $table->foreign('tg_id')->references('tg_id')->on('characters');
         });
     }

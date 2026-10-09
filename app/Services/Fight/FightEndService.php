@@ -33,7 +33,7 @@ final class FightEndService
 
     public function finishWin(Character $player, Fight $fight): FightEndResult
     {
-        $text = $this->fightStatus->format($fight, $player->username);
+        $text = $this->fightStatus->format($fight, $player);
 
         if ($fight->tutorial) {
             return $this->tutorialWin($player, $text);
@@ -48,7 +48,7 @@ final class FightEndService
 
     public function finishLose(Character $player, Fight $fight): FightEndResult
     {
-        $text = $this->fightStatus->format($fight, $player->username);
+        $text = $this->fightStatus->format($fight, $player);
 
         if ($fight->tutorial) {
             return $this->tutorialLose($player, $text);
@@ -161,7 +161,7 @@ final class FightEndService
                 'exp' => $loot['exp'],
                 'silver' => $loot['silver'],
             ]) . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
-            FightEndUiEnum::MainMenu,
+            FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
         );
@@ -183,7 +183,7 @@ final class FightEndService
         return new FightEndResult(
             $player,
             $text . __('combat.lose') . $brokeSuffix,
-            FightEndUiEnum::MainMenu,
+            FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
         );

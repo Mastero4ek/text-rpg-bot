@@ -11,6 +11,18 @@ final class TelegramResponder
         private readonly TelegramUpdate $update,
     ) {}
 
+    public static function forChat(TelegramClient $client, int|string $chatId): self
+    {
+        return new self($client, new TelegramUpdate([
+            'update_id' => 0,
+            'message' => [
+                'message_id' => 1,
+                'chat' => ['id' => $chatId, 'type' => 'private'],
+                'text' => '-',
+            ],
+        ]));
+    }
+
     public static function errorMessage(?string $error): string
     {
         if ($error === null) {

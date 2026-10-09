@@ -6,6 +6,7 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\ProgressStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
+use App\Models\City;
 use App\Models\Fight;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
@@ -28,6 +29,8 @@ it('timeout job edits fight message and continues after skip', function (): void
     $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 42;
+    $fight->tg_log_message_id = 43;
+    $fight->tg_reply_kind = 'zones_atk';
     $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
@@ -38,17 +41,22 @@ it('timeout job edits fight message and continues after skip', function (): void
     $fight->refresh();
 
     expect($fight->log)->toContain(__('combat.turn_timeout'))
-        ->and($fight->step)->toBe(FightStepEnum::STANCE);
+        ->and($fight->step)->toBe(FightStepEnum::STANCE)
+        ->and($fight->last_round)->not->toBeNull()
+        ->and($fight->tg_reply_kind)->toBe('stance_potions')
+        ->and($fight->tg_message_id)->toBe(42)
+        ->and($fight->tg_log_message_id)->toBeNull();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
-            return false;
-        }
+        return str_contains($request->url(), '/deleteMessage')
+            && (int) $request['message_id'] === 43;
+    });
 
-        $text = (string) $request['text'];
-
-        return str_contains($text, __('combat.turn_timeout'))
-            && str_contains($text, mb_trim(__('combat.pick_stance')));
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageCaption')
+            && (int) $request['message_id'] === 42
+            && str_contains((string) $request['caption'], 'Раунд')
+            && str_contains((string) $request['reply_markup'], 'inline_keyboard');
     });
 });
 
@@ -61,7 +69,7 @@ it('timeout job finishes win when enemy is already down on skip', function (): v
     $p = characters()->createDraft(9305);
     $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'JobWin';
-    $p->save();
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     $fight = fights()->createTraining($p, woodenSoldier($p));
     $enemy = $fight->enemy;
@@ -77,13 +85,23 @@ it('timeout job finishes win when enemy is already down on skip', function (): v
     app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
 
     expect(Fight::query()->whereKey($p->tg_id)->exists())->toBeFalse();
+    expect($p->fresh()->fight_return)->toBeNull();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
+        if (! str_contains($request->url(), '/editMessageCaption')) {
             return false;
         }
 
-        return str_contains((string) $request['text'], 'Победа');
+        return str_contains((string) $request['caption'], 'Победа')
+            && ! str_contains((string) $request['reply_markup'], 'fight:back');
+    });
+
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/sendPhoto') && ! str_contains($request->url(), '/sendMessage')) {
+            return false;
+        }
+
+        return str_contains($request->body(), 'Сучья смыкаются');
     });
 });
 
@@ -118,11 +136,12 @@ it('timeout job finishes lose when skip hit drops player hp to zero', function (
     expect($player->current_hp)->toBe(0);
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
+        if (! str_contains($request->url(), '/editMessageCaption')) {
             return false;
         }
 
-        return str_contains((string) $request['text'], mb_trim(__('combat.lose')));
+        return str_contains((string) $request['caption'], mb_trim(__('combat.lose')))
+            && ! str_contains((string) $request['reply_markup'], 'fight:back');
     });
 });
 
@@ -138,6 +157,10 @@ it('lazy-resolves timed out turn before applying stance click', function (): voi
     $p->save();
 
     $fight = fights()->createTraining($p, woodenSoldier($p));
+    $fight->tg_chat_id = $p->tg_id;
+    $fight->tg_message_id = 15;
+    $fight->tg_log_message_id = 16;
+    $fight->tg_reply_kind = 'zones_atk';
     $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
@@ -167,17 +190,20 @@ it('lazy-resolves timed out turn before applying stance click', function (): voi
     expect($fight->log)->toContain(__('combat.turn_timeout'))
         ->and($fight->player_stance)->toBeNull()
         ->and($fight->step)->toBe(FightStepEnum::STANCE)
-        ->and($fight->tg_message_id)->toBe(15);
+        ->and($fight->tg_reply_kind)->toBe('stance_potions')
+        ->and($fight->tg_message_id)->toBe(15)
+        ->and($fight->tg_log_message_id)->toBeNull();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
-            return false;
-        }
+        return str_contains($request->url(), '/deleteMessage')
+            && (int) $request['message_id'] === 16;
+    });
 
-        $text = (string) $request['text'];
-
-        return str_contains($text, __('combat.turn_timeout'))
-            && str_contains($text, mb_trim(__('combat.pick_stance')));
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageCaption')
+            && (int) $request['message_id'] === 15
+            && str_contains((string) $request['caption'], 'Раунд')
+            && str_contains((string) $request['reply_markup'], 'inline_keyboard');
     });
 });
 

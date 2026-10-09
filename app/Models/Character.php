@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Fight\FightReturnEnum;
 use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
@@ -47,6 +48,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int|null $tg_chat_id
  * @property int|null $tg_message_id
  * @property list<int>|null $tg_pending_delete_ids
+ * @property FightReturnEnum|null $fight_return
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
@@ -86,6 +88,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'tg_chat_id',
     'tg_message_id',
     'tg_pending_delete_ids',
+    'fight_return',
 ])]
 final class Character extends Model implements HasMedia
 {
@@ -187,6 +190,7 @@ final class Character extends Model implements HasMedia
             'tg_chat_id' => 'integer',
             'tg_message_id' => 'integer',
             'tg_pending_delete_ids' => 'array',
+            'fight_return' => FightReturnEnum::class,
         ];
     }
 }

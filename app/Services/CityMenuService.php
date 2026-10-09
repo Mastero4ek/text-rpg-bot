@@ -86,7 +86,7 @@ final class CityMenuService
         }
 
         if ($character->progress_step === ProgressStepEnum::ARRIVED) {
-            return __('telegram.npc.first_home');
+            return __('telegram.npc.overseer.first_home');
         }
 
         if ($city->description !== null && $city->description !== '') {

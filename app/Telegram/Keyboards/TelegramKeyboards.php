@@ -6,12 +6,15 @@ namespace App\Telegram\Keyboards;
 
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightEndUiEnum;
+use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
 use App\Models\City;
+use App\Models\Fight;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Equipment\EquipmentDef;
+use RuntimeException;
 
 final class TelegramKeyboards
 {
@@ -81,66 +84,6 @@ final class TelegramKeyboards
         }
 
         $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function buyerShop(int $healPotionPrice, int $staminaPotionPrice): array
-    {
-        return self::inline([
-            [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')],
-            [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')],
-            [self::cb(__('telegram.btn.gems'), 'smith:gems')],
-            [self::cb(__('telegram.btn.back'), 'city:tavern')],
-        ]);
-    }
-
-    public static function fullShop(
-        array $weapons,
-        array $gear,
-        int $healPotionPrice,
-        int $staminaPotionPrice,
-    ): array {
-        $rows = [];
-
-        foreach ($weapons as $weapon) {
-            $rows[] = [self::weaponButton($weapon, 'shop:w:' . $weapon->itemId)];
-        }
-
-        foreach ($gear as $item) {
-            $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
-        }
-
-        $rows[] = [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')];
-        $rows[] = [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')];
-        $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @param  list<EquipmentDef>  $weapons
-     * @param  list<EquipmentDef>  $gear
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function gearShop(array $weapons, array $gear): array
-    {
-        $rows = [];
-
-        foreach ($weapons as $weapon) {
-            $rows[] = [self::weaponButton($weapon, 'shop:w:' . $weapon->itemId)];
-        }
-
-        foreach ($gear as $item) {
-            $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
-        }
-
-        $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
 
         return self::inline($rows);
     }
@@ -320,12 +263,82 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function fightInlineForStep(Fight $fight): array
+    {
+        if ($fight->step === FightStepEnum::STANCE) {
+            if ($fight->tutorial) {
+                return self::stance();
+            }
+
+            return self::stanceWithPotions();
+        }
+
+        if ($fight->step === FightStepEnum::ATTACK || $fight->step === FightStepEnum::ATTACK_SECOND) {
+            return self::attackWithoutPotion();
+        }
+
+        if ($fight->step === FightStepEnum::DEFEND_SECOND) {
+            if (! $fight->player_defend instanceof ZoneEnum) {
+                throw new RuntimeException('Fight defend zone missing for second block.');
+            }
+
+            return self::defendExcluding($fight->player_defend);
+        }
+
+        return self::defend();
+    }
+
+    public static function fightMarkupKind(Fight $fight): string
+    {
+        if ($fight->step === FightStepEnum::STANCE) {
+            if ($fight->tutorial) {
+                return 'stance';
+            }
+
+            return 'stance_potions';
+        }
+
+        if ($fight->step === FightStepEnum::ATTACK || $fight->step === FightStepEnum::ATTACK_SECOND) {
+            return 'zones_atk';
+        }
+
+        if ($fight->step === FightStepEnum::DEFEND_SECOND) {
+            if (! $fight->player_defend instanceof ZoneEnum) {
+                throw new RuntimeException('Fight defend zone missing for second block.');
+            }
+
+            return 'zones_excl_' . $fight->player_defend->value;
+        }
+
+        return 'zones_def';
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function stance(): array
     {
         return self::inline([
             [
                 self::cb(__('combat.btn_attack'), 'fight:stance:ATTACK'),
                 self::cb(__('combat.btn_defend'), 'fight:stance:DEFEND'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function stanceWithPotions(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('combat.btn_attack'), 'fight:stance:ATTACK'),
+                self::cb(__('combat.btn_defend'), 'fight:stance:DEFEND'),
+            ],
+            [
+                self::cb(__('combat.btn_potion_short'), 'fight:atk:POTION'),
+                self::cb(__('combat.btn_stamina_potion_short'), 'fight:atk:STAMINA_POTION'),
             ],
         ]);
     }

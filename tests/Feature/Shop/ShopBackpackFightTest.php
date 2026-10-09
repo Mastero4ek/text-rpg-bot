@@ -7,27 +7,28 @@ it('buyWeapon and buyPotion happy and fail paths', function (): void {
     $p->silver = 100;
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
-    $buy = shopService()->buyWeapon($p->tg_id, 'knife_0');
+    $buy = blacksmithService()->buyWeapon($p->tg_id, 'knife_0');
     expect($buy->ok)->toBeTrue()
         ->and(backpack()->owns($p->tg_id, 'knife_0'))->toBeTrue();
 
-    expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse();
+    expect(blacksmithService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeTrue()
+        ->and(backpack()->rowCount($p->tg_id))->toBe(2);
 
     $p = characters()->findByTgId($p->tg_id);
     $p->silver = 0;
     $p->save();
-    expect(shopService()->buyPotion($p->tg_id)->ok)->toBeFalse();
+    expect(buyerService()->buyPotion($p->tg_id)->ok)->toBeFalse();
 
     $p->silver = bagCatalog()->potionPrice();
     $p->save();
-    $potion = shopService()->buyPotion($p->tg_id);
+    $potion = buyerService()->buyPotion($p->tg_id);
     expect($potion->ok)->toBeTrue()
         ->and(bag()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::HEAL))->toBe(1)
         ->and(bag()->loosePotions($potion->character)->first()->catalog_id)->toBe(bagCatalog()->shopPotionId());
 
     $p->silver = bagCatalog()->staminaPotionPrice();
     $p->save();
-    $stamina = shopService()->buyStaminaPotion($p->tg_id);
+    $stamina = buyerService()->buyStaminaPotion($p->tg_id);
     expect($stamina->ok)->toBeTrue()
         ->and(bag()->potionCountByProfile($p->tg_id, App\Enums\Equipment\ProfileEnum::STAMINA))->toBe(1);
 });

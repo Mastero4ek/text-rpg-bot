@@ -108,6 +108,14 @@ final class FightRoundService
             $enemyDefendZones[] = $enemyDefSecond;
         }
 
+        $playerHpBefore = $fight->player_hp;
+        $enemyHpBefore = $enemy->currentHp;
+        $roundPlayerAttack = $fight->player_attack;
+        $roundPlayerAttackSecond = $fight->player_attack_second;
+        $roundPlayerDefend = $fight->player_defend;
+        $roundPlayerDefendSecond = $fight->player_defend_second;
+        $roundUsedPotion = $fight->use_potion;
+
         $loadout = $this->loadoutAfterDrop($fresh);
         $logs = [];
 
@@ -313,6 +321,22 @@ final class FightRoundService
 
         $fight->enemy = $enemy->toArray();
         $fight->log = $combined;
+        $fight->last_round = $this->lastRoundSnapshot(
+            $skip,
+            $roundUsedPotion,
+            $playerHpBefore,
+            $fight->player_hp,
+            $enemyHpBefore,
+            $enemy->currentHp,
+            $roundPlayerAttack,
+            $roundPlayerAttackSecond,
+            $roundPlayerDefend,
+            $roundPlayerDefendSecond,
+            $enemyAtk,
+            $enemy->attackSlots >= 2 ? $enemyAtkSecond : null,
+            $enemyDef,
+            $enemy->blockSlots >= 2 ? $enemyDefSecond : null,
+        );
         $fight->step = FightStepEnum::STANCE;
         $fight->player_stance = null;
         $fight->player_attack = null;
@@ -338,6 +362,69 @@ final class FightRoundService
         $fight = $this->fights->scheduleTurn($fight);
 
         return FightRoundOutcome::continueFight($fresh, $fight);
+    }
+
+    /**
+     * @return array{
+     *     skipped: bool,
+     *     player_hp_delta: int,
+     *     enemy_hp_delta: int,
+     *     player_attack: string|null,
+     *     player_attack_second: string|null,
+     *     player_defend: string|null,
+     *     player_defend_second: string|null,
+     *     enemy_attack: string,
+     *     enemy_attack_second: string|null,
+     *     enemy_defend: string,
+     *     enemy_defend_second: string|null
+     * }
+     */
+    private function lastRoundSnapshot(
+        bool $skip,
+        bool $usedPotion,
+        int $playerHpBefore,
+        int $playerHpAfter,
+        int $enemyHpBefore,
+        int $enemyHpAfter,
+        ?PlayerAttackEnum $playerAttack,
+        ?PlayerAttackEnum $playerAttackSecond,
+        ?ZoneEnum $playerDefend,
+        ?ZoneEnum $playerDefendSecond,
+        ZoneEnum $enemyAtk,
+        ?ZoneEnum $enemyAtkSecond,
+        ZoneEnum $enemyDef,
+        ?ZoneEnum $enemyDefSecond,
+    ): array {
+        if ($skip) {
+            $playerAttackValue = null;
+            $playerAttackSecondValue = null;
+            $playerDefendValue = null;
+            $playerDefendSecondValue = null;
+        } elseif ($usedPotion && $playerAttack instanceof PlayerAttackEnum) {
+            $playerAttackValue = $playerAttack->value;
+            $playerAttackSecondValue = null;
+            $playerDefendValue = $playerDefend?->value;
+            $playerDefendSecondValue = $playerDefendSecond?->value;
+        } else {
+            $playerAttackValue = $playerAttack?->value;
+            $playerAttackSecondValue = $playerAttackSecond?->value;
+            $playerDefendValue = $playerDefend?->value;
+            $playerDefendSecondValue = $playerDefendSecond?->value;
+        }
+
+        return [
+            'skipped' => $skip,
+            'player_hp_delta' => $playerHpAfter - $playerHpBefore,
+            'enemy_hp_delta' => $enemyHpAfter - $enemyHpBefore,
+            'player_attack' => $playerAttackValue,
+            'player_attack_second' => $playerAttackSecondValue,
+            'player_defend' => $playerDefendValue,
+            'player_defend_second' => $playerDefendSecondValue,
+            'enemy_attack' => $enemyAtk->value,
+            'enemy_attack_second' => $enemyAtkSecond?->value,
+            'enemy_defend' => $enemyDef->value,
+            'enemy_defend_second' => $enemyDefSecond?->value,
+        ];
     }
 
     private function loadoutAfterDrop(Character $character): EquippedLoadout

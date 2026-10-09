@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\City;
 
+use App\Enums\Bag\BagKindEnum;
 use App\Models\Backpack\BackpackCatalog;
 use App\Models\Bag\BagCatalog;
 use App\Models\City;
@@ -57,6 +58,54 @@ final class CityQuery
         foreach (
             BagCatalog::query()
                 ->where('enabled', true)
+                ->whereHas('cities', function (Builder $query) use ($cityId): void {
+                    $query->whereKey($cityId);
+                })
+                ->orderBy('sort_order')
+                ->orderBy('catalog_id')
+                ->get() as $catalog
+        ) {
+            $ids[] = $catalog->catalog_id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function bagNonPotionShopCatalogIds(int $cityId): array
+    {
+        $ids = [];
+
+        foreach (
+            BagCatalog::query()
+                ->where('enabled', true)
+                ->where('kind', '!=', BagKindEnum::POTION)
+                ->whereHas('cities', function (Builder $query) use ($cityId): void {
+                    $query->whereKey($cityId);
+                })
+                ->orderBy('sort_order')
+                ->orderBy('catalog_id')
+                ->get() as $catalog
+        ) {
+            $ids[] = $catalog->catalog_id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function bagPotionShopCatalogIds(int $cityId): array
+    {
+        $ids = [];
+
+        foreach (
+            BagCatalog::query()
+                ->where('enabled', true)
+                ->where('kind', BagKindEnum::POTION)
                 ->whereHas('cities', function (Builder $query) use ($cityId): void {
                     $query->whereKey($cityId);
                 })

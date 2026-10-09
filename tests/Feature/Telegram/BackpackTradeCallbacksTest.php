@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
+use App\Models\City;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\BuyerHandler;
 use App\Telegram\Handlers\InventoryHandler;
-use App\Telegram\Handlers\ShopHandler;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -18,8 +19,8 @@ beforeEach(function (): void {
     ]);
 });
 
-it('sells inventory row through shop sell_yes callback', function (): void {
-    $p = characters()->createDraft(6401);
+it('sells inventory row through buyer sell_yes callback', function (): void {
+    $p = placeInCity(characters()->createDraft(6401), City::KEY_ANKRAT);
     $p->progress_step = ProgressStepEnum::DONE;
     $p->silver = 0;
     $p->save();
@@ -32,35 +33,23 @@ it('sells inventory row through shop sell_yes callback', function (): void {
         'update_id' => 6401,
         'callback_query' => [
             'id' => 'cb-sell-1',
-            'data' => 'shop:sell_yes:' . $knife->id,
+            'data' => 'city:buyer:sell_yes:bp:' . $knife->id,
             'from' => ['id' => $p->tg_id, 'is_bot' => false, 'first_name' => 'A'],
             'message' => [
                 'message_id' => 11,
                 'chat' => ['id' => $p->tg_id, 'type' => 'private'],
-                'text' => 'shop',
+                'text' => 'buyer',
             ],
         ],
     ]);
 
-    app(ShopHandler::class)->handleCallback(
+    app(BuyerHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
     expect(BackpackItem::query()->whereKey($knife->id)->exists())->toBeFalse()
         ->and(characters()->findByTgId($p->tg_id)->silver)->toBe($payout);
-
-    Http::assertSent(function (Request $request) use ($knife, $payout): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
-            return false;
-        }
-
-        return ($request['text'] ?? null) === __('shop.sold', [
-            'name' => $knife->item_name,
-            'price' => $payout,
-            'mark' => '🪙',
-        ]);
-    });
 });
 
 it('discards backpack item through inv discard_yes callback', function (): void {

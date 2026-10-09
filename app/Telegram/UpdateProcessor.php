@@ -10,13 +10,15 @@ use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\BlacksmithHandler;
+use App\Telegram\Handlers\BuyerHandler;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
+use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
 use App\Telegram\Handlers\RegistrationHandler;
-use App\Telegram\Handlers\ShopHandler;
 use App\Telegram\Handlers\SmithHandler;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -33,7 +35,9 @@ final class UpdateProcessor
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
         private readonly SmithHandler $smith,
-        private readonly ShopHandler $shop,
+        private readonly BlacksmithHandler $blacksmith,
+        private readonly HealerHandler $healer,
+        private readonly BuyerHandler $buyer,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
     ) {}
@@ -149,18 +153,30 @@ final class UpdateProcessor
             return;
         }
 
+        if (str_starts_with($data, 'city:blacksmith')) {
+            $this->blacksmith->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'city:healer')) {
+            $this->healer->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'city:buyer')) {
+            $this->buyer->handleCallback($update, $responder);
+
+            return;
+        }
+
         if (
             str_starts_with($data, 'city:')
             || str_starts_with($data, 'portal:')
             || $data === 'menu:home'
         ) {
             $this->city->handleCallback($update, $responder);
-
-            return;
-        }
-
-        if ($data === 'menu:shop' || str_starts_with($data, 'shop:')) {
-            $this->shop->handleCallback($update, $responder);
 
             return;
         }

@@ -3,9 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
-use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Support\Telegram\TelegramClient;
@@ -129,12 +127,23 @@ it('starts tutorial fight from intro callback', function (): void {
         ->and(fights()->exists(4244))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendPhoto')
-            && str_contains($request->body(), mb_trim(__('combat.pick_stance')));
+        if (! str_contains($request->url(), '/sendPhoto')) {
+            return false;
+        }
+
+        $body = $request->body();
+        $attackJson = mb_substr(json_encode(__('combat.btn_attack'), JSON_THROW_ON_ERROR), 1, -1);
+
+        return str_contains($body, 'IntroFighter')
+            && str_contains($body, 'Раунд')
+            && str_contains($body, $attackJson)
+            && str_contains($body, 'inline_keyboard')
+            && str_contains($body, 'fight:stance:ATTACK')
+            && ! str_contains($body, mb_trim(__('combat.pick_stance')));
     });
 });
 
-it('resumes tutorial fight wizard step on /start', function (): void {
+it('resumes tutorial fight panel on /start', function (): void {
     Bus::fake();
 
     $player = registration()->ensurePlayer(4245);
@@ -164,77 +173,20 @@ it('resumes tutorial fight wizard step on /start', function (): void {
         ->and(fights()->exists(4245))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendPhoto')
-            && str_contains($request->body(), mb_trim(__('combat.pick_attack')));
-    });
-});
-
-it('resumes tutorial defend step on /start', function (): void {
-    Bus::fake();
-
-    $player = registration()->ensurePlayer(4246);
-    $player = registration()->setNick($player, 'ResumeDef')->character;
-    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
-    $fight = onboarding()->startTutorialFight($player);
-    $fight->step = FightStepEnum::DEFEND;
-    $fight->player_stance = StanceEnum::DEFEND;
-    $fight->player_attack = PlayerAttackEnum::HEAD;
-    $fight->player_defend = null;
-    $fight->save();
-
-    $this->postJson('/telegram/webhook', [
-        'update_id' => 14,
-        'message' => [
-            'message_id' => 5,
-            'from' => ['id' => 4246, 'is_bot' => false, 'first_name' => 'A'],
-            'chat' => ['id' => 4246, 'type' => 'private'],
-            'text' => '/start',
-        ],
-    ], [
-        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
-    ])->assertOk();
-
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendPhoto')
-            && str_contains($request->body(), mb_trim(__('combat.pick_defend')));
-    });
-});
-
-it('resumes tutorial second defend excluding first zone on /start', function (): void {
-    Bus::fake();
-
-    $player = registration()->ensurePlayer(4247);
-    $player = registration()->setNick($player, 'ResumeShield')->character;
-    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
-    $fight = onboarding()->startTutorialFight($player);
-    $fight->step = FightStepEnum::DEFEND_SECOND;
-    $fight->player_stance = StanceEnum::DEFEND;
-    $fight->player_attack = PlayerAttackEnum::HEAD;
-    $fight->player_defend = ZoneEnum::CHEST;
-    $fight->save();
-
-    $this->postJson('/telegram/webhook', [
-        'update_id' => 15,
-        'message' => [
-            'message_id' => 6,
-            'from' => ['id' => 4247, 'is_bot' => false, 'first_name' => 'A'],
-            'chat' => ['id' => 4247, 'type' => 'private'],
-            'text' => '/start',
-        ],
-    ], [
-        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
-    ])->assertOk();
-
-    Http::assertSent(function (Request $request): bool {
         if (! str_contains($request->url(), '/sendPhoto')) {
             return false;
         }
 
         $body = $request->body();
+        $zoneJson = mb_substr(json_encode(__('combat.zone_label.HEAD'), JSON_THROW_ON_ERROR), 1, -1);
+        $attackJson = mb_substr(json_encode(__('combat.btn_attack'), JSON_THROW_ON_ERROR), 1, -1);
 
-        return str_contains($body, mb_trim(__('combat.pick_defend_second')))
-            && str_contains($body, 'fight:def:HEAD')
-            && ! str_contains($body, 'fight:def:CHEST');
+        return str_contains($body, 'ResumeAtk')
+            && str_contains($body, 'Раунд')
+            && str_contains($body, $zoneJson)
+            && str_contains($body, 'inline_keyboard')
+            && str_contains($body, 'fight:atk:HEAD')
+            && ! str_contains($body, $attackJson);
     });
 });
 

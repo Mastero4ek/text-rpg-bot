@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -15,6 +16,9 @@ use App\Services\Backpack\RepairService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
+use App\Services\City\BlacksmithService;
+use App\Services\City\BuyerService;
+use App\Services\City\HealerService;
 use App\Services\CombatService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
@@ -22,13 +26,15 @@ use App\Services\GameConfig;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Registration\RegistrationService;
 use App\Services\Shop\ShopCatalog;
-use App\Services\Shop\ShopService;
 use App\Support\ActionResult;
 use App\Support\Combat\Fighter;
 use App\Support\Enemy;
 use App\Support\Mf;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
+use App\Support\Telegram\TelegramUpdate;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 
 function gameConfig(): GameConfig
 {
@@ -70,9 +76,19 @@ function repair(): RepairService
     return app(RepairService::class);
 }
 
-function shopService(): ShopService
+function blacksmithService(): BlacksmithService
 {
-    return app(ShopService::class);
+    return app(BlacksmithService::class);
+}
+
+function healerService(): HealerService
+{
+    return app(HealerService::class);
+}
+
+function buyerService(): BuyerService
+{
+    return app(BuyerService::class);
 }
 
 function fights(): FightService
@@ -127,6 +143,142 @@ function placeInCity(Character $character, string $key): Character
     return $character;
 }
 
+function cityFlowWebhook(array $payload): void
+{
+    test()->postJson('/telegram/webhook', $payload, [
+        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
+    ])->assertOk();
+}
+
+function cityFlowCallback(int $tgId, int $messageId, string $data): void
+{
+    cityFlowWebhook([
+        'update_id' => $tgId * 10 + $messageId,
+        'callback_query' => [
+            'id' => 'cb-' . $tgId . '-' . $messageId . '-' . $data,
+            'data' => $data,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => $messageId,
+                'chat' => ['id' => $tgId, 'type' => 'private'],
+                'text' => 'city',
+            ],
+        ],
+    ]);
+}
+
+function cityFlowText(int $tgId, int $messageId, string $text): void
+{
+    cityFlowWebhook([
+        'update_id' => $tgId * 10 + $messageId,
+        'message' => [
+            'message_id' => $messageId,
+            'text' => $text,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'chat' => ['id' => $tgId, 'type' => 'private'],
+        ],
+    ]);
+}
+
+function cityArrived(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = registration()->ensurePlayer($tgId);
+    $player = registration()->setNick($player, $nick)->character;
+
+    return registration()->setLocation($player, $cityKey)->character;
+}
+
+function cityDone(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityArrived($tgId, $nick, $cityKey);
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->onboarding_skipped = false;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function citySkipped(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityArrived($tgId, $nick, $cityKey);
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->onboarding_skipped = true;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function assertCityEditHas(string $needle): void
+{
+    Http::assertSent(function (Request $request) use ($needle): bool {
+        if (str_contains($request->url(), '/editMessageMedia')) {
+            $body = $request->body();
+
+            if (str_contains($body, $needle)) {
+                return true;
+            }
+
+            return str_contains($body, str_replace("\n", '\\n', $needle));
+        }
+
+        if (! str_contains($request->url(), '/editMessageText')
+            && ! str_contains($request->url(), '/editMessageCaption')) {
+            return false;
+        }
+
+        $text = (string) ($request['text'] ?? $request['caption'] ?? '');
+
+        return str_contains($text, $needle);
+    });
+}
+
+function assertCitySendHas(string $needle): void
+{
+    Http::assertSent(function (Request $request) use ($needle): bool {
+        if (str_contains($request->url(), '/sendPhoto')) {
+            return str_contains($request->body(), $needle);
+        }
+
+        return str_contains($request->url(), '/sendMessage')
+            && str_contains((string) ($request['text'] ?? ''), $needle);
+    });
+}
+
+function assertCityEditMarkupHas(string $needle): void
+{
+    Http::assertSent(function (Request $request) use ($needle): bool {
+        if (str_contains($request->url(), '/editMessageMedia')) {
+            return str_contains($request->body(), $needle);
+        }
+
+        if (! str_contains($request->url(), '/editMessageText')
+            && ! str_contains($request->url(), '/editMessageCaption')) {
+            return false;
+        }
+
+        $markup = $request['reply_markup'] ?? '';
+
+        return is_string($markup) && str_contains($markup, $needle);
+    });
+}
+
+function assertCitySendMarkupHas(string $needle): void
+{
+    Http::assertSent(function (Request $request) use ($needle): bool {
+        if (str_contains($request->url(), '/sendPhoto')) {
+            return str_contains($request->body(), $needle);
+        }
+
+        if (! str_contains($request->url(), '/sendMessage')) {
+            return false;
+        }
+
+        $markup = $request['reply_markup'] ?? '';
+
+        return is_string($markup) && str_contains($markup, $needle);
+    });
+}
+
 function giveStarterKnuckles(int $tgId): BackpackItem
 {
     $itemId = shopCatalog()->starterKnucklesId();
@@ -169,6 +321,57 @@ function equipItemToSlot(Character $character, string $itemId, SlotEnum $slot): 
 function fakeRandom(array $values): void
 {
     app()->instance(RandomSourceContract::class, new FakeRandomSource($values));
+}
+
+function cityCallback(int $tgId, string $data): TelegramUpdate
+{
+    return new TelegramUpdate([
+        'update_id' => $tgId,
+        'callback_query' => [
+            'id' => 'cb-' . $tgId . '-' . $data,
+            'data' => $data,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 9,
+                'chat' => ['id' => $tgId, 'type' => 'private'],
+                'text' => 'city',
+            ],
+        ],
+    ]);
+}
+
+function fightInlineCallback(int $tgId, string $data): TelegramUpdate
+{
+    return new TelegramUpdate([
+        'update_id' => $tgId,
+        'callback_query' => [
+            'id' => 'cb-' . $tgId,
+            'data' => $data,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 70,
+                'chat' => ['id' => $tgId, 'type' => 'private'],
+                'caption' => 'fight',
+            ],
+        ],
+    ]);
+}
+
+function fightPanelCallback(int $tgId, string $data): TelegramUpdate
+{
+    return new TelegramUpdate([
+        'update_id' => $tgId,
+        'callback_query' => [
+            'id' => 'cb-' . $tgId,
+            'data' => $data,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 9,
+                'chat' => ['id' => $tgId, 'type' => 'private'],
+                'text' => 'fight',
+            ],
+        ],
+    ]);
 }
 
 function grantGem(Character $character, string $gemId, int $qty = 1): Character

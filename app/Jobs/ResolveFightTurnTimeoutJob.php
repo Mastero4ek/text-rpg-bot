@@ -7,13 +7,13 @@ namespace App\Jobs;
 use App\Enums\Fight\FightEndUiEnum;
 use App\Models\Character;
 use App\Models\Fight;
-use App\Services\Fight\FightEndResult;
 use App\Services\Fight\FightEndService;
+use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
-use App\Services\Fight\FightStatusFormatter;
 use App\Support\Telegram\TelegramClient;
-use App\Telegram\Keyboards\TelegramKeyboards;
+use App\Support\Telegram\TelegramResponder;
+use App\Telegram\Handlers\CityHandler;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -29,9 +29,10 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
     public function handle(
         FightRoundService $rounds,
         FightService $fights,
-        FightStatusFormatter $fightStatus,
+        FightPanelService $panel,
         FightEndService $ends,
         TelegramClient $telegram,
+        CityHandler $city,
     ): void {
         if (! $fights->exists($this->tgId)) {
             return;
@@ -59,66 +60,39 @@ final class ResolveFightTurnTimeoutJob implements ShouldQueue
             return;
         }
 
-        $chatId = $outcome->fight->tg_chat_id;
-        $messageId = $outcome->fight->tg_message_id;
-
         if ($outcome->kind === 'continue') {
-            if ($chatId !== null && $messageId !== null) {
-                $telegram->editMessageText(
-                    $chatId,
-                    $messageId,
-                    $fightStatus->format($outcome->fight, $outcome->character->username) . __('combat.pick_stance'),
-                    TelegramKeyboards::stance(),
-                );
-            }
+            $panel->refresh($telegram, $outcome->fight, $outcome->character);
 
             return;
         }
 
         if ($outcome->kind === 'win') {
-            $this->publishEnd(
-                $telegram,
-                $ends->finishWin($outcome->character, $outcome->fight),
-                $chatId,
-                $messageId,
-            );
-
-            return;
+            $result = $ends->finishWin($outcome->character, $outcome->fight);
+        } else {
+            $result = $ends->finishLose($outcome->character, $outcome->fight);
         }
 
-        $this->publishEnd(
+        $panel->publishEnd(
             $telegram,
-            $ends->finishLose($outcome->character, $outcome->fight),
-            $chatId,
-            $messageId,
+            $result,
+            $outcome->fight->tg_chat_id,
+            $outcome->fight->tg_message_id,
+            $outcome->fight,
         );
-    }
 
-    private function publishEnd(
-        TelegramClient $telegram,
-        FightEndResult $result,
-        ?int $chatId,
-        ?int $messageId,
-    ): void {
-        if ($chatId === null || $messageId === null) {
+        if (
+            $result->editUi !== FightEndUiEnum::BackToCity
+            && $result->editUi !== FightEndUiEnum::MainMenu
+        ) {
             return;
         }
 
-        $telegram->editMessageText(
-            $chatId,
-            $messageId,
-            $result->editText,
-            TelegramKeyboards::fightEndMarkup($result->editUi, $result->character),
-        );
+        $chatId = $outcome->fight->tg_chat_id;
 
-        if ($result->replyText === null || $result->replyUi === FightEndUiEnum::None) {
+        if ($chatId === null) {
             return;
         }
 
-        $telegram->sendMessage(
-            $chatId,
-            $result->replyText,
-            TelegramKeyboards::fightEndMarkup($result->replyUi, $result->character),
-        );
+        $city->returnAfterFight(TelegramResponder::forChat($telegram, $chatId), $result->character);
     }
 }

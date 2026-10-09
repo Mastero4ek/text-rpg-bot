@@ -42,6 +42,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tg_chat_id')->nullable();
             $table->unsignedBigInteger('tg_message_id')->nullable();
             $table->json('tg_pending_delete_ids')->nullable();
+            $table->string('fight_return')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

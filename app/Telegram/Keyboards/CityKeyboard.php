@@ -64,6 +64,36 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function backToBlacksmith(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.back'), 'city:blacksmith')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToBuyer(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.back'), 'city:buyer')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToHealer(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.back'), 'city:healer')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function backToTavern(): array
     {
         return self::inline([
@@ -98,6 +128,132 @@ final class CityKeyboard
             [self::cb(__('telegram.btn.repair'), 'city:blacksmith:repair')],
             [self::cb(__('telegram.btn.back'), 'city:tavern')],
         ]);
+    }
+
+    /**
+     * @param  list<array{text: string, catalog_id: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmithGear(array $items): array
+    {
+        $rows = [];
+
+        foreach ($items as $item) {
+            $rows[] = [self::cb($item['text'], 'city:blacksmith:buy:' . $item['catalog_id'])];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @param  list<array{text: string, row_id: int}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmithRepair(array $items, ?string $repairAllBtn): array
+    {
+        $rows = [];
+
+        foreach ($items as $item) {
+            $rows[] = [self::cb($item['text'], 'city:blacksmith:repair:' . $item['row_id'])];
+        }
+
+        if ($repairAllBtn !== null) {
+            $rows[] = [self::cbSuccess($repairAllBtn, 'city:blacksmith:repair_all')];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerOffer(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.btn.heal'), 'city:healer:heal')],
+            [self::cb(__('telegram.btn.potions'), 'city:healer:potions')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerOffer(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.chest'), 'city:buyer:chest')],
+            [self::cb(__('telegram.btn.sell'), 'city:buyer:sell')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, catalog_id: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerChest(array $items): array
+    {
+        $rows = [];
+
+        foreach ($items as $item) {
+            $rows[] = [self::cb($item['text'], 'city:buyer:buy:' . $item['catalog_id'])];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:buyer')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @param  list<array{text: string, source: string, row_id: int}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerSell(array $items): array
+    {
+        $rows = [];
+
+        foreach ($items as $item) {
+            $rows[] = [self::cb($item['text'], 'city:buyer:sell:' . $item['source'] . ':' . $item['row_id'])];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:buyer')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerSellConfirm(string $source, int $rowId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('shop.sell_no'), 'city:buyer:sell'),
+                self::cbSuccess(__('shop.sell_yes'), 'city:buyer:sell_yes:' . $source . ':' . $rowId),
+            ],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, catalog_id: string}>  $potions
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerPotions(array $potions): array
+    {
+        $rows = [];
+
+        foreach ($potions as $potion) {
+            $rows[] = [self::cb($potion['text'], 'city:healer:potion:' . $potion['catalog_id'])];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:healer')];
+
+        return self::inline($rows);
     }
 
     /**

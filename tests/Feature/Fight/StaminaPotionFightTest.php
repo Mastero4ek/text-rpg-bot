@@ -22,7 +22,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     $p->username = 'PotionStamina';
     $p->silver = bagCatalog()->staminaPotionPrice();
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
-    shopService()->buyStaminaPotion($p->tg_id);
+    buyerService()->buyStaminaPotion($p->tg_id);
 
     $heal = bagCatalog()->potionStaminaHeal();
     expect($heal)->toBeInt()
@@ -64,7 +64,7 @@ it('drinks heal potion instead of attacking', function (): void {
     $p->username = 'PotionHeal';
     $p->silver = bagCatalog()->potionPrice();
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
-    shopService()->buyPotion($p->tg_id);
+    buyerService()->buyPotion($p->tg_id);
 
     $heal = bagCatalog()->potionHeal();
 
@@ -128,8 +128,8 @@ it('win persists hp at least one even if session hp is zero', function (): void 
         ->and($player->current_stamina)->toBe(12);
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], 'Победа');
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], 'Победа');
     });
 });
 

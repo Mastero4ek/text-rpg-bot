@@ -559,6 +559,86 @@ final class BagService
             ->get();
     }
 
+    /**
+     * @return Collection<int, BagItem>
+     */
+    public function sellableLooseList(int $tgId): Collection
+    {
+        return BagItem::query()
+            ->where('tg_id', $tgId)
+            ->loose()
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function sellCurrency(BagItem $row): CurrencyEnum
+    {
+        if ($row->kind === BagKindEnum::POTION) {
+            return $this->catalog->findPotion($row->catalog_id)->currency;
+        }
+
+        return $this->catalog->findGem($row->catalog_id)->currency;
+    }
+
+    public function sellLabel(BagItem $row): string
+    {
+        if ($row->kind === BagKindEnum::POTION) {
+            return $this->catalog->findPotion($row->catalog_id)->name;
+        }
+
+        return $this->catalog->findGem($row->catalog_id)->name;
+    }
+
+    public function sellPayout(BagItem $row): int
+    {
+        if ($row->kind === BagKindEnum::POTION) {
+            $price = $this->catalog->findPotion($row->catalog_id)->price;
+
+            return intdiv($price * $this->sellRatioPermille(), 1000);
+        }
+
+        if (! $this->catalog->hasGem($row->catalog_id)) {
+            throw new RuntimeException("Catalog gem {$row->catalog_id} missing for sell.");
+        }
+
+        $gem = $this->catalog->findGem($row->catalog_id);
+        $base = intdiv($gem->price * $this->sellRatioPermille(), 1000);
+
+        if ($base <= 0) {
+            return 0;
+        }
+
+        if ($row->durability === null || $gem->maxDurability <= 0) {
+            return $base;
+        }
+
+        $payout = intdiv($base * $row->durability, $gem->maxDurability);
+
+        if ($payout < 1 && $row->durability > 0) {
+            return 1;
+        }
+
+        return $payout;
+    }
+
+    public function sellRemoveOne(BagItem $row): ActionResult
+    {
+        if ($row->backpack_item_id !== null) {
+            return ActionResult::fail(__('errors.gem_socketed'));
+        }
+
+        if ($row->kind === BagKindEnum::POTION && $row->quantity > 1) {
+            $row->quantity -= 1;
+            $row->save();
+
+            return ActionResult::ok($this->freshCharacter($row->tg_id));
+        }
+
+        $row->delete();
+
+        return ActionResult::ok($this->freshCharacter($row->tg_id));
+    }
+
     public function bagMaxRows(Character $character): int
     {
         if ($character->bag_max_rows < 1) {
@@ -603,6 +683,27 @@ final class BagService
         $row->save();
 
         return $row;
+    }
+
+    private function sellRatioPermille(): int
+    {
+        $settings = $this->config->settings();
+
+        if (! array_key_exists('shop', $settings) || ! is_array($settings['shop'])) {
+            throw new RuntimeException('settings.shop missing.');
+        }
+
+        $shop = $settings['shop'];
+
+        if (! array_key_exists('sellRatioPermille', $shop) || ! is_int($shop['sellRatioPermille'])) {
+            throw new RuntimeException('settings.shop.sellRatioPermille missing.');
+        }
+
+        if ($shop['sellRatioPermille'] < 0 || $shop['sellRatioPermille'] > 1000) {
+            throw new RuntimeException('settings.shop.sellRatioPermille must be 0..1000.');
+        }
+
+        return $shop['sellRatioPermille'];
     }
 
     private function breakChanceFor(Character $character): int
