@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Quest;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\CharacterService;
@@ -17,8 +17,7 @@ use RuntimeException;
 /**
  * Учебный бой с Деревянным солдатом.
  *
- * Как получить: после ника и города игрок на шаге `intro`;
- * кнопка «В бой!» стартует бой → `tutorial_fight`.
+ * Как получить: после reg (`ARRIVED`) CTA «В зал» → `INTRO`, затем «В бой!» → `tutorial_fight`.
  *
  * Что сделать: победить солдата (стойка → удар → блок). Зелье в туториале
  * недоступно. Поражение: full heal (шаг остаётся / откат на intro в хендлере).
@@ -47,7 +46,7 @@ final class TutorialQuest
                 $character,
             );
             $fight = $this->fights->createTutorial($character, $soldier);
-            $character->onboarding_step = OnboardingStepEnum::TUTORIAL_FIGHT;
+            $character->progress_step = ProgressStepEnum::TUTORIAL_FIGHT;
             $character->save();
 
             return $fight;
@@ -59,7 +58,7 @@ final class TutorialQuest
         return DB::transaction(function () use ($character): Character {
             $reward = $this->reward('tutorialQuest');
             $this->characters->addExpSilver($character, $reward['exp'], $reward['silver']);
-            $character->onboarding_step = OnboardingStepEnum::QUEST_STATS;
+            $character->progress_step = ProgressStepEnum::QUEST_STATS;
             $character->save();
 
             return $character;

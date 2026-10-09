@@ -10,12 +10,12 @@ use App\Enums\Equipment\RepairEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Filament\Support\CityCatalogField;
+use App\Filament\Support\TelegramDescriptionField;
 use App\Models\Backpack\BackpackCatalog;
 use Closure;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Group;
@@ -38,6 +38,17 @@ final class BackpackCatalogForm
                     ->columnSpanFull()
                     ->collapsible()
                     ->schema([
+                        Group::make([
+                            SpatieMediaLibraryFileUpload::make('image')
+                                ->label(__('admin.labels.image'))
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
+                                ->collection('image')
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxFiles(1),
+                            TelegramDescriptionField::make()
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description')),
+                        ]),
                         Group::make([
                             Hidden::make('catalog_id')
                                 ->required()
@@ -92,19 +103,6 @@ final class BackpackCatalogForm
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.enabled')),
                             ])
                                 ->columns(3),
-                        ]),
-                        Group::make([
-                            SpatieMediaLibraryFileUpload::make('image')
-                                ->label(__('admin.labels.image'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
-                                ->collection('image')
-                                ->image()
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->maxFiles(1),
-                            Textarea::make('description')
-                                ->label(__('admin.labels.description'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description'))
-                                ->rows(3),
                         ]),
                     ]),
                 Section::make(__('admin.sections.backpack_catalog_requirements'))

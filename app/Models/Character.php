@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use Carbon\CarbonInterface;
@@ -22,7 +22,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string|null $username
  * @property int|null $birth_city_id
  * @property int|null $city_id
- * @property OnboardingStepEnum $onboarding_step
+ * @property ProgressStepEnum $progress_step
+ * @property bool $onboarding_skipped
  * @property int $level
  * @property int $exp
  * @property int $silver
@@ -43,6 +44,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $arena_points
  * @property CarbonInterface|null $premium_until
  * @property CarbonInterface|null $banned_until
+ * @property int|null $tg_chat_id
+ * @property int|null $tg_message_id
+ * @property list<int>|null $tg_pending_delete_ids
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
@@ -57,7 +61,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'username',
     'birth_city_id',
     'city_id',
-    'onboarding_step',
+    'progress_step',
+    'onboarding_skipped',
     'level',
     'exp',
     'silver',
@@ -78,6 +83,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'arena_points',
     'premium_until',
     'banned_until',
+    'tg_chat_id',
+    'tg_message_id',
+    'tg_pending_delete_ids',
 ])]
 final class Character extends Model implements HasMedia
 {
@@ -154,7 +162,8 @@ final class Character extends Model implements HasMedia
             'tg_id' => 'integer',
             'birth_city_id' => 'integer',
             'city_id' => 'integer',
-            'onboarding_step' => OnboardingStepEnum::class,
+            'progress_step' => ProgressStepEnum::class,
+            'onboarding_skipped' => 'boolean',
             'level' => 'integer',
             'exp' => 'integer',
             'silver' => 'integer',
@@ -175,6 +184,9 @@ final class Character extends Model implements HasMedia
             'arena_points' => 'integer',
             'premium_until' => 'datetime',
             'banned_until' => 'datetime',
+            'tg_chat_id' => 'integer',
+            'tg_message_id' => 'integer',
+            'tg_pending_delete_ids' => 'array',
         ];
     }
 }

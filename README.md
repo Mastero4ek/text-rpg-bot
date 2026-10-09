@@ -4,7 +4,7 @@
 
 - PHP ^8.4, Laravel, Filament `/admin` (read-only)
 - SQLite, Pest (`composer check-parallel`)
-- Telegram: `irazasyed/telegram-bot-sdk` + Laravel `Http`
+- Telegram: `TelegramClient` + Laravel `Http` (fakeable outbound)
 - Dev: long poll · Prod: webhook + secret + IP + Redis queue
 
 ## Local (Herd)

@@ -76,15 +76,37 @@ final readonly class TelegramUpdate
         throw new RuntimeException('Message chat.id invalid.');
     }
 
-    public function isStartCommand(): bool
+    public function botCommand(): ?string
     {
         if (! $this->isTextMessage()) {
-            return false;
+            return null;
         }
 
         $text = $this->text();
 
-        return $text === '/start' || str_starts_with($text, '/start ');
+        if (! str_starts_with($text, '/')) {
+            return null;
+        }
+
+        $token = explode(' ', $text, 2)[0];
+        $token = mb_substr($token, 1);
+
+        if (str_contains($token, '@')) {
+            $token = explode('@', $token, 2)[0];
+        }
+
+        if ($token === '') {
+            return null;
+        }
+
+        return $token;
+    }
+
+    public function isStartCommand(): bool
+    {
+        $command = $this->botCommand();
+
+        return $command === 'start';
     }
 
     public function isTextMessage(): bool
@@ -101,6 +123,21 @@ final readonly class TelegramUpdate
     {
         return array_key_exists('callback_query', $this->payload)
             && is_array($this->payload['callback_query']);
+    }
+
+    public function callbackHasPhoto(): bool
+    {
+        if (! $this->isCallback()) {
+            return false;
+        }
+
+        $message = $this->callbackMessage();
+
+        if (! array_key_exists('photo', $message) || ! is_array($message['photo'])) {
+            return false;
+        }
+
+        return $message['photo'] !== [];
     }
 
     public function text(): string

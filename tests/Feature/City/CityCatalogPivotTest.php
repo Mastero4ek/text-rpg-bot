@@ -8,13 +8,13 @@ use App\Models\Enemy\EnemyCatalog;
 use App\Queries\City\CityQuery;
 
 it('hides shop and forest items without pivot rows', function (): void {
-    $yasen = City::query()->where('key', City::KEY_YASEN)->firstOrFail();
+    $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
     $knife = BackpackCatalog::query()->findOrFail('knife_0');
     $knife->cities()->sync([]);
     $wanderer = EnemyCatalog::query()->findOrFail('chance_wanderer');
     $wanderer->cities()->sync([]);
 
-    $p = placeInCity(characters()->createDraft(9110), City::KEY_YASEN);
+    $p = placeInCity(characters()->createDraft(9110), City::KEY_ANKRAT);
     $p->silver = 999;
     $p->save();
 
@@ -24,9 +24,9 @@ it('hides shop and forest items without pivot rows', function (): void {
 });
 
 it('shows catalog only in attached cities', function (): void {
-    $yasen = City::query()->where('key', City::KEY_YASEN)->firstOrFail();
-    $liman = City::query()->where('key', City::KEY_LIMAN)->firstOrFail();
-    $kurgan = City::query()->where('key', City::KEY_KURGAN)->firstOrFail();
+    $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
+    $kurgan = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
     $knife = BackpackCatalog::query()->findOrFail('knife_0');
     $knife->cities()->sync([$yasen->id, $liman->id]);
 
@@ -37,13 +37,15 @@ it('shows catalog only in attached cities', function (): void {
         ->and($query->backpackInCityShop($kurgan->id, 'knife_0'))->toBeFalse();
 });
 
-it('rejects shop buy in kurgan even if pivot exists', function (): void {
-    $kurgan = City::query()->where('key', City::KEY_KURGAN)->firstOrFail();
+it('rejects shop buy when city has no blacksmith even if pivot exists', function (): void {
+    $kurgan = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+    $kurgan->has_blacksmith = false;
+    $kurgan->save();
     BackpackCatalog::query()->findOrFail('knife_0')->cities()->syncWithoutDetaching([$kurgan->id]);
-    $p = placeInCity(characters()->createDraft(9111), City::KEY_KURGAN);
+    $p = placeInCity(characters()->createDraft(9111), City::KEY_ELDWOOD);
     $p->silver = 999;
     $p->save();
 
     expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_shop'));
+        ->and(shopService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_blacksmith'));
 });

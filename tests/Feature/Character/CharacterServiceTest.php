@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
 
@@ -14,7 +14,7 @@ it('createDraft from settings.character.start', function (): void {
         ->and($p->strength)->toBe($cfg['strength'])
         ->and($p->stat_points)->toBe($cfg['statPoints'])
         ->and($p->level)->toBe($cfg['level'])
-        ->and($p->onboarding_step)->toBe(OnboardingStepEnum::NICK)
+        ->and($p->progress_step)->toBe(ProgressStepEnum::SPLASH)
         ->and($p->current_hp)->toBe(characters()->baseMaxHp($cfg['vitality']))
         ->and($p->max_hp)->toBe(characters()->baseMaxHp($cfg['vitality']))
         ->and($p->current_stamina)->toBe(characters()->maxStaminaFromStrength($cfg['strength']))

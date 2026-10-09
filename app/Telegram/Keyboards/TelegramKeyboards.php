@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Telegram\Keyboards;
 
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
@@ -14,227 +15,51 @@ use App\Support\Equipment\EquipmentDef;
 
 final class TelegramKeyboards
 {
+    use BuildsInlineKeyboard;
+
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @param  list<PlayerAttackEnum>  $potionAttacks
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function mainMenu(): array
+    public static function attack(array $potionAttacks): array
     {
-        return self::backToCity();
+        return self::attackRows($potionAttacks);
     }
 
     /**
-     * @return array{keyboard: list<list<array{text: string}>>, resize_keyboard: true}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function personalReply(): array
+    public static function attackWithoutPotion(): array
     {
-        return [
-            'keyboard' => [[
-                ['text' => __('menu.profile')],
-                ['text' => __('menu.inv')],
-                ['text' => __('menu.stats')],
-            ]],
-            'resize_keyboard' => true,
-        ];
+        return self::attackRows([]);
     }
 
     /**
-     * @return array{remove_keyboard: true}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function removeReply(): array
+    public static function clearInline(): array
     {
-        return ['remove_keyboard' => true];
+        return self::inline([]);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function cityServices(City $city): array
+    public static function defend(): array
     {
-        $rows = [];
-
-        if ($city->has_shop) {
-            $rows[] = [self::cb(__('menu.shop'), 'city:shop')];
-        }
-
-        if ($city->has_smith) {
-            $rows[] = [self::cb(__('menu.smith'), 'city:smith')];
-        }
-
-        if ($city->has_hospital) {
-            $rows[] = [self::cb(__('menu.hospital'), 'city:hospital')];
-        }
-
-        if ($city->has_portal) {
-            $rows[] = [self::cb(__('menu.portal'), 'city:portal')];
-        }
-
-        if ($city->has_arena) {
-            $rows[] = [self::cb(__('menu.arena'), 'city:arena')];
-        }
-
-        if ($city->has_forest) {
-            $rows[] = [self::cb(__('menu.forest'), 'city:forest')];
-        }
-
-        if ($city->has_training) {
-            $rows[] = [self::cb(__('menu.training'), 'city:training')];
-        }
-
-        return self::inline($rows);
+        return self::defendButtons(null);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function backToCity(): array
+    public static function defendExcluding(ZoneEnum $excluded): array
     {
-        return self::inline([
-            [self::cb(__('menu.back'), 'menu:home')],
-        ]);
+        return self::defendButtons($excluded);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function inventoryHub(): array
-    {
-        return self::inline([
-            [self::cb(__('menu.backpack'), 'menu:inv')],
-            [self::cb(__('menu.bag'), 'menu:bag')],
-            [self::cb(__('menu.gear'), 'menu:gear')],
-            [self::cb(__('menu.back'), 'menu:home')],
-        ]);
-    }
-
-    /**
-     * @param  iterable<int, City>  $targets
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function portalTargets(iterable $targets): array
-    {
-        $rows = [];
-
-        foreach ($targets as $target) {
-            if ($target->portal_cost_silver > 0) {
-                $text = __('city.portal_row', [
-                    'name' => $target->name,
-                    'cost' => $target->portal_cost_silver,
-                ]);
-            } else {
-                $text = __('city.portal_row_free', ['name' => $target->name]);
-            }
-
-            $rows[] = [self::cb($text, 'portal:' . $target->id)];
-        }
-
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function statsScreen(int $statPoints, int $resetGoldCost): array
-    {
-        $rows = [];
-
-        if ($statPoints > 0) {
-            $rows[] = [
-                self::cb(__('profile.btn_str'), 'stat:' . StatKeyEnum::STRENGTH->value),
-                self::cb(__('profile.btn_agi'), 'stat:' . StatKeyEnum::AGILITY->value),
-            ];
-            $rows[] = [
-                self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
-                self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
-            ];
-        }
-
-        $rows[] = [self::cb(__('profile.btn_reset', ['gold' => $resetGoldCost]), 'stat:reset')];
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function statsResetConfirm(): array
-    {
-        return self::inline([
-            [self::cb(__('profile.btn_reset_confirm'), 'stat:reset_yes')],
-            [self::cb(__('menu.back'), 'menu:stats')],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function statsUpgrade(): array
-    {
-        return self::inline([
-            [
-                self::cb(__('profile.btn_str'), 'stat:' . StatKeyEnum::STRENGTH->value),
-                self::cb(__('profile.btn_agi'), 'stat:' . StatKeyEnum::AGILITY->value),
-            ],
-            [
-                self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
-                self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
-            ],
-            [self::cb(__('menu.back'), 'menu:home')],
-        ]);
-    }
-
-    /**
-     * @param  list<City>  $cities
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function city(array $cities): array
-    {
-        $rows = [];
-
-        foreach ($cities as $city) {
-            $rows[] = [self::cb($city->name, 'ob:city:' . $city->key)];
-        }
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function intro(): array
-    {
-        return self::inline([
-            [self::cb(__('onboarding.btn_ready'), 'ob:intro_fight')],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function statsQuest(Character $character): array
-    {
-        if ($character->stat_points <= 0) {
-            return self::inline([
-                [self::cb(__('onboarding.btn_submit_stats'), 'ob:stats_done')],
-            ]);
-        }
-
-        return self::inline([
-            [
-                self::cb(__('profile.btn_str'), 'ob:stat:' . StatKeyEnum::STRENGTH->value),
-                self::cb(__('profile.btn_agi'), 'ob:stat:' . StatKeyEnum::AGILITY->value),
-            ],
-            [
-                self::cb(__('profile.btn_inst'), 'ob:stat:' . StatKeyEnum::INSTINCT->value),
-                self::cb(__('profile.btn_vit'), 'ob:stat:' . StatKeyEnum::VITALITY->value),
-            ],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
     public static function equipMail(): array
     {
@@ -244,30 +69,35 @@ final class TelegramKeyboards
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @param  list<array{text: string, catalog_id: string}>  $enemies
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function noviceShop(ShopCatalog $shop, int $potionPrice, City $city): array
+    public static function fightPick(array $enemies): array
     {
         $rows = [];
 
-        if ($city->has_shop) {
-            foreach ($shop->noviceWeapons() as $weapon) {
-                $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
-            }
-
-            $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
+        foreach ($enemies as $enemy) {
+            $rows[] = [self::cb($enemy['text'], 'fight:start:' . $enemy['catalog_id'])];
         }
 
-        $rows[] = [self::cb(__('onboarding.btn_claim_club'), 'ob:claim_club')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
 
         return self::inline($rows);
     }
 
     /**
-     * @param  list<EquipmentDef>  $weapons
-     * @param  list<EquipmentDef>  $gear
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function buyerShop(int $healPotionPrice, int $staminaPotionPrice): array
+    {
+        return self::inline([
+            [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')],
+            [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')],
+            [self::cb(__('telegram.btn.gems'), 'smith:gems')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+        ]);
+    }
+
     public static function fullShop(
         array $weapons,
         array $gear,
@@ -293,24 +123,202 @@ final class TelegramKeyboards
     }
 
     /**
-     * @param  list<array{text: string, catalog_id: string}>  $enemies
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @param  list<EquipmentDef>  $weapons
+     * @param  list<EquipmentDef>  $gear
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function fightPick(array $enemies): array
+    public static function gearShop(array $weapons, array $gear): array
     {
         $rows = [];
 
-        foreach ($enemies as $enemy) {
-            $rows[] = [self::cb($enemy['text'], 'fight:start:' . $enemy['catalog_id'])];
+        foreach ($weapons as $weapon) {
+            $rows[] = [self::weaponButton($weapon, 'shop:w:' . $weapon->itemId)];
         }
 
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+        foreach ($gear as $item) {
+            $rows[] = [self::weaponButton($item, 'shop:g:' . $item->itemId)];
+        }
+
+        $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
 
         return self::inline($rows);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function intro(): array
+    {
+        return self::inline([
+            [self::cb(__('onboarding.btn_ready'), 'ob:intro_fight')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function inventoryHub(): array
+    {
+        return self::inline([
+            [self::cb(__('menu.backpack'), 'menu:inv')],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+            [self::cb(__('menu.gear'), 'menu:gear')],
+            [self::cb(__('menu.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @param  list<list<array{text: string, callback_data: string, style?: string}>>  $rows
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function custom(array $rows): array
+    {
+        return self::keyboardRows($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagDiscardConfirm(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_confirm_yes'), 'bag:discard_yes:' . $bagItemId)],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagGemCard(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
+            [self::cb(__('menu.to_smith'), 'smith:gems')],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagPotionCard(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function invDiscardConfirm(int $rowId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_confirm_yes'), 'inv:discard_yes:' . $rowId)],
+            [self::cb(__('menu.backpack'), 'inv:card:' . $rowId)],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithBack(): array
+    {
+        return self::inline([
+            [self::cb(__('menu.smith'), 'menu:smith')],
+            [self::cb(__('menu.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithGemsNav(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.gems_btn'), 'smith:gems')],
+            [self::cb(__('menu.smith'), 'menu:smith')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithOnly(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.gems_btn'), 'smith:gems')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithVipNav(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.vip_btn'), 'smith:vip')],
+            [self::cb(__('menu.smith'), 'menu:smith')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public static function fightEndMarkup(FightEndUiEnum $ui, Character $player): ?array
+    {
+        return match ($ui) {
+            FightEndUiEnum::None => null,
+            FightEndUiEnum::MainMenu => self::mainMenu(),
+            FightEndUiEnum::BackToCity => CityKeyboard::backToCity(),
+            FightEndUiEnum::StatsQuest => self::statsQuest($player),
+            FightEndUiEnum::Intro => self::intro(),
+        };
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function mainMenu(): array
+    {
+        return CityKeyboard::backToCity();
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function noviceShop(ShopCatalog $shop, int $potionPrice, City $city): array
+    {
+        $rows = [];
+
+        if ($city->has_blacksmith) {
+            foreach ($shop->noviceWeapons() as $weapon) {
+                $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
+            }
+        }
+
+        if ($city->has_buyer) {
+            $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
+        }
+
+        $rows[] = [self::cb(__('onboarding.btn_claim_club'), 'ob:claim_club')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{remove_keyboard: true}
+     */
+    public static function removeReply(): array
+    {
+        return ['remove_keyboard' => true];
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
     public static function stance(): array
     {
@@ -323,40 +331,115 @@ final class TelegramKeyboards
     }
 
     /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function statsQuest(Character $character): array
+    {
+        if ($character->stat_points <= 0) {
+            return self::inline([
+                [self::cb(__('onboarding.btn_submit_stats'), 'ob:stats_done')],
+            ]);
+        }
+
+        return self::inline([
+            [
+                self::cb(__('profile.btn_str'), 'ob:stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'ob:stat:' . StatKeyEnum::AGILITY->value),
+            ],
+            [
+                self::cb(__('profile.btn_inst'), 'ob:stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'ob:stat:' . StatKeyEnum::VITALITY->value),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function statsResetConfirm(): array
+    {
+        return self::inline([
+            [self::cb(__('profile.btn_reset_confirm'), 'stat:reset_yes')],
+            [self::cb(__('menu.back'), 'menu:stats')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function statsScreen(int $statPoints, int $resetGoldCost): array
+    {
+        $rows = [];
+
+        if ($statPoints > 0) {
+            $rows[] = [
+                self::cb(__('profile.btn_str'), 'stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'stat:' . StatKeyEnum::AGILITY->value),
+            ];
+            $rows[] = [
+                self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
+            ];
+        }
+
+        $rows[] = [self::cb(__('profile.btn_reset', ['gold' => $resetGoldCost]), 'stat:reset')];
+        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function statsUpgrade(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('profile.btn_str'), 'stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'stat:' . StatKeyEnum::AGILITY->value),
+            ],
+            [
+                self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
+            ],
+            [self::cb(__('menu.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
      * @param  list<PlayerAttackEnum>  $potionAttacks
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function attack(array $potionAttacks): array
+    private static function attackRows(array $potionAttacks): array
     {
-        return self::attackRows($potionAttacks);
+        $rows = [
+            [
+                self::cb(__('combat.zone_label.' . ZoneEnum::HEAD->value), 'fight:atk:' . ZoneEnum::HEAD->value),
+                self::cb(__('combat.zone_label.' . ZoneEnum::CHEST->value), 'fight:atk:' . ZoneEnum::CHEST->value),
+            ],
+            [
+                self::cb(__('combat.zone_label.' . ZoneEnum::BELLY->value), 'fight:atk:' . ZoneEnum::BELLY->value),
+                self::cb(__('combat.zone_label.' . ZoneEnum::LEGS->value), 'fight:atk:' . ZoneEnum::LEGS->value),
+            ],
+        ];
+
+        foreach ($potionAttacks as $attack) {
+            if ($attack === PlayerAttackEnum::POTION) {
+                $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . $attack->value)];
+
+                continue;
+            }
+
+            if ($attack === PlayerAttackEnum::STAMINA_POTION) {
+                $rows[] = [self::cb(__('combat.btn_stamina_potion'), 'fight:atk:' . $attack->value)];
+            }
+        }
+
+        return self::inline($rows);
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function attackWithoutPotion(): array
-    {
-        return self::attackRows([]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function defend(): array
-    {
-        return self::defendButtons(null);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    public static function defendExcluding(ZoneEnum $excluded): array
-    {
-        return self::defendButtons($excluded);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
     private static function defendButtons(?ZoneEnum $excluded): array
     {
@@ -399,59 +482,7 @@ final class TelegramKeyboards
     }
 
     /**
-     * @param  list<PlayerAttackEnum>  $potionAttacks
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    private static function attackRows(array $potionAttacks): array
-    {
-        $rows = [
-            [
-                self::cb(__('combat.zone_label.' . ZoneEnum::HEAD->value), 'fight:atk:' . ZoneEnum::HEAD->value),
-                self::cb(__('combat.zone_label.' . ZoneEnum::CHEST->value), 'fight:atk:' . ZoneEnum::CHEST->value),
-            ],
-            [
-                self::cb(__('combat.zone_label.' . ZoneEnum::BELLY->value), 'fight:atk:' . ZoneEnum::BELLY->value),
-                self::cb(__('combat.zone_label.' . ZoneEnum::LEGS->value), 'fight:atk:' . ZoneEnum::LEGS->value),
-            ],
-        ];
-
-        foreach ($potionAttacks as $attack) {
-            if ($attack === PlayerAttackEnum::POTION) {
-                $rows[] = [self::cb(__('combat.btn_potion'), 'fight:atk:' . $attack->value)];
-
-                continue;
-            }
-
-            if ($attack === PlayerAttackEnum::STAMINA_POTION) {
-                $rows[] = [self::cb(__('combat.btn_stamina_potion'), 'fight:atk:' . $attack->value)];
-            }
-        }
-
-        return self::inline($rows);
-    }
-
-    /**
-     * @param  list<list<array{text: string, callback_data: string}>>  $rows
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string}>>}
-     */
-    private static function inline(array $rows): array
-    {
-        return ['inline_keyboard' => $rows];
-    }
-
-    /**
-     * @return array{text: string, callback_data: string}
-     */
-    private static function cb(string $text, string $data): array
-    {
-        return [
-            'text' => $text,
-            'callback_data' => $data,
-        ];
-    }
-
-    /**
-     * @return array{text: string, callback_data: string}
+     * @return array{text: string, callback_data: string, style?: string}
      */
     private static function weaponButton(EquipmentDef $weapon, string $data): array
     {

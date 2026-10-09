@@ -7,19 +7,17 @@ namespace App\Telegram\Handlers;
 use App\Actions\Backpack\BackpackSellAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Enums\OnboardingStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Queries\City\CityQuery;
 use App\Services\Backpack\BackpackService;
-use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
-use App\Services\OnboardingService;
 use App\Services\Shop\ShopCatalog;
 use App\Services\Shop\ShopService;
 use App\Support\Equipment\EquipmentDef;
+use App\Support\Telegram\TelegramHtml;
+use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -27,25 +25,23 @@ use App\Telegram\Keyboards\TelegramKeyboards;
 final class ShopHandler
 {
     public function __construct(
-        private readonly CharacterService $characters,
         private readonly BackpackService $backpack,
         private readonly BagService $bag,
         private readonly BagCatalog $bagCatalog,
-        private readonly LoadoutService $loadout,
-        private readonly OnboardingService $onboarding,
         private readonly ShopCatalog $shop,
         private readonly ShopService $shopService,
         private readonly BackpackSellAction $sellItem,
         private readonly CityQuery $cityQuery,
+        private readonly TelegramPlayerGate $gate,
     ) {}
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
         $responder->answerCallback();
-        $player = $this->requireDone($update, $responder);
+        $player = $this->gate->requireCityPlayer($update, $responder);
 
-        if (! $player instanceof Character) {
+        if ($player === false) {
             return;
         }
 
@@ -88,7 +84,9 @@ final class ShopHandler
                 return;
             }
 
-            $responder->reply(__('shop.bought_weapon', ['name' => $res->def->itemName]), null);
+            $responder->reply(__('shop.bought_weapon', [
+                'name' => TelegramHtml::escape($res->def->itemName),
+            ]), null);
 
             return;
         }
@@ -108,7 +106,9 @@ final class ShopHandler
                 return;
             }
 
-            $responder->reply(__('shop.bought_gear', ['name' => $res->def->itemName]), null);
+            $responder->reply(__('shop.bought_gear', [
+                'name' => TelegramHtml::escape($res->def->itemName),
+            ]), null);
 
             return;
         }
@@ -158,8 +158,32 @@ final class ShopHandler
 
     public function show(TelegramResponder $responder, Character $player): void
     {
+        $this->showGear($responder, $player);
+    }
+
+    public function showBuyer(TelegramResponder $responder, Character $player): void
+    {
         if ($player->city_id === null) {
-            $responder->reply(__('errors.no_shop'), null);
+            $responder->reply(__('errors.no_buyer'), null);
+
+            return;
+        }
+
+        $responder->edit(
+            __('telegram.npc.buyer', [
+                'silver' => $player->silver,
+            ]),
+            TelegramKeyboards::buyerShop(
+                $this->bagCatalog->potionPrice(),
+                $this->bagCatalog->staminaPotionPrice(),
+            ),
+        );
+    }
+
+    public function showGear(TelegramResponder $responder, Character $player): void
+    {
+        if ($player->city_id === null) {
+            $responder->reply(__('errors.no_blacksmith'), null);
 
             return;
         }
@@ -199,12 +223,7 @@ final class ShopHandler
                 'current' => $this->backpack->rowCount($player->tg_id),
                 'max' => $this->backpack->maxRows($player),
             ]),
-            TelegramKeyboards::fullShop(
-                $weapons,
-                $wearables,
-                $this->bagCatalog->potionPrice(),
-                $this->bagCatalog->staminaPotionPrice(),
-            ),
+            TelegramKeyboards::gearShop($weapons, $wearables),
         );
     }
 
@@ -215,32 +234,6 @@ final class ShopHandler
         }
 
         return '🪙';
-    }
-
-    private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
-    {
-        if (! $update->hasFrom()) {
-            return null;
-        }
-
-        $player = Character::query()->find($update->userId());
-
-        if ($player === null) {
-            $responder->reply(__('common.press_start'), null);
-
-            return null;
-        }
-
-        $player = $this->characters->applyRegen($player);
-        $player = $this->loadout->dropUnmetEquipped($player);
-
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
-
-            return null;
-        }
-
-        return $player;
     }
 
     private function sell(TelegramResponder $responder, Character $player, int $rowId): void
@@ -370,8 +363,8 @@ final class ShopHandler
         }
 
         $buttons[] = [[
-            'text' => __('menu.shop'),
-            'callback_data' => 'city:shop',
+            'text' => __('telegram.btn.back'),
+            'callback_data' => 'city:blacksmith',
         ]];
 
         if ($hasSellable) {

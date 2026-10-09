@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Telegram;
+namespace App\Services\Fight;
 
 use App\Models\Fight;
-use App\Services\Fight\FightService;
+use App\Support\Telegram\TelegramHtml;
 
 final class FightStatusFormatter
 {
@@ -20,7 +20,7 @@ final class FightStatusFormatter
         if ($playerName === null) {
             $name = __('common.you');
         } else {
-            $name = $playerName;
+            $name = TelegramHtml::escape($playerName);
         }
 
         $head = __('combat.status', [
@@ -29,7 +29,7 @@ final class FightStatusFormatter
             'maxHp' => $fight->player_max_hp,
             'stamina' => $fight->player_stamina,
             'maxStamina' => $fight->player_max_stamina,
-            'enemy' => $enemy->name,
+            'enemy' => TelegramHtml::escape($enemy->name),
             'ehp' => $enemy->currentHp,
             'emax' => $enemy->maxHp,
             'estamina' => $enemy->stamina,

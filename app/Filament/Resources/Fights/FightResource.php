@@ -52,7 +52,7 @@ final class FightResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['character']);
+        return parent::getEloquentQuery()->with(['character.media']);
     }
 
     public static function getModelLabel(): string

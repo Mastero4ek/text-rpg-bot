@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Enemy\EnemyApplyWinLootAction;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Enemy\EnemyCatalog;
 
 it('computes exp from player level and template pct', function (): void {
@@ -54,15 +54,15 @@ it('does not grant loot on defeat', function (): void {
 it('tutorial win uses onboarding not pveRewards', function (): void {
     $start = gameConfig()->character()['start'];
     $reward = gameConfig()->onboarding()['rewards']['tutorialQuest'];
-    $p = onboarding()->ensurePlayer(7204);
-    $p = onboarding()->setNick($p, 'TutWin')->character;
-    $p = onboarding()->setLocation($p, onboarding()->cities()[0]->key)->character;
+    $p = registration()->ensurePlayer(7204);
+    $p = registration()->setNick($p, 'TutWin')->character;
+    $p = registration()->setLocation($p, registration()->cities()[0]->key)->character;
     $p->silver = $start['silver'];
     $p->exp = $start['exp'];
     $p->save();
     $p = onboarding()->onTutorialWin($p);
 
-    expect($p->onboarding_step)->toBe(OnboardingStepEnum::QUEST_STATS)
+    expect($p->progress_step)->toBe(ProgressStepEnum::QUEST_STATS)
         ->and($p->silver)->toBe($start['silver'] + $reward['silver'])
         ->and($p->exp)->toBe($start['exp'] + $reward['exp']);
 });

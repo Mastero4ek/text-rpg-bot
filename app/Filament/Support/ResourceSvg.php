@@ -10,7 +10,7 @@ final class ResourceSvg
 {
     public static function markup(string $filename): string
     {
-        $path = resource_path('images/' . $filename);
+        $path = resource_path('images/filament/' . $filename);
         $contents = file_get_contents($path);
 
         if ($contents === false || $contents === '') {

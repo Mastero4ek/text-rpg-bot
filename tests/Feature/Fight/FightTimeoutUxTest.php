@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Fight;
 use App\Support\Telegram\TelegramClient;
@@ -59,7 +59,7 @@ it('timeout job finishes win when enemy is already down on skip', function (): v
     ]);
 
     $p = characters()->createDraft(9305);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'JobWin';
     $p->save();
 
@@ -94,7 +94,7 @@ it('timeout job finishes lose when skip hit drops player hp to zero', function (
     ]);
 
     $p = characters()->createDraft(9302);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'JobLose';
     $p->save();
 
@@ -133,7 +133,7 @@ it('lazy-resolves timed out turn before applying stance click', function (): voi
     ]);
 
     $p = characters()->createDraft(9303);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'LazySkip';
     $p->save();
 
@@ -188,7 +188,7 @@ it('does not apply stance enum from timed out lazy click', function (): void {
     ]);
 
     $p = characters()->createDraft(9304);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'LazyDefend';
     $p->save();
 

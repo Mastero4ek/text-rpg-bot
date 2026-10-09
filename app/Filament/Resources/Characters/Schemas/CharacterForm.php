@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Characters\Schemas;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Models\Character;
 use App\Services\CharacterService;
+use App\Support\LangVariant;
 use App\Support\NickValidator;
 use Closure;
 use Filament\Actions\Action;
@@ -36,6 +37,15 @@ final class CharacterForm
                     ->columnSpanFull()
                     ->collapsible()
                     ->schema([
+                        Group::make([
+                            SpatieMediaLibraryFileUpload::make('image')
+                                ->label(__('admin.labels.image'))
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
+                                ->collection('image')
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxFiles(1),
+                        ]),
                         Group::make([
                             Group::make([
                                 TextInput::make('username')
@@ -79,7 +89,7 @@ final class CharacterForm
                                             }
 
                                             if (app(CharacterService::class)->usernameTakenByOther($nick, $record->tg_id)) {
-                                                $fail(__('errors.nick_taken'));
+                                                $fail(LangVariant::pick('telegram.registration.error.nick_taken'));
                                             }
                                         };
                                     }),
@@ -194,15 +204,6 @@ final class CharacterForm
                             ])
                                 ->key('characterIdentityActions')
                                 ->alignment(Alignment::Start),
-                        ]),
-                        Group::make([
-                            SpatieMediaLibraryFileUpload::make('image')
-                                ->label(__('admin.labels.image'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
-                                ->collection('image')
-                                ->image()
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->maxFiles(1),
                         ]),
                     ]),
                 Section::make(__('admin.sections.character_economy'))

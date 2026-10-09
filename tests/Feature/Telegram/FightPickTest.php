@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Support\Telegram\TelegramClient;
@@ -21,9 +21,9 @@ beforeEach(function (): void {
 
 it('lists only enabled forest enemies with city pivot', function (): void {
     $p = characters()->createDraft(7401);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->level = 4;
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     EnemyCatalog::factory()->create([
         'catalog_id' => 'hidden_mob',
@@ -38,26 +38,23 @@ it('lists only enabled forest enemies with city pivot', function (): void {
     );
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
+        if (! str_contains($request->url(), '/editMessageMedia')) {
             return false;
         }
 
-        $markup = $request['reply_markup'] ?? '';
+        $body = $request->body();
 
-        if (! is_string($markup)) {
-            return false;
-        }
-
-        return str_contains($markup, 'fight:start:chance_wanderer')
-            && ! str_contains($markup, 'wooden_soldier')
-            && ! str_contains($markup, 'hidden_mob');
+        return str_contains($body, 'forest.png')
+            && str_contains($body, 'fight:start:chance_wanderer')
+            && ! str_contains($body, 'wooden_soldier')
+            && ! str_contains($body, 'hidden_mob');
     });
 });
 
 it('starts training fight by catalog_id', function (): void {
     $p = characters()->createDraft(7402);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p->progress_step = ProgressStepEnum::DONE;
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     $update = fightCallback($p->tg_id, 'fight:start:chance_wanderer');
     app(FightHandler::class)->handleCallback(

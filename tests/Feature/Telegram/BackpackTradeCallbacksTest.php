@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\MenuHandler;
+use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\ShopHandler;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -20,7 +20,7 @@ beforeEach(function (): void {
 
 it('sells inventory row through shop sell_yes callback', function (): void {
     $p = characters()->createDraft(6401);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->silver = 0;
     $p->save();
 
@@ -65,7 +65,7 @@ it('sells inventory row through shop sell_yes callback', function (): void {
 
 it('discards backpack item through inv discard_yes callback', function (): void {
     $p = characters()->createDraft(6402);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->save();
 
     backpack()->addItem($p->tg_id, 'axe_0');
@@ -85,7 +85,7 @@ it('discards backpack item through inv discard_yes callback', function (): void 
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -105,7 +105,7 @@ it('discards backpack item through inv discard_yes callback', function (): void 
 
 it('discards gem from bag through bag discard_yes callback', function (): void {
     $p = characters()->createDraft(6403);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->save();
     $p = grantGemDurability($p, 'ruby_0', 9);
     $p = grantGemDurability($p, 'emerald_0', 4);
@@ -125,7 +125,7 @@ it('discards gem from bag through bag discard_yes callback', function (): void {
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );

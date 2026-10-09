@@ -6,7 +6,7 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Support\Telegram\TelegramClient;
 use Illuminate\Http\Client\Request;
@@ -47,15 +47,25 @@ it('processes /start and creates character', function (): void {
 
     $character = Character::query()->find(4242);
     expect($character)->not->toBeNull()
-        ->and($character->onboarding_step)->toBe(OnboardingStepEnum::NICK);
+        ->and($character->progress_step)->toBe(ProgressStepEnum::SPLASH)
+        ->and($character->tg_message_id)->toBe(1);
 
-    Http::assertSent(function ($request): bool {
-        return str_contains($request->url(), '/sendMessage');
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/deleteMessage')
+            && (int) $request['message_id'] === 1;
+    });
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), 'parse_mode')
+            && str_contains($request->body(), mb_trim(__('telegram.registration.splash')));
     });
 });
 
 it('set nick via text update', function (): void {
-    onboarding()->ensurePlayer(4243);
+    $player = registration()->ensurePlayer(4243);
+    $player = registration()->rise($player);
+    registration()->rememberTelegramMessage($player, 4243, 99);
 
     $payload = [
         'update_id' => 11,
@@ -73,15 +83,27 @@ it('set nick via text update', function (): void {
 
     $character = Character::query()->find(4243);
     expect($character->username)->toBe('HeroNick')
-        ->and($character->onboarding_step)->toBe(OnboardingStepEnum::CITY);
+        ->and($character->progress_step)->toBe(ProgressStepEnum::SET_CITY);
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/deleteMessage')
+            && (int) $request['message_id'] === 2;
+    });
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], 'HeroNick');
+    });
 });
 
 it('starts tutorial fight from intro callback', function (): void {
     Bus::fake();
 
-    $player = onboarding()->ensurePlayer(4244);
-    $player = onboarding()->setNick($player, 'IntroFighter')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
+    $player = registration()->ensurePlayer(4244);
+    $player = registration()->setNick($player, 'IntroFighter')->character;
+    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
+    $player->progress_step = ProgressStepEnum::INTRO;
+    $player->save();
 
     $payload = [
         'update_id' => 12,
@@ -103,21 +125,21 @@ it('starts tutorial fight from intro callback', function (): void {
 
     $player->refresh();
 
-    expect($player->onboarding_step)->toBe(OnboardingStepEnum::TUTORIAL_FIGHT)
+    expect($player->progress_step)->toBe(ProgressStepEnum::TUTORIAL_FIGHT)
         ->and(fights()->exists(4244))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_stance')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_stance')));
     });
 });
 
 it('resumes tutorial fight wizard step on /start', function (): void {
     Bus::fake();
 
-    $player = onboarding()->ensurePlayer(4245);
-    $player = onboarding()->setNick($player, 'ResumeAtk')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
+    $player = registration()->ensurePlayer(4245);
+    $player = registration()->setNick($player, 'ResumeAtk')->character;
+    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::ATTACK;
     $fight->player_stance = StanceEnum::ATTACK;
@@ -138,21 +160,21 @@ it('resumes tutorial fight wizard step on /start', function (): void {
 
     $player->refresh();
 
-    expect($player->onboarding_step)->toBe(OnboardingStepEnum::TUTORIAL_FIGHT)
+    expect($player->progress_step)->toBe(ProgressStepEnum::TUTORIAL_FIGHT)
         ->and(fights()->exists(4245))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_attack')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_attack')));
     });
 });
 
 it('resumes tutorial defend step on /start', function (): void {
     Bus::fake();
 
-    $player = onboarding()->ensurePlayer(4246);
-    $player = onboarding()->setNick($player, 'ResumeDef')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
+    $player = registration()->ensurePlayer(4246);
+    $player = registration()->setNick($player, 'ResumeDef')->character;
+    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::DEFEND;
     $fight->player_stance = StanceEnum::DEFEND;
@@ -173,17 +195,17 @@ it('resumes tutorial defend step on /start', function (): void {
     ])->assertOk();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_defend')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_defend')));
     });
 });
 
 it('resumes tutorial second defend excluding first zone on /start', function (): void {
     Bus::fake();
 
-    $player = onboarding()->ensurePlayer(4247);
-    $player = onboarding()->setNick($player, 'ResumeShield')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
+    $player = registration()->ensurePlayer(4247);
+    $player = registration()->setNick($player, 'ResumeShield')->character;
+    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
     $fight = onboarding()->startTutorialFight($player);
     $fight->step = FightStepEnum::DEFEND_SECOND;
     $fight->player_stance = StanceEnum::DEFEND;
@@ -204,28 +226,23 @@ it('resumes tutorial second defend excluding first zone on /start', function ():
     ])->assertOk();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
+        if (! str_contains($request->url(), '/sendPhoto')) {
             return false;
         }
 
-        $text = (string) $request['text'];
-        $markup = $request['reply_markup'];
+        $body = $request->body();
 
-        if (! is_string($markup)) {
-            return false;
-        }
-
-        return str_contains($text, mb_trim(__('combat.pick_defend_second')))
-            && str_contains($markup, 'fight:def:HEAD')
-            && ! str_contains($markup, 'fight:def:CHEST');
+        return str_contains($body, mb_trim(__('combat.pick_defend_second')))
+            && str_contains($body, 'fight:def:HEAD')
+            && ! str_contains($body, 'fight:def:CHEST');
     });
 });
 
 it('falls back to intro when tutorial fight row is missing', function (): void {
-    $player = onboarding()->ensurePlayer(4248);
-    $player = onboarding()->setNick($player, 'NoFight')->character;
-    $player = onboarding()->setLocation($player, onboarding()->cities()[0]->key)->character;
-    $player->onboarding_step = OnboardingStepEnum::TUTORIAL_FIGHT;
+    $player = registration()->ensurePlayer(4248);
+    $player = registration()->setNick($player, 'NoFight')->character;
+    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
+    $player->progress_step = ProgressStepEnum::TUTORIAL_FIGHT;
     $player->save();
 
     expect(fights()->exists(4248))->toBeFalse();
@@ -244,7 +261,7 @@ it('falls back to intro when tutorial fight row is missing', function (): void {
 
     $player->refresh();
 
-    expect($player->onboarding_step)->toBe(OnboardingStepEnum::INTRO);
+    expect($player->progress_step)->toBe(ProgressStepEnum::INTRO);
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/sendMessage')
@@ -262,7 +279,8 @@ it('telegram:poll refuses when webhook url set', function (): void {
 it('TelegramClient sendMessage hits api base', function (): void {
     app(TelegramClient::class)->sendMessage(1, 'hi', null);
 
-    Http::assertSent(function ($request): bool {
-        return str_contains($request->url(), 'api.telegram.org/bottest-token/sendMessage');
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), 'api.telegram.org/bottest-token/sendMessage')
+            && ($request['parse_mode'] ?? null) === 'HTML';
     });
 });

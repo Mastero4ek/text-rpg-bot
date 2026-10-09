@@ -6,7 +6,7 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Random\FakeRandomSource;
@@ -106,7 +106,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
 it('sells new doll wearables from shop', function (): void {
     $p = characters()->createDraft(8104);
     $p->silver = 500;
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'vital_0', 'knife_0'] as $itemId) {
         $buy = shopService()->buyGear($p->tg_id, $itemId);
@@ -131,7 +131,7 @@ it('asks for second defend zone when shield is equipped', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8105);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'ShieldHero';
     $p->save();
 
@@ -205,7 +205,7 @@ it('resolves after one defend zone without shield', function (): void {
     $this->app->instance(RandomSourceContract::class, new FakeRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]));
 
     $p = characters()->createDraft(8106);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'NoShield';
     $p->save();
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\Bag\BagKindEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -45,7 +45,7 @@ final class CharacterSeeder extends Seeder
 
             $character->birth_city_id = $city->id;
             $character->city_id = $city->id;
-            $character->onboarding_step = OnboardingStepEnum::DONE;
+            $character->progress_step = ProgressStepEnum::DONE;
             $character->level = $row['level'];
             $character->exp = $row['exp'];
             $character->silver = $row['silver'];
@@ -149,7 +149,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900001,
                 'username' => 'Серый Странник',
-                'city_key' => City::KEY_KURGAN,
+                'city_key' => City::KEY_ELDWOOD,
                 'level' => 0,
                 'exp' => 0,
                 'silver' => 40,
@@ -177,7 +177,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900002,
                 'username' => 'Алая Искра',
-                'city_key' => City::KEY_YASEN,
+                'city_key' => City::KEY_ANKRAT,
                 'level' => 1,
                 'exp' => 120,
                 'silver' => 85,
@@ -209,7 +209,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900003,
                 'username' => 'Каменный Щит',
-                'city_key' => City::KEY_LIMAN,
+                'city_key' => City::KEY_THORNBREAK,
                 'level' => 2,
                 'exp' => 340,
                 'silver' => 150,

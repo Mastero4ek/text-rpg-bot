@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\BotCommandsSync;
 use App\Support\Telegram\TelegramClient;
 use App\Telegram\UpdateProcessor;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Sleep;
 use Throwable;
 
@@ -16,7 +18,7 @@ final class TelegramPollCommand extends Command
 
     protected $description = 'Long-poll Telegram updates (dev). Refuses when TELEGRAM_WEBHOOK_URL is set.';
 
-    public function handle(TelegramClient $client, UpdateProcessor $processor): int
+    public function handle(TelegramClient $client, UpdateProcessor $processor, BotCommandsSync $commands): int
     {
         $webhookUrl = config('bot.webhook_url');
 
@@ -40,8 +42,19 @@ final class TelegramPollCommand extends Command
             $this->warn('deleteWebhook: ' . $e->getMessage());
         }
 
+        try {
+            $commands->sync();
+        } catch (Throwable $e) {
+            $this->warn('setMyCommands: ' . $e->getMessage());
+        }
+
         $this->info('Polling Telegram updates…');
-        $offset = 0;
+        $offset = Cache::get('telegram:poll_offset', 0);
+
+        if (! is_int($offset)) {
+            $offset = 0;
+        }
+
         $timeout = config('bot.poll_timeout');
 
         if (! is_int($timeout)) {
@@ -57,6 +70,7 @@ final class TelegramPollCommand extends Command
                 foreach ($updates as $update) {
                     if (array_key_exists('update_id', $update) && is_int($update['update_id'])) {
                         $offset = $update['update_id'] + 1;
+                        Cache::forever('telegram:poll_offset', $offset);
                     }
 
                     $processor->handle($update);

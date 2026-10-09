@@ -14,6 +14,7 @@ use App\Support\Enemy;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Mf;
 use App\Support\Random\RandomSourceContract;
+use App\Support\Telegram\TelegramHtml;
 use RuntimeException;
 
 final class CombatService
@@ -127,7 +128,7 @@ final class CombatService
                     false,
                     false,
                     __('combat.pierce', [
-                        'attacker' => $attacker->name,
+                        'attacker' => TelegramHtml::escape($attacker->name),
                         'zone' => $zone,
                         'dmg' => $dmg,
                     ]),
@@ -141,7 +142,7 @@ final class CombatService
                 false,
                 false,
                 __('combat.block', [
-                    'defender' => $defender->name,
+                    'defender' => TelegramHtml::escape($defender->name),
                     'zone' => $zone,
                 ]),
             );
@@ -161,7 +162,7 @@ final class CombatService
                 false,
                 true,
                 __('combat.dodge', [
-                    'defender' => $defender->name,
+                    'defender' => TelegramHtml::escape($defender->name),
                     'zone' => $zone,
                 ]),
             );
@@ -186,7 +187,7 @@ final class CombatService
                 true,
                 false,
                 __('combat.crit', [
-                    'attacker' => $attacker->name,
+                    'attacker' => TelegramHtml::escape($attacker->name),
                     'zone' => $zone,
                     'dmg' => $dmg,
                 ]),
@@ -208,7 +209,7 @@ final class CombatService
             false,
             false,
             __('combat.hit', [
-                'attacker' => $attacker->name,
+                'attacker' => TelegramHtml::escape($attacker->name),
                 'zone' => $zone,
                 'dmg' => $dmg,
             ]),

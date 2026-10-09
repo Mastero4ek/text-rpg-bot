@@ -28,13 +28,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property bool $enabled
  * @property int $characters_max_rows
  * @property int $portal_cost_silver
- * @property bool $has_shop
- * @property bool $has_smith
- * @property bool $has_hospital
+ * @property bool $has_blacksmith
+ * @property bool $has_healer
+ * @property bool $has_buyer
+ * @property bool $has_quest_board
  * @property bool $has_portal
- * @property bool $has_arena
  * @property bool $has_forest
- * @property bool $has_training
+ * @property bool $has_fights_list
+ * @property bool $has_training_room
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
@@ -46,13 +47,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'enabled',
     'characters_max_rows',
     'portal_cost_silver',
-    'has_shop',
-    'has_smith',
-    'has_hospital',
+    'has_blacksmith',
+    'has_healer',
+    'has_buyer',
+    'has_quest_board',
     'has_portal',
-    'has_arena',
     'has_forest',
-    'has_training',
+    'has_fights_list',
+    'has_training_room',
 ])]
 final class City extends Model implements HasMedia
 {
@@ -64,11 +66,11 @@ final class City extends Model implements HasMedia
 
     public const int DEFAULT_CHARACTERS_MAX_ROWS = 100;
 
-    public const string KEY_YASEN = 'yasen';
+    public const string KEY_ANKRAT = 'ankrat';
 
-    public const string KEY_KURGAN = 'kurgan';
+    public const string KEY_ELDWOOD = 'eldwood';
 
-    public const string KEY_LIMAN = 'liman';
+    public const string KEY_THORNBREAK = 'thornbreak';
 
     protected static string $factory = CityFactory::class;
 
@@ -165,6 +167,19 @@ final class City extends Model implements HasMedia
         );
     }
 
+    /**
+     * @return BelongsToMany<EnemyCatalog, $this>
+     */
+    public function trainingEnemyCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EnemyCatalog::class,
+            'city_training_enemy_catalog',
+            'city_id',
+            'enemy_catalog_id',
+        );
+    }
+
     public function isReferencedByCharacters(): bool
     {
         return $this->referencingCharactersCount() > 0;
@@ -192,13 +207,14 @@ final class City extends Model implements HasMedia
         self::saving(function (City $city): void {
             foreach ([
                 'enabled',
-                'has_shop',
-                'has_smith',
-                'has_hospital',
+                'has_blacksmith',
+                'has_healer',
+                'has_buyer',
+                'has_quest_board',
                 'has_portal',
-                'has_arena',
                 'has_forest',
-                'has_training',
+                'has_fights_list',
+                'has_training_room',
             ] as $flag) {
                 $raw = $city->getAttributes()[$flag] ?? null;
 
@@ -230,13 +246,14 @@ final class City extends Model implements HasMedia
             'enabled' => 'boolean',
             'characters_max_rows' => 'integer',
             'portal_cost_silver' => 'integer',
-            'has_shop' => 'boolean',
-            'has_smith' => 'boolean',
-            'has_hospital' => 'boolean',
+            'has_blacksmith' => 'boolean',
+            'has_healer' => 'boolean',
+            'has_buyer' => 'boolean',
+            'has_quest_board' => 'boolean',
             'has_portal' => 'boolean',
-            'has_arena' => 'boolean',
             'has_forest' => 'boolean',
-            'has_training' => 'boolean',
+            'has_fights_list' => 'boolean',
+            'has_training_room' => 'boolean',
         ];
     }
 }

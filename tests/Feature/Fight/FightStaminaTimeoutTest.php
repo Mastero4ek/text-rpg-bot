@@ -90,7 +90,7 @@ it('resolveSkip applies timeout log and enemy hit without player attack', functi
     $beforeStamina = $fight->player_stamina;
     $beforeSeq = $fight->turn_seq;
 
-    $outcome = app(FightRoundService::class)->resolveSkip($p);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
 
     expect($outcome->kind)->toBe('continue')
         ->and($outcome->fight)->not->toBeNull();
@@ -128,7 +128,7 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
 
     $beforeHp = $fight->player_hp;
 
-    $outcome = app(FightRoundService::class)->resolveSkip($p);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
 
     expect($outcome->kind)->toBe('continue')
         ->and($outcome->fight)->not->toBeNull();

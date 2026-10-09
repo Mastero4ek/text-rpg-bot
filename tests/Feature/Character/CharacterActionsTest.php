@@ -10,8 +10,8 @@ use App\Actions\Character\CharacterGrantStatPointsAction;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
-use App\Actions\Character\CharacterSetLocationAction;
-use App\Enums\OnboardingStepEnum;
+use App\Actions\Registration\SetLocationAction;
+use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\User;
@@ -68,11 +68,11 @@ it('set location notifies admin in database', function (): void {
     $admin = User::factory()->create();
     $p = characters()->createDraft(1204);
     $p->username = 'NotifyHero';
-    $p->onboarding_step = OnboardingStepEnum::CITY;
+    $p->progress_step = ProgressStepEnum::SET_CITY;
     $p->save();
 
-    $city = onboarding()->cities()[0];
-    $res = app(CharacterSetLocationAction::class)->handle($p, $city->key);
+    $city = registration()->cities()[0];
+    $res = app(SetLocationAction::class)->handle($p, $city->key);
 
     expect($res->ok)->toBeTrue()
         ->and($res->character->city_id)->toBe($city->id);
@@ -93,10 +93,10 @@ it('set location failure does not notify', function (): void {
     User::factory()->create();
     $p = characters()->createDraft(1205);
     $p->username = 'NoCity';
-    $p->onboarding_step = OnboardingStepEnum::CITY;
+    $p->progress_step = ProgressStepEnum::SET_CITY;
     $p->save();
 
-    $res = app(CharacterSetLocationAction::class)->handle($p, 'Nowhere');
+    $res = app(SetLocationAction::class)->handle($p, 'Nowhere');
 
     expect($res->ok)->toBeFalse();
     $this->assertDatabaseCount('notifications', 0);

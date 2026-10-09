@@ -226,7 +226,7 @@ it('clones equipment into create form without primary key', function (): void {
         ->assertSchemaStateSet([
             'catalog_id' => $nextId,
             'name' => $source->name,
-            'description' => $source->description,
+            'description' => '<p>' . $source->description . '</p>',
             'weapon_damage_min' => $source->weapon_damage_min,
             'weapon_damage_max' => $source->weapon_damage_max,
             'price' => $source->price,

@@ -65,6 +65,12 @@
     height: 50%;
 }
 
+.fi-sc-flex > div:has(.fi-fight-crossed-swords) {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+}
+
 .fi-fight-crossed-swords {
     display: block;
     width: 6rem;

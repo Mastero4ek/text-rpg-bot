@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\Onboarding;
+
+use App\Enums\ProgressStepEnum;
+use App\Models\Character;
+
+final class OnboardingSkipHallAction
+{
+    public function handle(Character $character): Character
+    {
+        $character->progress_step = ProgressStepEnum::DONE;
+        $character->onboarding_skipped = true;
+        $character->save();
+
+        return $character;
+    }
+}

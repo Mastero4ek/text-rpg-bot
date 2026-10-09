@@ -7,7 +7,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Random\FakeRandomSource;
 use App\Support\Random\RandomSourceContract;
@@ -42,7 +42,7 @@ it('asks for second attack zone when dual-wield is active', function (): void {
     ]);
 
     $p = characters()->createDraft(8502);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'DualHero';
     $p->level = 1;
     $p->save();
@@ -138,7 +138,7 @@ it('resolves two player hits with split hand damage', function (): void {
     $enemyHpBefore = (int) $fight->enemy['current_hp'];
     expect($fight->player_attack_second)->toBe(PlayerAttackEnum::LEGS);
 
-    $outcome = app(App\Services\Fight\FightRoundService::class)->resolve($p);
+    $outcome = app(App\Services\Fight\FightRoundService::class)->runRound($p);
 
     expect($outcome->kind)->not->toBe('missing');
     $fight->refresh();
@@ -153,7 +153,7 @@ it('keeps single attack step without left hand even at level 1', function (): vo
     ]);
 
     $p = characters()->createDraft(8504);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'OneHand';
     $p->level = 5;
     $p->save();

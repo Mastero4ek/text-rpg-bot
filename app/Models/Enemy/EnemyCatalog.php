@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property string $catalog_id
@@ -124,6 +125,23 @@ final class EnemyCatalog extends Model implements HasMedia
         return $this->catalog_id === self::TUTORIAL_CATALOG_ID;
     }
 
+    public function localImagePath(): ?string
+    {
+        $media = $this->getFirstMedia('image');
+
+        if (! $media instanceof Media) {
+            return null;
+        }
+
+        $imagePath = $media->getPath();
+
+        if (! is_file($imagePath)) {
+            return null;
+        }
+
+        return $imagePath;
+    }
+
     /**
      * @return HasMany<EnemyDrop, $this>
      */
@@ -140,6 +158,19 @@ final class EnemyCatalog extends Model implements HasMedia
         return $this->belongsToMany(
             City::class,
             'city_enemy_catalog',
+            'enemy_catalog_id',
+            'city_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function trainingCities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_training_enemy_catalog',
             'enemy_catalog_id',
             'city_id',
         );

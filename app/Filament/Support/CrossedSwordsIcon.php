@@ -11,7 +11,7 @@ final class CrossedSwordsIcon
 {
     public static function html(): HtmlString
     {
-        $path = resource_path('images/crossed-swords.svg');
+        $path = resource_path('images/filament/crossed-swords.svg');
         $contents = file_get_contents($path);
 
         if ($contents === false || $contents === '') {

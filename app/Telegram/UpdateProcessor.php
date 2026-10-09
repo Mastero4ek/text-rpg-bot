@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
-use App\Enums\OnboardingStepEnum;
 use App\Models\Character;
 use App\Services\CharacterService;
+use App\Services\Registration\RegistrationFlow;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
+use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
+use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\ShopHandler;
+use App\Telegram\Handlers\SmithHandler;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -23,8 +27,12 @@ final class UpdateProcessor
     public function __construct(
         private readonly TelegramClient $client,
         private readonly CharacterService $characters,
+        private readonly RegistrationHandler $registration,
+        private readonly RegistrationFlow $registrationFlow,
         private readonly OnboardingHandler $onboarding,
         private readonly MenuHandler $menu,
+        private readonly InventoryHandler $inventory,
+        private readonly SmithHandler $smith,
         private readonly ShopHandler $shop,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
@@ -42,6 +50,10 @@ final class UpdateProcessor
                 return;
             }
 
+            if (! Cache::add('telegram:update:' . $update->updateId(), 1, now()->addDay())) {
+                return;
+            }
+
             $responder = new TelegramResponder($this->client, $update);
 
             if ($this->replyIfBlocked($update, $responder)) {
@@ -55,7 +67,7 @@ final class UpdateProcessor
             }
 
             if ($update->isStartCommand()) {
-                $this->onboarding->handleStart($update, $responder);
+                $this->routeStart($update, $responder);
 
                 return;
             }
@@ -94,11 +106,44 @@ final class UpdateProcessor
         return false;
     }
 
+    private function routeStart(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $this->registration->handleStart($update, $responder);
+
+        $player = Character::query()->find($update->userId());
+
+        if (
+            $player instanceof Character
+            && ! $this->registrationFlow->isActive($player)
+            && ! $player->progress_step->canPlayCity()
+        ) {
+            $this->onboarding->handleStart($update, $responder);
+        }
+    }
+
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
 
+        if (
+            $data === 'ob:rise'
+            || $data === 'ob:back'
+            || str_starts_with($data, 'ob:city:')
+        ) {
+            $this->registration->handleCallback($update, $responder);
+
+            return;
+        }
+
         if (str_starts_with($data, 'ob:')) {
+            $player = Character::query()->find($update->userId());
+
+            if ($player instanceof Character && $this->registrationFlow->isActive($player)) {
+                $this->registration->handleCallback($update, $responder);
+
+                return;
+            }
+
             $this->onboarding->handleCallback($update, $responder);
 
             return;
@@ -114,43 +159,69 @@ final class UpdateProcessor
             return;
         }
 
-        if (
-            str_starts_with($data, 'menu:')
-            || str_starts_with($data, 'inv:')
-            || str_starts_with($data, 'backpack:')
-            || str_starts_with($data, 'bag:')
-            || str_starts_with($data, 'gear:')
-            || str_starts_with($data, 'stat:')
-            || str_starts_with($data, 'smith:')
-        ) {
-            if ($data === 'menu:shop') {
-                $this->shop->handleCallback($update, $responder);
-
-                return;
-            }
-
-            $this->menu->handleCallback($update, $responder);
+        if ($data === 'menu:shop' || str_starts_with($data, 'shop:')) {
+            $this->shop->handleCallback($update, $responder);
 
             return;
         }
 
-        if (str_starts_with($data, 'shop:')) {
-            $this->shop->handleCallback($update, $responder);
+        if ($data === 'menu:smith' || str_starts_with($data, 'smith:')) {
+            $this->smith->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (
+            str_starts_with($data, 'inv:')
+            || str_starts_with($data, 'backpack:')
+            || str_starts_with($data, 'bag:')
+            || str_starts_with($data, 'gear:')
+            || $data === 'menu:inv'
+            || $data === 'menu:bag'
+            || $data === 'menu:gear'
+            || str_starts_with($data, 'menu:backpack')
+        ) {
+            $this->inventory->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (
+            str_starts_with($data, 'menu:')
+            || str_starts_with($data, 'stat:')
+        ) {
+            $this->menu->handleCallback($update, $responder);
 
             return;
         }
 
         if (str_starts_with($data, 'fight:')) {
             $this->fight->handleCallback($update, $responder);
+
+            return;
         }
+
+        $responder->answerCallback();
     }
 
     private function routeText(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $character = Character::query()->find($update->userId());
 
-        if ($character instanceof Character && $character->onboarding_step === OnboardingStepEnum::DONE) {
+        if ($character instanceof Character && $character->progress_step->canPlayCity()) {
+            if ($update->botCommand() !== null) {
+                $this->menu->handleCommand($update, $responder);
+
+                return;
+            }
+
             $this->menu->handleText($update, $responder);
+
+            return;
+        }
+
+        if ($character instanceof Character && $this->registrationFlow->isActive($character)) {
+            $this->registration->handleText($update, $responder);
 
             return;
         }

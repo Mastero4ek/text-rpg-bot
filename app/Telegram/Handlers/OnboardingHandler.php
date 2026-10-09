@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
-use App\Actions\Character\CharacterSetLocationAction;
-use App\Actions\Character\CharacterSetNickAction;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightService;
+use App\Services\Fight\FightStatusFormatter;
 use App\Services\GameConfig;
-use App\Services\OnboardingService;
+use App\Services\Onboarding\OnboardingService;
+use App\Services\Registration\RegistrationFlow;
 use App\Services\Shop\ShopCatalog;
-use App\Support\NickValidator;
-use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -31,78 +30,36 @@ final class OnboardingHandler
     public function __construct(
         private readonly CharacterService $characters,
         private readonly OnboardingService $onboarding,
-        private readonly CharacterSetNickAction $setNick,
-        private readonly CharacterSetLocationAction $setLocation,
+        private readonly RegistrationFlow $registrationFlow,
         private readonly BagService $bag,
         private readonly BagCatalog $bagCatalog,
         private readonly ShopCatalog $shop,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
         private readonly FightService $fights,
+        private readonly EnemyService $enemies,
         private readonly CityHandler $city,
     ) {}
-
-    public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
-    {
-        $player = $this->onboarding->ensurePlayer($update->userId());
-
-        if ($player->onboarding_step === OnboardingStepEnum::DONE) {
-            $player = $this->characters->applyRegen($player);
-            $this->city->sendHome(
-                $responder,
-                $player,
-                __('onboarding.welcome_back', [
-                    'name' => $player->username,
-                    'profile' => $this->characters->profileText($player),
-                ]),
-            );
-
-            return;
-        }
-
-        $this->resume($responder, $player);
-    }
-
-    public function handleText(TelegramUpdate $update, TelegramResponder $responder): void
-    {
-        $player = Character::query()->find($update->userId());
-
-        if ($player === null) {
-            $responder->reply(__('common.press_start'), null);
-
-            return;
-        }
-
-        if ($player->onboarding_step === OnboardingStepEnum::NICK) {
-            $res = $this->setNick->handle($player, $update->text());
-
-            if (! $res->ok || ! $res->character instanceof Character) {
-                $responder->reply(TelegramResponder::errorMessage($res->error), null);
-
-                return;
-            }
-
-            $responder->reply(
-                __('onboarding.nice_to_meet', ['name' => $res->character->username]),
-                TelegramKeyboards::city($this->onboarding->cities()),
-            );
-
-            return;
-        }
-
-        if ($player->onboarding_step !== OnboardingStepEnum::DONE) {
-            $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
-            $this->resume($responder, $player);
-        }
-    }
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
         $responder->answerCallback();
 
-        if (str_starts_with($data, 'ob:city:')) {
-            $this->city($update, $responder, mb_substr($data, 8));
+        if ($data === 'ob:hall') {
+            $this->enterHall($update, $responder);
+
+            return;
+        }
+
+        if ($data === 'ob:not_now') {
+            $this->notNow($update, $responder);
+
+            return;
+        }
+
+        if ($data === 'ob:pass') {
+            $this->passHall($update, $responder);
 
             return;
         }
@@ -148,39 +105,142 @@ final class OnboardingHandler
         }
     }
 
+    public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            return;
+        }
+
+        if (
+            $player->progress_step->canPlayCity()
+            || $this->registrationFlow->isActive($player)
+        ) {
+            return;
+        }
+
+        $this->resume($responder, $player);
+    }
+
+    public function handleText(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if (
+            $player->progress_step->canPlayCity()
+            || $this->registrationFlow->isActive($player)
+        ) {
+            return;
+        }
+
+        $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
+        $this->resume($responder, $player);
+    }
+
+    public function startIntro(TelegramResponder $responder): void
+    {
+        $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+    }
+
+    private function enterHall(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
+            $this->onboarding->beginIntro($player);
+            $responder->edit(__('telegram.npc.hall_gone'), TelegramKeyboards::clearInline());
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::DONE && $player->onboarding_skipped) {
+            $this->onboarding->beginIntro($player);
+            $responder->edit(__('telegram.npc.hall_gone'), TelegramKeyboards::clearInline());
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::INTRO) {
+            $this->startIntro($responder);
+
+            return;
+        }
+
+        if ($player->progress_step->canPlayCity()) {
+            return;
+        }
+
+        $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
+        $this->resume($responder, $player);
+    }
+
+    private function notNow(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if (! $player->onboarding_skipped || $player->progress_step !== ProgressStepEnum::DONE) {
+            return;
+        }
+
+        $player = $this->characters->applyRegen($player);
+        $this->city->showTavern($responder, $player);
+    }
+
+    private function passHall(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null) {
+            $responder->reply(__('common.press_start'), null);
+
+            return;
+        }
+
+        if ($player->progress_step !== ProgressStepEnum::ARRIVED) {
+            return;
+        }
+
+        $player = $this->onboarding->skipHall($player);
+        $player = $this->characters->applyRegen($player);
+        $this->city->home($responder, $player);
+    }
+
     private function resume(TelegramResponder $responder, Character $player): void
     {
-        if ($player->onboarding_step === OnboardingStepEnum::NICK) {
-            $responder->reply(
-                __('onboarding.welcome', [
-                    'nickMin' => NickValidator::MIN_LENGTH,
-                    'nickMax' => NickValidator::MAX_LENGTH,
-                ]),
-                TelegramKeyboards::removeReply(),
-            );
+        if ($player->progress_step === ProgressStepEnum::INTRO) {
+            $this->startIntro($responder);
 
             return;
         }
 
-        if ($player->onboarding_step === OnboardingStepEnum::CITY) {
-            $responder->reply(__('onboarding.pick_city'), TelegramKeyboards::city($this->onboarding->cities()));
-
-            return;
-        }
-
-        if ($player->onboarding_step === OnboardingStepEnum::INTRO) {
-            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
-
-            return;
-        }
-
-        if ($player->onboarding_step === OnboardingStepEnum::TUTORIAL_FIGHT) {
+        if ($player->progress_step === ProgressStepEnum::TUTORIAL_FIGHT) {
             $this->resumeTutorialFight($responder, $player);
 
             return;
         }
 
-        if ($player->onboarding_step === OnboardingStepEnum::QUEST_STATS) {
+        if ($player->progress_step === ProgressStepEnum::QUEST_STATS) {
             $responder->reply(
                 $this->onboarding->statsQuestText($player),
                 TelegramKeyboards::statsQuest($player),
@@ -189,13 +249,13 @@ final class OnboardingHandler
             return;
         }
 
-        if ($player->onboarding_step === OnboardingStepEnum::QUEST_EQUIP) {
+        if ($player->progress_step === ProgressStepEnum::QUEST_EQUIP) {
             $responder->reply(__('onboarding.equip_prompt'), TelegramKeyboards::equipMail());
 
             return;
         }
 
-        if ($player->onboarding_step === OnboardingStepEnum::QUEST_SHOP) {
+        if ($player->progress_step === ProgressStepEnum::QUEST_SHOP) {
             $responder->reply(
                 __('onboarding.shop_prompt', ['silver' => $player->silver]),
                 TelegramKeyboards::noviceShop($this->shop, $this->bagCatalog->potionPrice(), $this->requireCity($player)),
@@ -204,44 +264,61 @@ final class OnboardingHandler
             return;
         }
 
-        $responder->reply($this->onboarding->stepHint($player->onboarding_step->value), null);
+        $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
     }
 
     private function resumeTutorialFight(TelegramResponder $responder, Character $player): void
     {
         if (! $this->fights->exists($player->tg_id)) {
-            $player->onboarding_step = OnboardingStepEnum::INTRO;
-            $player->save();
-            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
+            $this->onboarding->resetToIntro($player);
+            $this->startIntro($responder);
 
             return;
         }
 
         $fight = $this->fights->findByTgId($player->tg_id);
         $base = $this->fightStatus->format($fight, $player->username);
+        $imagePath = $this->enemies->tutorialCatalog()->localImagePath();
 
         if ($fight->step === FightStepEnum::STANCE) {
-            $responder->reply($base . __('combat.pick_stance'), TelegramKeyboards::stance());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_stance'),
+                TelegramKeyboards::stance(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::ATTACK_SECOND) {
-            $responder->reply($base . __('combat.pick_attack_second'), TelegramKeyboards::attackWithoutPotion());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_attack_second'),
+                TelegramKeyboards::attackWithoutPotion(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::ATTACK) {
-            $responder->reply($base . __('combat.pick_attack'), TelegramKeyboards::attackWithoutPotion());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_attack'),
+                TelegramKeyboards::attackWithoutPotion(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::DEFEND_SECOND && $fight->player_defend instanceof ZoneEnum) {
-            $responder->reply(
+            $this->replyTutorialPrompt(
+                $responder,
                 $base . __('combat.pick_defend_second'),
                 TelegramKeyboards::defendExcluding($fight->player_defend),
+                $imagePath,
             );
 
             return;
@@ -253,40 +330,11 @@ final class OnboardingHandler
             $prompt = __('combat.pick_defend');
         }
 
-        $responder->reply($base . $prompt, TelegramKeyboards::defend());
-    }
-
-    private function city(TelegramUpdate $update, TelegramResponder $responder, string $cityName): void
-    {
-        $player = Character::query()->find($update->userId());
-
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::CITY) {
-            return;
-        }
-
-        $res = $this->setLocation->handle($player, $cityName);
-
-        if (! $res->ok) {
-            $responder->reply(TelegramResponder::errorMessage($res->error), null);
-
-            return;
-        }
-
-        $chosen = $res->character;
-        $chosen->loadMissing('city');
-
-        if ($chosen->city instanceof City) {
-            $cityLabel = $chosen->city->name;
-        } else {
-            $cityLabel = $cityName;
-        }
-
-        $responder->edit(
-            __('onboarding.city_chosen', [
-                'city' => $cityLabel,
-                'intro' => $this->onboarding->introText(),
-            ]),
-            TelegramKeyboards::intro(),
+        $this->replyTutorialPrompt(
+            $responder,
+            $base . $prompt,
+            TelegramKeyboards::defend(),
+            $imagePath,
         );
     }
 
@@ -299,29 +347,52 @@ final class OnboardingHandler
         }
 
         if (
-            $player->onboarding_step !== OnboardingStepEnum::INTRO
-            && $player->onboarding_step !== OnboardingStepEnum::TUTORIAL_FIGHT
+            $player->progress_step !== ProgressStepEnum::INTRO
+            && $player->progress_step !== ProgressStepEnum::TUTORIAL_FIGHT
         ) {
             return;
         }
 
-        $player = $this->characters->applyRegen($player);
-        $player->current_hp = $this->characters->maxHp($player);
-        $player->save();
+        $player = $this->onboarding->fillHp($player);
         $fight = $this->onboarding->startTutorialFight($player);
-        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
+        $text = $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance');
+        $markup = TelegramKeyboards::stance();
+        $imagePath = $this->enemies->tutorialCatalog()->localImagePath();
 
-        $responder->edit(
-            $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
-            TelegramKeyboards::stance(),
-        );
+        if ($imagePath !== null) {
+            $responder->deleteUpdateMessage();
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+        } else {
+            $responder->edit($text, $markup);
+            $messageId = $update->messageId();
+        }
+
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $messageId);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    private function replyTutorialPrompt(
+        TelegramResponder $responder,
+        string $text,
+        ?array $replyMarkup,
+        ?string $imagePath,
+    ): void {
+        if ($imagePath !== null) {
+            $responder->replyPhoto($imagePath, $text, $replyMarkup);
+
+            return;
+        }
+
+        $responder->reply($text, $replyMarkup);
     }
 
     private function stat(TelegramUpdate $update, TelegramResponder $responder, string $stat): void
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_STATS) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_STATS) {
             return;
         }
 
@@ -343,7 +414,7 @@ final class OnboardingHandler
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_STATS) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_STATS) {
             return;
         }
 
@@ -367,7 +438,7 @@ final class OnboardingHandler
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_EQUIP) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_EQUIP) {
             return;
         }
 
@@ -395,7 +466,7 @@ final class OnboardingHandler
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_SHOP) {
             return;
         }
 
@@ -420,7 +491,7 @@ final class OnboardingHandler
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_SHOP) {
             return;
         }
 
@@ -445,7 +516,7 @@ final class OnboardingHandler
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->onboarding_step !== OnboardingStepEnum::QUEST_SHOP) {
+        if ($player === null || $player->progress_step !== ProgressStepEnum::QUEST_SHOP) {
             return;
         }
 

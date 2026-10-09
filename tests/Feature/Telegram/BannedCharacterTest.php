@@ -98,11 +98,11 @@ it('replies banned while banned_until is in the future', function (): void {
 
 it('allows play when banned_until is in the past', function (): void {
     $p = characters()->createDraft(1304);
-    $p->onboarding_step = App\Enums\OnboardingStepEnum::DONE;
+    $p->progress_step = App\Enums\ProgressStepEnum::DONE;
     $p->username = 'Unbanned';
     $p->banned_until = now()->subMinute();
     $p->save();
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     $payload = [
         'update_id' => 102,
@@ -119,8 +119,16 @@ it('allows play when banned_until is in the past', function (): void {
     ])->assertOk();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && ($request['text'] ?? null) !== __('errors.banned')
-            && ($request['text'] ?? null) !== __('errors.archived');
+        $isOutbound = str_contains($request->url(), '/sendMessage')
+            || str_contains($request->url(), '/sendPhoto');
+
+        if (! $isOutbound) {
+            return false;
+        }
+
+        $text = $request['text'] ?? $request['caption'] ?? null;
+
+        return $text !== __('errors.banned')
+            && $text !== __('errors.archived');
     });
 });

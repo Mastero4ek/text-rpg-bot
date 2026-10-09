@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
 use App\Models\City;
@@ -12,6 +12,7 @@ use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Support\ActionResult;
 use App\Support\Mf;
+use App\Support\Telegram\TelegramHtml;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -124,7 +125,7 @@ final class CharacterService
             $character = new Character;
             $character->tg_id = $tgId;
             $character->username = null;
-            $character->onboarding_step = OnboardingStepEnum::NICK;
+            $character->progress_step = ProgressStepEnum::SPLASH;
             $character->level = $start['level'];
             $character->exp = $start['exp'];
             $character->silver = $start['silver'];
@@ -497,13 +498,13 @@ final class CharacterService
         if ($character->username === null) {
             $name = __('common.unnamed');
         } else {
-            $name = $character->username;
+            $name = TelegramHtml::escape($character->username);
         }
 
         $character->loadMissing('birthCity');
 
         if ($character->birthCity instanceof City) {
-            $city = $character->birthCity->name;
+            $city = TelegramHtml::escape($character->birthCity->name);
         } else {
             $city = '-';
         }

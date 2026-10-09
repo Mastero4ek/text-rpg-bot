@@ -108,7 +108,7 @@ it('buys weapon for gold vip wallet', function (): void {
     $character = characters()->createDraft(7003);
     $character->silver = 0;
     $character->gold = 3;
-    $character = placeInCity($character, App\Models\City::KEY_YASEN);
+    $character = placeInCity($character, App\Models\City::KEY_ANKRAT);
 
     $buy = shopService()->buyWeapon($character->tg_id, 'sword_0');
 
@@ -120,7 +120,7 @@ it('buys weapon for gold vip wallet', function (): void {
     $poor = characters()->createDraft(7004);
     $poor->silver = 100;
     $poor->gold = 0;
-    $poor = placeInCity($poor, App\Models\City::KEY_YASEN);
+    $poor = placeInCity($poor, App\Models\City::KEY_ANKRAT);
 
     expect(shopService()->buyWeapon($poor->tg_id, 'sword_0')->ok)->toBeFalse()
         ->and(shopService()->buyWeapon($poor->tg_id, 'sword_0')->error)->toBe(__('errors.not_enough_gold'));
@@ -133,7 +133,7 @@ it('rejects buying weapons hidden from shop', function (): void {
 
     $character = characters()->createDraft(7005);
     $character->silver = 999;
-    $character = placeInCity($character, App\Models\City::KEY_YASEN);
+    $character = placeInCity($character, App\Models\City::KEY_ANKRAT);
 
     expect(shopService()->buyWeapon($character->tg_id, 'hammer_0')->ok)->toBeFalse();
 });

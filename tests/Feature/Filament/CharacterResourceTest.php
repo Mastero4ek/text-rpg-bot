@@ -28,7 +28,7 @@ it('can edit character and applies experience thresholds on exp growth', functio
     $character->level = 0;
     $character->save();
 
-    $city = onboarding()->cities()[0];
+    $city = registration()->cities()[0];
 
     livewire(EditCharacter::class, [
         'record' => $character->getKey(),

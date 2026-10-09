@@ -108,6 +108,21 @@ final class CityQuery
             ->get();
     }
 
+    /**
+     * @return Collection<int, EnemyCatalog>
+     */
+    public function trainingCatalogs(int $cityId): Collection
+    {
+        return EnemyCatalog::query()
+            ->where('enabled', true)
+            ->whereHas('trainingCities', function (Builder $query) use ($cityId): void {
+                $query->whereKey($cityId);
+            })
+            ->orderBy('sort_order')
+            ->orderBy('catalog_id')
+            ->get();
+    }
+
     public function findEnabledByKey(string $key): ?City
     {
         return City::query()->where('key', $key)->where('enabled', true)->first();

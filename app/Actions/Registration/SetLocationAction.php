@@ -2,31 +2,36 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Character;
+namespace App\Actions\Registration;
 
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\User;
-use App\Services\OnboardingService;
+use App\Services\Registration\RegistrationService;
 use App\Support\ActionResult;
 use Filament\Notifications\Notification;
+use Throwable;
 
-final class CharacterSetLocationAction
+final class SetLocationAction
 {
     public function __construct(
-        private readonly OnboardingService $onboarding,
+        private readonly RegistrationService $registration,
     ) {}
 
     public function handle(Character $character, string $cityKey): ActionResult
     {
-        $result = $this->onboarding->setLocation($character, $cityKey);
+        $result = $this->registration->setLocation($character, $cityKey);
 
         if (! $result->ok || ! $result->character instanceof Character) {
             return $result;
         }
 
-        $this->notifyAdmin($result->character);
+        try {
+            $this->notifyAdmin($result->character);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $result;
     }

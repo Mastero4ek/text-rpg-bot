@@ -7,7 +7,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\OnboardingStepEnum;
+use App\Enums\ProgressStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Fight;
 use App\Services\Fight\FightRoundService;
@@ -21,7 +21,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(1401));
     $p->username = 'PotionStamina';
     $p->silver = bagCatalog()->staminaPotionPrice();
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
     shopService()->buyStaminaPotion($p->tg_id);
 
     $heal = bagCatalog()->potionStaminaHeal();
@@ -47,7 +47,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     // enemy attack: stance already set on enemy via AI rolls — dodge miss, crit miss, variance
     fakeRandom([0.99, 0.0, 0.75, 0.99, 0.99, 0.5]);
 
-    $outcome = app(FightRoundService::class)->resolve($p->fresh());
+    $outcome = app(FightRoundService::class)->runRound($p->fresh());
     $fight->refresh();
     $drain = gameConfig()->combat()['stamina']['drainDefend'];
 
@@ -63,7 +63,7 @@ it('drinks heal potion instead of attacking', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(1402));
     $p->username = 'PotionHeal';
     $p->silver = bagCatalog()->potionPrice();
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
     shopService()->buyPotion($p->tg_id);
 
     $heal = bagCatalog()->potionHeal();
@@ -86,7 +86,7 @@ it('drinks heal potion instead of attacking', function (): void {
 
     fakeRandom([0.99, 0.0, 0.75, 0.99, 0.99, 0.5]);
 
-    app(FightRoundService::class)->resolve($p->fresh());
+    app(FightRoundService::class)->runRound($p->fresh());
     $fight->refresh();
 
     expect($fight->player_hp)->toBeGreaterThan(20)
@@ -102,7 +102,7 @@ it('win persists hp at least one even if session hp is zero', function (): void 
     ]);
 
     $p = characters()->createDraft(1403);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'WinFloor';
     $p->save();
 
@@ -140,7 +140,7 @@ it('lose persists zero hp and zero stamina', function (): void {
     ]);
 
     $p = characters()->createDraft(1404);
-    $p->onboarding_step = OnboardingStepEnum::DONE;
+    $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'LoseZero';
     $p->current_stamina = 40;
     $p->save();
