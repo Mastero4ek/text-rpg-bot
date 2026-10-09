@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $tg_id
  * @property FightKindEnum $kind
  * @property bool $tutorial
+ * @property bool $hall
  * @property int $player_hp
  * @property int $player_max_hp
  * @property int $player_stamina
@@ -41,6 +42,7 @@ use Illuminate\Support\Carbon;
     'tg_id',
     'kind',
     'tutorial',
+    'hall',
     'player_hp',
     'player_max_hp',
     'player_stamina',
@@ -87,6 +89,7 @@ final class Fight extends Model
             'tg_id' => 'integer',
             'kind' => FightKindEnum::class,
             'tutorial' => 'boolean',
+            'hall' => 'boolean',
             'player_hp' => 'integer',
             'player_max_hp' => 'integer',
             'player_stamina' => 'integer',

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Support\Telegram\FightStatusFormatter;
+use App\Services\Fight\FightStatusFormatter;
 use Illuminate\Support\Facades\Bus;
 
 it('includes player and enemy stamina bars in fight status', function (): void {

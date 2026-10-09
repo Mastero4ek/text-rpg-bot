@@ -24,7 +24,7 @@ beforeEach(function (): void {
 });
 
 it('lists views and creates a city', function (): void {
-    $yasen = City::query()->where('key', City::KEY_YASEN)->firstOrFail();
+    $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
 
     livewire(ListCityCatalog::class)
         ->assertOk()
@@ -35,7 +35,7 @@ it('lists views and creates a city', function (): void {
     ])
         ->assertOk()
         ->assertSchemaStateSet([
-            'name' => 'Ясень',
+            'name' => 'Анкрат',
         ]);
 
     livewire(CreateCityCatalog::class)
@@ -62,7 +62,7 @@ it('lists views and creates a city', function (): void {
 it('rejects duplicate city name', function (): void {
     livewire(CreateCityCatalog::class)
         ->fillForm([
-            'name' => 'Ясень',
+            'name' => 'Анкрат',
             'portal_cost_silver' => 0,
         ])
         ->call('create')
@@ -70,8 +70,8 @@ it('rejects duplicate city name', function (): void {
 });
 
 it('saves catalog city chips and clones pivot', function (): void {
-    $yasen = City::query()->where('key', City::KEY_YASEN)->firstOrFail();
-    $liman = City::query()->where('key', City::KEY_LIMAN)->firstOrFail();
+    $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
     $knife = BackpackCatalog::query()->findOrFail('knife_0');
 
     livewire(EditBackpackCatalog::class, [

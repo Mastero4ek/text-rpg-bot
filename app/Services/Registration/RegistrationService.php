@@ -13,6 +13,7 @@ use App\Support\ActionResult;
 use App\Support\LangVariant;
 use App\Support\NickValidator;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 final class RegistrationService
 {
@@ -38,7 +39,7 @@ final class RegistrationService
 
     public function cityButtonError(): string
     {
-        return LangVariant::pick('telegram.registration.errors.pick_city_button');
+        return LangVariant::pick('telegram.registration.error.pick_city_button');
     }
 
     public function ensurePlayer(int $tgId): Character
@@ -137,7 +138,7 @@ final class RegistrationService
             $nick = mb_trim($raw);
 
             if ($this->characters->usernameTakenByOther($nick, $character->tg_id)) {
-                return ActionResult::fail(LangVariant::pick('telegram.registration.errors.nick_taken'));
+                return ActionResult::fail(LangVariant::pick('telegram.registration.error.nick_taken'));
             }
 
             $character->username = $nick;
@@ -151,18 +152,28 @@ final class RegistrationService
     public function setLocation(Character $character, string $cityKey): ActionResult
     {
         return DB::transaction(function () use ($character, $cityKey): ActionResult {
+            $locked = Character::query()->whereKey($character->tg_id)->lockForUpdate()->first();
+
+            if (! $locked instanceof Character) {
+                throw new RuntimeException('Character missing for setLocation.');
+            }
+
+            if ($locked->progress_step !== ProgressStepEnum::SET_CITY) {
+                return ActionResult::fail($this->cityButtonError());
+            }
+
             $city = $this->cityQuery->findEnabledByKey($cityKey);
 
             if (! $city instanceof City) {
                 return ActionResult::fail($this->cityButtonError());
             }
 
-            $character->birth_city_id = $city->id;
-            $character->city_id = $city->id;
-            $character->progress_step = ProgressStepEnum::ARRIVED;
-            $character->save();
+            $locked->birth_city_id = $city->id;
+            $locked->city_id = $city->id;
+            $locked->progress_step = ProgressStepEnum::ARRIVED;
+            $locked->save();
 
-            return ActionResult::ok($character);
+            return ActionResult::ok($locked);
         });
     }
 }

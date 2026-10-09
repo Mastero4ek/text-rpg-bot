@@ -54,11 +54,11 @@ final class RegistrationFlow
     public function nudgeError(Character $character): string
     {
         if ($character->progress_step === ProgressStepEnum::SPLASH) {
-            return LangVariant::pick('telegram.registration.errors.splash_need_rise');
+            return LangVariant::pick('telegram.registration.error.splash_need_rise');
         }
 
         if ($character->progress_step === ProgressStepEnum::SET_NICK) {
-            return LangVariant::pick('telegram.registration.errors.nick_need_name');
+            return LangVariant::pick('telegram.registration.error.nick_need_name');
         }
 
         if ($character->progress_step === ProgressStepEnum::SET_CITY) {
@@ -119,6 +119,33 @@ final class RegistrationFlow
         $this->showNudge($responder, $character);
     }
 
+    public function showSwappingPhoto(TelegramResponder $responder, Character $character): void
+    {
+        if ($character->progress_step === ProgressStepEnum::SPLASH) {
+            $this->replacePhotoOrSend(
+                $responder,
+                $character,
+                $this->splashText(null),
+                RegistrationKeyboard::splash(),
+            );
+
+            return;
+        }
+
+        if ($character->progress_step === ProgressStepEnum::SET_NICK) {
+            $this->replacePhotoOrSend(
+                $responder,
+                $character,
+                $this->nickText(null),
+                RegistrationKeyboard::nickBack(),
+            );
+
+            return;
+        }
+
+        throw new RuntimeException('Registration photo swap only on splash or nick.');
+    }
+
     public function syncAnchor(Character $character, TelegramUpdate $update): Character
     {
         return $this->registration->rememberTelegramMessage(
@@ -139,7 +166,7 @@ final class RegistrationFlow
     ): void {
         if ($character->tg_chat_id !== null && $character->tg_message_id !== null) {
             try {
-                $responder->editAt(
+                $responder->editCaptionAt(
                     $character->tg_chat_id,
                     $character->tg_message_id,
                     $text,
@@ -151,8 +178,34 @@ final class RegistrationFlow
             }
         }
 
-        $messageId = $responder->reply($text, $replyMarkup);
-        $this->registration->rememberTelegramMessage($character, $responder->chatId(), $messageId);
+        $this->sendPhotoAnchor($responder, $character, $text, $replyMarkup);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function replacePhotoOrSend(
+        TelegramResponder $responder,
+        Character $character,
+        string $text,
+        ?array $replyMarkup,
+    ): void {
+        if ($character->tg_chat_id !== null && $character->tg_message_id !== null) {
+            try {
+                $responder->editPhotoAt(
+                    $character->tg_chat_id,
+                    $character->tg_message_id,
+                    $this->imageForStep($character->progress_step),
+                    $text,
+                    $replyMarkup,
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $this->sendPhotoAnchor($responder, $character, $text, $replyMarkup);
     }
 
     public function cityText(string $name, ?string $error): string
@@ -186,5 +239,37 @@ final class RegistrationFlow
         }
 
         return $text . "\n\n" . $error;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    private function sendPhotoAnchor(
+        TelegramResponder $responder,
+        Character $character,
+        string $text,
+        ?array $replyMarkup,
+    ): void {
+        $messageId = $responder->replyPhoto(
+            $this->imageForStep($character->progress_step),
+            $text,
+            $replyMarkup,
+        );
+        $this->registration->rememberTelegramMessage($character, $responder->chatId(), $messageId);
+    }
+
+    private function imageForStep(ProgressStepEnum $step): string
+    {
+        if ($step === ProgressStepEnum::SPLASH) {
+            $path = config('bot.registration_rest_image');
+        } else {
+            $path = config('bot.registration_up_image');
+        }
+
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('Registration image path is not set.');
+        }
+
+        return $path;
     }
 }

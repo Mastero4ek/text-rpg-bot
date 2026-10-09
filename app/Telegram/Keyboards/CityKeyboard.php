@@ -19,16 +19,26 @@ final class CityKeyboard
         $rows = [];
 
         if ($city->has_training_room) {
-            $rows[] = [self::cb(__('telegram.city.btn_training'), 'city:training')];
+            $rows[] = [self::cb(__('telegram.btn.training'), 'city:training')];
         }
 
         if ($city->has_fights_list) {
-            $rows[] = [self::cb(__('telegram.city.btn_fights'), 'city:fights')];
+            $rows[] = [self::cb(__('telegram.btn.fights'), 'city:fights')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:home')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToArena(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.back'), 'city:arena')],
+        ]);
     }
 
     /**
@@ -37,7 +47,17 @@ final class CityKeyboard
     public static function backToCity(): array
     {
         return self::inline([
-            [self::cb(__('telegram.city.btn_back'), 'menu:home')],
+            [self::cb(__('telegram.btn.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToGates(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.back'), 'city:gates')],
         ]);
     }
 
@@ -47,8 +67,25 @@ final class CityKeyboard
     public static function backToTavern(): array
     {
         return self::inline([
-            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
         ]);
+    }
+
+    /**
+     * @param  list<array{text: string, catalog_id: string}>  $enemies
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function trainingPick(array $enemies): array
+    {
+        $rows = [];
+
+        foreach ($enemies as $enemy) {
+            $rows[] = [self::cb($enemy['text'], 'city:training:start:' . $enemy['catalog_id'])];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:arena')];
+
+        return self::inline($rows);
     }
 
     /**
@@ -57,29 +94,23 @@ final class CityKeyboard
     public static function blacksmith(): array
     {
         return self::inline([
-            [self::cb(__('telegram.city.btn_gear'), 'city:blacksmith:gear')],
-            [self::cb(__('telegram.city.btn_repair'), 'city:blacksmith:repair')],
-            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
+            [self::cb(__('telegram.btn.gear'), 'city:blacksmith:gear')],
+            [self::cb(__('telegram.btn.repair'), 'city:blacksmith:repair')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function firstHome(City $city): array
+    public static function firstHome(): array
     {
-        $rows = [
+        return self::inline([
             [
-                self::cbDanger(__('telegram.city.btn_pass'), 'ob:pass'),
-                self::cbSuccess(__('telegram.city.btn_hall'), 'ob:hall'),
+                self::cbDanger(__('telegram.btn.pass'), 'ob:pass'),
+                self::cbSuccess(__('telegram.btn.hall'), 'ob:hall'),
             ],
-        ];
-
-        foreach (self::services($city)['inline_keyboard'] as $row) {
-            $rows[] = $row;
-        }
-
-        return self::inline($rows);
+        ]);
     }
 
     /**
@@ -90,14 +121,14 @@ final class CityKeyboard
         $rows = [];
 
         if ($city->has_portal) {
-            $rows[] = [self::cb(__('telegram.city.btn_portal'), 'city:portal')];
+            $rows[] = [self::cb(__('telegram.btn.portal'), 'city:portal')];
         }
 
         if ($city->has_forest) {
-            $rows[] = [self::cb(__('telegram.city.btn_forest'), 'city:forest')];
+            $rows[] = [self::cb(__('telegram.btn.forest'), 'city:forest')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:home')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
     }
@@ -109,8 +140,8 @@ final class CityKeyboard
     {
         return self::inline([
             [
-                self::cbDanger(__('telegram.city.btn_not_now'), 'ob:not_now'),
-                self::cbSuccess(__('telegram.city.btn_hall'), 'ob:hall'),
+                self::cbDanger(__('telegram.btn.not_now'), 'ob:not_now'),
+                self::cbSuccess(__('telegram.btn.hall'), 'ob:hall'),
             ],
         ]);
     }
@@ -124,19 +155,13 @@ final class CityKeyboard
         $rows = [];
 
         foreach ($targets as $target) {
-            if ($target->portal_cost_silver > 0) {
-                $text = __('telegram.city.portal_row', [
-                    'name' => $target->name,
-                    'cost' => $target->portal_cost_silver,
-                ]);
-            } else {
-                $text = __('telegram.city.portal_row_free', ['name' => $target->name]);
-            }
-
-            $rows[] = [self::cb($text, 'portal:' . $target->id)];
+            $rows[] = [self::cb(__('telegram.location.portal_row', [
+                'name' => $target->name,
+                'cost' => $target->portal_cost_silver,
+            ]), 'portal:' . $target->id)];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_back'), 'menu:home')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
 
         return self::inline($rows);
     }
@@ -147,15 +172,15 @@ final class CityKeyboard
     public static function services(City $city): array
     {
         $rows = [
-            [self::cb(__('telegram.city.btn_gates'), 'city:gates')],
-            [self::cb(__('telegram.city.btn_tavern'), 'city:tavern')],
+            [self::cb(__('telegram.btn.gates'), 'city:gates')],
+            [self::cb(__('telegram.btn.tavern'), 'city:tavern')],
         ];
 
         if ($city->has_quest_board) {
-            $rows[] = [self::cb(__('telegram.city.btn_board'), 'city:board')];
+            $rows[] = [self::cb(__('telegram.btn.board'), 'city:board')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_arena'), 'city:arena')];
+        $rows[] = [self::cb(__('telegram.btn.arena'), 'city:arena')];
 
         return self::inline($rows);
     }
@@ -168,22 +193,22 @@ final class CityKeyboard
         $rows = [];
 
         if ($city->has_healer) {
-            $rows[] = [self::cb(__('telegram.city.btn_healer'), 'city:healer')];
+            $rows[] = [self::cb(__('telegram.btn.healer'), 'city:healer')];
         }
 
         if ($city->has_blacksmith) {
-            $rows[] = [self::cb(__('telegram.city.btn_blacksmith'), 'city:blacksmith')];
+            $rows[] = [self::cb(__('telegram.btn.blacksmith'), 'city:blacksmith')];
         }
 
         if ($city->has_buyer) {
-            $rows[] = [self::cb(__('telegram.city.btn_buyer'), 'city:buyer')];
+            $rows[] = [self::cb(__('telegram.btn.buyer'), 'city:buyer')];
         }
 
         if ($character->onboarding_skipped) {
-            $rows[] = [self::cb(__('telegram.city.btn_overseer'), 'city:overseer')];
+            $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
         }
 
-        $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:home')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
     }

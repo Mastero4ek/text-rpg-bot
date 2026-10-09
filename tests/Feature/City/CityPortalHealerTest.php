@@ -7,9 +7,9 @@ use App\Actions\City\CityPortalAction;
 use App\Models\City;
 
 it('moves only city_id when portal silver is enough', function (): void {
-    $yasen = City::query()->where('key', City::KEY_YASEN)->firstOrFail();
-    $liman = City::query()->where('key', City::KEY_LIMAN)->firstOrFail();
-    $p = placeInCity(characters()->createDraft(9101), City::KEY_YASEN);
+    $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
+    $p = placeInCity(characters()->createDraft(9101), City::KEY_ANKRAT);
     $birth = $p->birth_city_id;
     $p->silver = $liman->portal_cost_silver;
     $p->save();
@@ -24,8 +24,8 @@ it('moves only city_id when portal silver is enough', function (): void {
 });
 
 it('rejects portal when silver is short', function (): void {
-    $liman = City::query()->where('key', City::KEY_LIMAN)->firstOrFail();
-    $p = placeInCity(characters()->createDraft(9102), City::KEY_YASEN);
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
+    $p = placeInCity(characters()->createDraft(9102), City::KEY_ANKRAT);
     $p->silver = 0;
     $p->save();
 
@@ -37,7 +37,7 @@ it('rejects portal when silver is short', function (): void {
 });
 
 it('rejects portal into the same city', function (): void {
-    $p = placeInCity(characters()->createDraft(9103), City::KEY_YASEN);
+    $p = placeInCity(characters()->createDraft(9103), City::KEY_ANKRAT);
 
     $res = app(CityPortalAction::class)->handle($p, $p->city_id);
 
@@ -46,10 +46,10 @@ it('rejects portal into the same city', function (): void {
 });
 
 it('allows free portal without silver', function (): void {
-    $liman = City::query()->where('key', City::KEY_LIMAN)->firstOrFail();
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
     $liman->portal_cost_silver = 0;
     $liman->save();
-    $p = placeInCity(characters()->createDraft(9104), City::KEY_YASEN);
+    $p = placeInCity(characters()->createDraft(9104), City::KEY_ANKRAT);
     $p->silver = 0;
     $p->save();
 
@@ -61,7 +61,7 @@ it('allows free portal without silver', function (): void {
 });
 
 it('fills hp and stamina for gold at healer', function (): void {
-    $p = placeInCity(characters()->createDraft(9105), City::KEY_YASEN);
+    $p = placeInCity(characters()->createDraft(9105), City::KEY_ANKRAT);
     $p->gold = 1;
     $p->current_hp = 1;
     $p->current_stamina = 0;
@@ -76,7 +76,7 @@ it('fills hp and stamina for gold at healer', function (): void {
 });
 
 it('rejects healer without gold or when already full', function (): void {
-    $p = placeInCity(characters()->createDraft(9106), City::KEY_YASEN);
+    $p = placeInCity(characters()->createDraft(9106), City::KEY_ANKRAT);
     $p->gold = 0;
     $p->current_hp = 1;
     $p->save();
@@ -88,5 +88,5 @@ it('rejects healer without gold or when already full', function (): void {
     $p->current_stamina = characters()->maxStamina($p);
     $p->save();
 
-    expect(app(CityHealerHealAction::class)->handle($p)->error)->toBe(__('errors.healer_already_full'));
+    expect(app(CityHealerHealAction::class)->handle($p)->error)->toBe(__('telegram.npc.error.healer_already_full'));
 });

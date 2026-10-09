@@ -125,6 +125,21 @@ final readonly class TelegramUpdate
             && is_array($this->payload['callback_query']);
     }
 
+    public function callbackHasPhoto(): bool
+    {
+        if (! $this->isCallback()) {
+            return false;
+        }
+
+        $message = $this->callbackMessage();
+
+        if (! array_key_exists('photo', $message) || ! is_array($message['photo'])) {
+            return false;
+        }
+
+        return $message['photo'] !== [];
+    }
+
     public function text(): string
     {
         $message = $this->message();

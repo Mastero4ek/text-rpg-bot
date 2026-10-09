@@ -149,7 +149,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900001,
                 'username' => 'Серый Странник',
-                'city_key' => City::KEY_KURGAN,
+                'city_key' => City::KEY_ELDWOOD,
                 'level' => 0,
                 'exp' => 0,
                 'silver' => 40,
@@ -177,7 +177,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900002,
                 'username' => 'Алая Искра',
-                'city_key' => City::KEY_YASEN,
+                'city_key' => City::KEY_ANKRAT,
                 'level' => 1,
                 'exp' => 120,
                 'silver' => 85,
@@ -209,7 +209,7 @@ final class CharacterSeeder extends Seeder
             [
                 'tg_id' => 900003,
                 'username' => 'Каменный Щит',
-                'city_key' => City::KEY_LIMAN,
+                'city_key' => City::KEY_THORNBREAK,
                 'level' => 2,
                 'exp' => 340,
                 'silver' => 150,

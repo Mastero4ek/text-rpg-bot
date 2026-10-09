@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Telegram;
+namespace App\Services\Fight;
 
 use App\Models\Fight;
-use App\Services\Fight\FightService;
+use App\Support\Telegram\TelegramHtml;
 
 final class FightStatusFormatter
 {

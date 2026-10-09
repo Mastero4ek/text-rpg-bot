@@ -6,6 +6,7 @@ namespace App\Filament\Resources\EnemyCatalog\Schemas;
 
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Filament\Support\CityCatalogField;
+use App\Filament\Support\TelegramDescriptionField;
 use App\Models\Bag\BagCatalog;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\CombatService;
@@ -14,7 +15,6 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\EmptyState;
@@ -38,6 +38,16 @@ final class EnemyCatalogForm
                     ->columnSpanFull()
                     ->collapsible()
                     ->schema([
+                        Group::make([
+                            SpatieMediaLibraryFileUpload::make('image')
+                                ->label(__('admin.labels.image'))
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
+                                ->collection('image')
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp']),
+                            TelegramDescriptionField::make()
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description')),
+                        ]),
                         Group::make([
                             Hidden::make('catalog_id')
                                 ->required()
@@ -79,18 +89,6 @@ final class EnemyCatalogForm
                                     ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.enabled')),
                             ])->columns(3),
                         ]),
-                        Group::make([
-                            SpatieMediaLibraryFileUpload::make('image')
-                                ->label(__('admin.labels.image'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
-                                ->collection('image')
-                                ->image()
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp']),
-                            Textarea::make('description')
-                                ->label(__('admin.labels.description'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description'))
-                                ->rows(3),
-                        ]),
                     ]),
                 Section::make(__('admin.sections.enemy_catalog_location'))
                     ->icon(Heroicon::OutlinedMapPin)
@@ -98,7 +96,9 @@ final class EnemyCatalogForm
                     ->columnSpanFull()
                     ->collapsed()
                     ->schema([
-                        CityCatalogField::make()
+                        CityCatalogField::makeForest()
+                            ->columnSpan(2),
+                        CityCatalogField::makeTraining()
                             ->columnSpan(2),
                     ]),
                 Section::make(__('admin.sections.enemy_catalog_kind'))

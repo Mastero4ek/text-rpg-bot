@@ -38,6 +38,15 @@ final class CharacterForm
                     ->collapsible()
                     ->schema([
                         Group::make([
+                            SpatieMediaLibraryFileUpload::make('image')
+                                ->label(__('admin.labels.image'))
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
+                                ->collection('image')
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxFiles(1),
+                        ]),
+                        Group::make([
                             Group::make([
                                 TextInput::make('username')
                                     ->label(__('admin.labels.username'))
@@ -80,7 +89,7 @@ final class CharacterForm
                                             }
 
                                             if (app(CharacterService::class)->usernameTakenByOther($nick, $record->tg_id)) {
-                                                $fail(LangVariant::pick('telegram.registration.errors.nick_taken'));
+                                                $fail(LangVariant::pick('telegram.registration.error.nick_taken'));
                                             }
                                         };
                                     }),
@@ -195,15 +204,6 @@ final class CharacterForm
                             ])
                                 ->key('characterIdentityActions')
                                 ->alignment(Alignment::Start),
-                        ]),
-                        Group::make([
-                            SpatieMediaLibraryFileUpload::make('image')
-                                ->label(__('admin.labels.image'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
-                                ->collection('image')
-                                ->image()
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->maxFiles(1),
                         ]),
                     ]),
                 Section::make(__('admin.sections.character_economy'))

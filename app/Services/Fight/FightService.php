@@ -23,14 +23,19 @@ final class FightService
         private readonly GameConfig $config,
     ) {}
 
-    public function createTutorial(Character $character, Enemy $enemy): Fight
+    public function createHall(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, true);
+        return $this->createFight($character, $enemy, false, true);
     }
 
     public function createTraining(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, false);
+        return $this->createFight($character, $enemy, false, false);
+    }
+
+    public function createTutorial(Character $character, Enemy $enemy): Fight
+    {
+        return $this->createFight($character, $enemy, true, false);
     }
 
     public function findByTgId(int $tgId): Fight
@@ -104,9 +109,9 @@ final class FightService
         return ! $fight->turn_deadline_at->isFuture();
     }
 
-    private function createFight(Character $character, Enemy $enemy, bool $tutorial): Fight
+    private function createFight(Character $character, Enemy $enemy, bool $tutorial, bool $hall): Fight
     {
-        return DB::transaction(function () use ($character, $enemy, $tutorial): Fight {
+        return DB::transaction(function () use ($character, $enemy, $tutorial, $hall): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
 
             $character = $this->characters->applyRegen($character);
@@ -116,6 +121,7 @@ final class FightService
             $fight->tg_id = $character->tg_id;
             $fight->kind = $tutorial ? FightKindEnum::TUTORIAL : FightKindEnum::PVE;
             $fight->tutorial = $tutorial;
+            $fight->hall = $hall;
             $fight->player_hp = $character->current_hp;
             $fight->player_max_hp = $this->characters->maxHp($character);
             $fight->player_stamina = $this->characters->clampStamina(

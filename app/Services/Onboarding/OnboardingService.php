@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Onboarding;
 
+use App\Actions\Onboarding\OnboardingBeginIntroAction;
+use App\Actions\Onboarding\OnboardingFillHpAction;
+use App\Actions\Onboarding\OnboardingResetToIntroAction;
+use App\Actions\Onboarding\OnboardingSkipHallAction;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\Fight;
@@ -20,7 +24,31 @@ final class OnboardingService
         public readonly StatsQuest $statsQuest,
         public readonly EquipQuest $equipQuest,
         public readonly ShopQuest $shopQuest,
+        private readonly OnboardingBeginIntroAction $beginIntroAction,
+        private readonly OnboardingSkipHallAction $skipHallAction,
+        private readonly OnboardingResetToIntroAction $resetToIntroAction,
+        private readonly OnboardingFillHpAction $fillHpAction,
     ) {}
+
+    public function beginIntro(Character $character): Character
+    {
+        return $this->beginIntroAction->handle($character);
+    }
+
+    public function skipHall(Character $character): Character
+    {
+        return $this->skipHallAction->handle($character);
+    }
+
+    public function resetToIntro(Character $character): Character
+    {
+        return $this->resetToIntroAction->handle($character);
+    }
+
+    public function fillHp(Character $character): Character
+    {
+        return $this->fillHpAction->handle($character);
+    }
 
     public function stepHint(string $step): string
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Telegram\Keyboards;
 
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character;
@@ -79,16 +80,11 @@ final class TelegramKeyboards
             $rows[] = [self::cb($enemy['text'], 'fight:start:' . $enemy['catalog_id'])];
         }
 
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
 
         return self::inline($rows);
     }
 
-    /**
-     * @param  list<EquipmentDef>  $weapons
-     * @param  list<EquipmentDef>  $gear
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
@@ -97,8 +93,8 @@ final class TelegramKeyboards
         return self::inline([
             [self::cb(__('shop.potion_btn', ['price' => $healPotionPrice]), 'shop:potion')],
             [self::cb(__('shop.stamina_potion_btn', ['price' => $staminaPotionPrice]), 'shop:stamina_potion')],
-            [self::cb(__('telegram.city.btn_gems'), 'smith:gems')],
-            [self::cb(__('telegram.city.btn_back'), 'city:tavern')],
+            [self::cb(__('telegram.btn.gems'), 'smith:gems')],
+            [self::cb(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
@@ -144,7 +140,7 @@ final class TelegramKeyboards
         }
 
         $rows[] = [self::cb(__('shop.sell_btn'), 'shop:sell')];
-        $rows[] = [self::cb(__('telegram.city.btn_back'), 'city:blacksmith')];
+        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
 
         return self::inline($rows);
     }
@@ -170,6 +166,117 @@ final class TelegramKeyboards
             [self::cb(__('menu.gear'), 'menu:gear')],
             [self::cb(__('menu.back'), 'menu:home')],
         ]);
+    }
+
+    /**
+     * @param  list<list<array{text: string, callback_data: string, style?: string}>>  $rows
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function custom(array $rows): array
+    {
+        return self::keyboardRows($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagDiscardConfirm(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_confirm_yes'), 'bag:discard_yes:' . $bagItemId)],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagGemCard(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
+            [self::cb(__('menu.to_smith'), 'smith:gems')],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagPotionCard(int $bagItemId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
+            [self::cb(__('menu.bag'), 'menu:bag')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function invDiscardConfirm(int $rowId): array
+    {
+        return self::inline([
+            [self::cb(__('menu.discard_confirm_yes'), 'inv:discard_yes:' . $rowId)],
+            [self::cb(__('menu.backpack'), 'inv:card:' . $rowId)],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithBack(): array
+    {
+        return self::inline([
+            [self::cb(__('menu.smith'), 'menu:smith')],
+            [self::cb(__('menu.back'), 'menu:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithGemsNav(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.gems_btn'), 'smith:gems')],
+            [self::cb(__('menu.smith'), 'menu:smith')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithOnly(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.gems_btn'), 'smith:gems')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function smithVipNav(): array
+    {
+        return self::inline([
+            [self::cb(__('smith.vip_btn'), 'smith:vip')],
+            [self::cb(__('menu.smith'), 'menu:smith')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public static function fightEndMarkup(FightEndUiEnum $ui, Character $player): ?array
+    {
+        return match ($ui) {
+            FightEndUiEnum::None => null,
+            FightEndUiEnum::MainMenu => self::mainMenu(),
+            FightEndUiEnum::BackToCity => CityKeyboard::backToCity(),
+            FightEndUiEnum::StatsQuest => self::statsQuest($player),
+            FightEndUiEnum::Intro => self::intro(),
+        };
     }
 
     /**

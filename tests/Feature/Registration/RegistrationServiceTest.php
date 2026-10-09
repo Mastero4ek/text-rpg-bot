@@ -18,11 +18,11 @@ it('setNick validates and uniqueness', function (): void {
 
     $invalid = registration()->setNick($p1, 'ab');
     expect($invalid->ok)->toBeFalse()
-        ->and($invalid->error)->toBeIn(LangVariant::all('telegram.registration.errors.nick_invalid'));
+        ->and($invalid->error)->toBeIn(LangVariant::all('telegram.registration.error.nick_invalid'));
 
     $forbidden = registration()->setNick($p1, 'hero@me');
     expect($forbidden->ok)->toBeFalse()
-        ->and($forbidden->error)->toBeIn(LangVariant::all('telegram.registration.errors.nick_forbidden'));
+        ->and($forbidden->error)->toBeIn(LangVariant::all('telegram.registration.error.nick_forbidden'));
 
     $ok = registration()->setNick($p1, 'HeroOne');
     expect($ok->ok)->toBeTrue()
@@ -31,7 +31,7 @@ it('setNick validates and uniqueness', function (): void {
     $p2 = registration()->ensurePlayer(3052);
     $taken = registration()->setNick($p2, 'HeroOne');
     expect($taken->ok)->toBeFalse()
-        ->and($taken->error)->toBeIn(LangVariant::all('telegram.registration.errors.nick_taken'));
+        ->and($taken->error)->toBeIn(LangVariant::all('telegram.registration.error.nick_taken'));
 });
 
 it('setLocation only from enabled list', function (): void {

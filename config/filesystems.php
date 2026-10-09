@@ -43,7 +43,9 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => mb_rtrim(env('APP_URL', 'http://localhost'), '/') . '/storage',
+            // Relative so Filament/admin previews hit the same origin as the panel
+            // (composer dev on :8000 vs APP_URL=*.test). Override for CDN if needed.
+            'url' => env('FILESYSTEM_PUBLIC_URL', '/storage'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

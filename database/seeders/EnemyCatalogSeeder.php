@@ -8,6 +8,7 @@ use App\Enums\Enemy\EnemyKindEnum;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Enemy\EnemyDrop;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 final class EnemyCatalogSeeder extends Seeder
 {
@@ -17,10 +18,12 @@ final class EnemyCatalogSeeder extends Seeder
             $drops = $row['drops'];
             unset($row['drops']);
 
-            EnemyCatalog::query()->updateOrCreate(
+            $catalog = EnemyCatalog::query()->updateOrCreate(
                 ['catalog_id' => $row['catalog_id']],
                 $row,
             );
+
+            $this->attachImage($catalog);
 
             EnemyDrop::query()
                 ->where('enemy_catalog_id', $row['catalog_id'])
@@ -33,6 +36,25 @@ final class EnemyCatalogSeeder extends Seeder
                 $rowDrop->chance_pct = $drop['chance_pct'];
                 $rowDrop->save();
             }
+        }
+    }
+
+    private function attachImage(EnemyCatalog $catalog): void
+    {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = resource_path('images/telegram/enemy/' . $catalog->catalog_id . '.' . $ext);
+
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $catalog->clearMediaCollection('image');
+            $catalog->addMedia($path)
+                ->preservingOriginal()
+                ->withProperties(['uuid' => (string) Str::uuid()])
+                ->toMediaCollection('image');
+
+            return;
         }
     }
 

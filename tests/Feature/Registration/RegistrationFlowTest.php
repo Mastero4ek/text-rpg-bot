@@ -55,8 +55,8 @@ function registrationCallback(int $tgId, int $messageId, string $data): void
 function assertRegistrationEditHas(string $needle): void
 {
     Http::assertSent(function (Request $request) use ($needle): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], $needle);
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], $needle);
     });
 }
 
@@ -65,14 +65,14 @@ function assertRegistrationEditHasVariant(string $langKey): void
     $variants = LangVariant::all($langKey);
 
     Http::assertSent(function (Request $request) use ($variants): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
+        if (! str_contains($request->url(), '/editMessageCaption')) {
             return false;
         }
 
-        $text = (string) $request['text'];
+        $caption = (string) $request['caption'];
 
         foreach ($variants as $variant) {
-            if (str_contains($text, $variant)) {
+            if (str_contains($caption, $variant)) {
                 return true;
             }
         }
@@ -107,6 +107,12 @@ it('runs splash rise nick city happy path into intro', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::SPLASH)
         ->and($player->tg_message_id)->toBe(1);
 
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('telegram.registration.splash')))
+            && str_contains($request->body(), 'registration_rest.png');
+    });
+
     registrationWebhook([
         'update_id' => 52011,
         'callback_query' => [
@@ -116,7 +122,7 @@ it('runs splash rise nick city happy path into intro', function (): void {
             'message' => [
                 'message_id' => 1,
                 'chat' => ['id' => $tgId, 'type' => 'private'],
-                'text' => 'splash',
+                'caption' => 'splash',
             ],
         ],
     ]);
@@ -125,8 +131,9 @@ it('runs splash rise nick city happy path into intro', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::SET_NICK);
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], mb_trim(__('telegram.registration.ask_nick')));
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($request->body(), 'Капюшон надвинут — ты снова на ногах.')
+            && str_contains($request->body(), 'registration_up.png');
     });
 
     registrationWebhook([
@@ -162,20 +169,19 @@ it('runs splash rise nick city happy path into intro', function (): void {
         ->and($player->city_id)->toBe($city->id)
         ->and($player->birth_city_id)->toBe($city->id);
 
-    Http::assertSent(function (Request $request) use ($city): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], $city->name)
-            && str_contains((string) $request['text'], 'RegHero');
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/deleteMessage')
+            && (int) $request['message_id'] === 1;
     });
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], 'У ворот тебя останавливает');
-    });
+        if (str_contains($request->url(), '/sendPhoto')) {
+            return str_contains($request->body(), 'Чужая улица, чужой воздух.')
+                && str_contains($request->body(), 'training_attendant.png');
+        }
 
-    Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], 'RegHero');
+            && str_contains((string) $request['text'], 'Чужая улица, чужой воздух.');
     });
 });
 
@@ -193,7 +199,7 @@ it('edits nick screen on invalid nick and deletes user message', function (): vo
 
     assertDeletedMessage(21);
     assertRegistrationEditHas(mb_trim(__('telegram.registration.ask_nick')));
-    assertRegistrationEditHasVariant('telegram.registration.errors.nick_invalid');
+    assertRegistrationEditHasVariant('telegram.registration.error.nick_invalid');
 });
 
 it('rejects forbidden nick via webhook', function (): void {
@@ -209,7 +215,7 @@ it('rejects forbidden nick via webhook', function (): void {
         ->and($player->username)->toBeNull();
 
     assertDeletedMessage(22);
-    assertRegistrationEditHasVariant('telegram.registration.errors.nick_forbidden');
+    assertRegistrationEditHasVariant('telegram.registration.error.nick_forbidden');
 });
 
 it('rejects taken nick via webhook', function (): void {
@@ -227,7 +233,7 @@ it('rejects taken nick via webhook', function (): void {
         ->and($player->username)->toBeNull();
 
     assertDeletedMessage(23);
-    assertRegistrationEditHasVariant('telegram.registration.errors.nick_taken');
+    assertRegistrationEditHasVariant('telegram.registration.error.nick_taken');
 });
 
 it('keeps pending nick deletes across failed attempts', function (): void {
@@ -258,7 +264,7 @@ it('nudges splash when text arrives before rise', function (): void {
 
     assertDeletedMessage(30);
     assertRegistrationEditHas(mb_trim(__('telegram.registration.splash')));
-    assertRegistrationEditHasVariant('telegram.registration.errors.splash_need_rise');
+    assertRegistrationEditHasVariant('telegram.registration.error.splash_need_rise');
 });
 
 it('nudges city screen when text arrives instead of button', function (): void {
@@ -267,14 +273,14 @@ it('nudges city screen when text arrives instead of button', function (): void {
     $player = registration()->setNick($player, 'CityWait')->character;
     registration()->rememberTelegramMessage($player, $tgId, 99);
 
-    registrationText($tgId, 40, City::KEY_YASEN);
+    registrationText($tgId, 40, City::KEY_ANKRAT);
 
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::SET_CITY);
 
     assertDeletedMessage(40);
     assertRegistrationEditHas(mb_trim(__('telegram.registration.pick_city', ['name' => 'CityWait'])));
-    assertRegistrationEditHasVariant('telegram.registration.errors.pick_city_button');
+    assertRegistrationEditHasVariant('telegram.registration.error.pick_city_button');
 });
 
 it('rejects disabled city callback', function (): void {
@@ -294,7 +300,7 @@ it('rejects disabled city callback', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::SET_CITY)
         ->and($player->city_id)->toBeNull();
 
-    assertRegistrationEditHasVariant('telegram.registration.errors.pick_city_button');
+    assertRegistrationEditHasVariant('telegram.registration.error.pick_city_button');
 });
 
 it('rejects unknown city callback', function (): void {
@@ -309,7 +315,7 @@ it('rejects unknown city callback', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::SET_CITY)
         ->and($player->city_id)->toBeNull();
 
-    assertRegistrationEditHasVariant('telegram.registration.errors.pick_city_button');
+    assertRegistrationEditHasVariant('telegram.registration.error.pick_city_button');
 });
 
 it('nudges on wrong-step registration callbacks', function (ProgressStepEnum $step, string $data, string $errorKey, string $screen): void {
@@ -339,13 +345,13 @@ it('nudges on wrong-step registration callbacks', function (ProgressStepEnum $st
     assertRegistrationEditHas(mb_trim(__($screen, $step === ProgressStepEnum::SET_CITY ? ['name' => 'WrongCb' . $tgId] : [])));
     assertRegistrationEditHasVariant($errorKey);
 })->with([
-    [ProgressStepEnum::SPLASH, 'ob:back', 'telegram.registration.errors.splash_need_rise', 'telegram.registration.splash'],
-    [ProgressStepEnum::SPLASH, 'ob:city:yasen', 'telegram.registration.errors.splash_need_rise', 'telegram.registration.splash'],
-    [ProgressStepEnum::SPLASH, 'ob:intro_fight', 'telegram.registration.errors.splash_need_rise', 'telegram.registration.splash'],
-    [ProgressStepEnum::SET_NICK, 'ob:rise', 'telegram.registration.errors.nick_need_name', 'telegram.registration.ask_nick'],
-    [ProgressStepEnum::SET_NICK, 'ob:city:yasen', 'telegram.registration.errors.nick_need_name', 'telegram.registration.ask_nick'],
-    [ProgressStepEnum::SET_CITY, 'ob:rise', 'telegram.registration.errors.pick_city_button', 'telegram.registration.pick_city'],
-    [ProgressStepEnum::SET_CITY, 'ob:back', 'telegram.registration.errors.pick_city_button', 'telegram.registration.pick_city'],
+    [ProgressStepEnum::SPLASH, 'ob:back', 'telegram.registration.error.splash_need_rise', 'telegram.registration.splash'],
+    [ProgressStepEnum::SPLASH, 'ob:city:ankrat', 'telegram.registration.error.splash_need_rise', 'telegram.registration.splash'],
+    [ProgressStepEnum::SPLASH, 'ob:intro_fight', 'telegram.registration.error.splash_need_rise', 'telegram.registration.splash'],
+    [ProgressStepEnum::SET_NICK, 'ob:rise', 'telegram.registration.error.nick_need_name', 'telegram.registration.ask_nick'],
+    [ProgressStepEnum::SET_NICK, 'ob:city:ankrat', 'telegram.registration.error.nick_need_name', 'telegram.registration.ask_nick'],
+    [ProgressStepEnum::SET_CITY, 'ob:rise', 'telegram.registration.error.pick_city_button', 'telegram.registration.pick_city'],
+    [ProgressStepEnum::SET_CITY, 'ob:back', 'telegram.registration.error.pick_city_button', 'telegram.registration.pick_city'],
 ]);
 
 it('nudges mid-reg side-entry callbacks', function (string $data): void {
@@ -360,7 +366,7 @@ it('nudges mid-reg side-entry callbacks', function (string $data): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::SET_NICK);
 
     assertRegistrationEditHas(mb_trim(__('telegram.registration.ask_nick')));
-    assertRegistrationEditHasVariant('telegram.registration.errors.nick_need_name');
+    assertRegistrationEditHasVariant('telegram.registration.error.nick_need_name');
 })->with([
     'menu:profile',
     'city:home',
@@ -395,5 +401,9 @@ it('back to splash from nick via callback', function (): void {
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::SPLASH);
 
-    assertRegistrationEditHas(mb_trim(__('telegram.registration.splash')));
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($request->body(), 'Ты сидишь у обочины на выжженном тракте.')
+            && str_contains($request->body(), 'registration_rest.png');
+    });
 });

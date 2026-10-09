@@ -7,7 +7,7 @@ use App\Models\Backpack\BackpackItem;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\MenuHandler;
+use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\ShopHandler;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -85,7 +85,7 @@ it('discards backpack item through inv discard_yes callback', function (): void 
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -125,7 +125,7 @@ it('discards gem from bag through bag discard_yes callback', function (): void {
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );

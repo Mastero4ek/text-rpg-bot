@@ -56,9 +56,9 @@ it('processes /start and creates character', function (): void {
     });
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && ($request['parse_mode'] ?? null) === 'HTML'
-            && str_contains((string) $request['text'], mb_trim(__('telegram.registration.splash')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), 'parse_mode')
+            && str_contains($request->body(), mb_trim(__('telegram.registration.splash')));
     });
 });
 
@@ -91,8 +91,8 @@ it('set nick via text update', function (): void {
     });
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], 'HeroNick');
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], 'HeroNick');
     });
 });
 
@@ -129,8 +129,8 @@ it('starts tutorial fight from intro callback', function (): void {
         ->and(fights()->exists(4244))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_stance')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_stance')));
     });
 });
 
@@ -164,8 +164,8 @@ it('resumes tutorial fight wizard step on /start', function (): void {
         ->and(fights()->exists(4245))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_attack')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_attack')));
     });
 });
 
@@ -195,8 +195,8 @@ it('resumes tutorial defend step on /start', function (): void {
     ])->assertOk();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('combat.pick_defend')));
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('combat.pick_defend')));
     });
 });
 
@@ -226,20 +226,15 @@ it('resumes tutorial second defend excluding first zone on /start', function ():
     ])->assertOk();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
+        if (! str_contains($request->url(), '/sendPhoto')) {
             return false;
         }
 
-        $text = (string) $request['text'];
-        $markup = $request['reply_markup'];
+        $body = $request->body();
 
-        if (! is_string($markup)) {
-            return false;
-        }
-
-        return str_contains($text, mb_trim(__('combat.pick_defend_second')))
-            && str_contains($markup, 'fight:def:HEAD')
-            && ! str_contains($markup, 'fight:def:CHEST');
+        return str_contains($body, mb_trim(__('combat.pick_defend_second')))
+            && str_contains($body, 'fight:def:HEAD')
+            && ! str_contains($body, 'fight:def:CHEST');
     });
 });
 

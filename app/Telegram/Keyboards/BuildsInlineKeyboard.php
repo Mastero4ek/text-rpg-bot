@@ -10,6 +10,15 @@ trait BuildsInlineKeyboard
      * @param  list<list<array{text: string, callback_data: string, style?: string}>>  $rows
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    protected static function keyboardRows(array $rows): array
+    {
+        return self::inline($rows);
+    }
+
+    /**
+     * @param  list<list<array{text: string, callback_data: string, style?: string}>>  $rows
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     private static function inline(array $rows): array
     {
         return ['inline_keyboard' => $rows];

@@ -7,8 +7,12 @@ namespace App\Filament\Resources\Fights\Schemas;
 use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Filament\Support\CrossedSwordsIcon;
+use App\Models\Enemy\EnemyCatalog;
+use App\Models\Fight;
+use Closure;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Flex;
@@ -18,6 +22,10 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\VerticalAlignment;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class FightForm
 {
@@ -51,6 +59,18 @@ final class FightForm
                             ->columnSpanFull(),
                         Flex::make([
                             Group::make([
+                                self::portraitUpload(
+                                    'character_image',
+                                    function (SpatieMediaLibraryFileUpload $component) {
+                                        $fight = self::fightFromComponent($component);
+
+                                        if (! $fight instanceof Fight) {
+                                            return null;
+                                        }
+
+                                        return $fight->character;
+                                    },
+                                ),
                                 TextInput::make('character.username')
                                     ->label(__('admin.labels.username')),
                                 Group::make([
@@ -72,6 +92,24 @@ final class FightForm
                             Html::make(CrossedSwordsIcon::html())
                                 ->grow(false),
                             Group::make([
+                                self::portraitUpload(
+                                    'enemy_image',
+                                    function (SpatieMediaLibraryFileUpload $component): ?EnemyCatalog {
+                                        $fight = self::fightFromComponent($component);
+
+                                        if (! $fight instanceof Fight) {
+                                            return null;
+                                        }
+
+                                        $enemy = $fight->enemy;
+
+                                        if (! array_key_exists('catalogId', $enemy) || ! is_string($enemy['catalogId']) || $enemy['catalogId'] === '') {
+                                            return null;
+                                        }
+
+                                        return EnemyCatalog::query()->find($enemy['catalogId']);
+                                    },
+                                ),
                                 TextInput::make('enemy.name')
                                     ->label(__('admin.labels.enemy')),
                                 Group::make([
@@ -92,7 +130,7 @@ final class FightForm
                             ]),
                         ])
                             ->from('md')
-                            ->verticalAlignment(VerticalAlignment::Center)
+                            ->verticalAlignment(VerticalAlignment::Start)
                             ->columnSpanFull(),
                     ]),
                 Section::make(__('admin.sections.fight_log'))
@@ -122,5 +160,53 @@ final class FightForm
                             ->dehydrated(false),
                     ]),
             ]);
+    }
+
+    private static function fightFromComponent(SpatieMediaLibraryFileUpload $component): ?Fight
+    {
+        $record = $component->getContainer()->getRecord();
+
+        if (! $record instanceof Fight) {
+            return null;
+        }
+
+        return $record;
+    }
+
+    private static function portraitUpload(string $name, Closure $model): SpatieMediaLibraryFileUpload
+    {
+        return SpatieMediaLibraryFileUpload::make($name)
+            ->label(__('admin.labels.image'))
+            ->collection('image')
+            ->image()
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->maxFiles(1)
+            ->model($model)
+            ->loadStateFromRelationshipsUsing(static function (SpatieMediaLibraryFileUpload $component): void {
+                $record = $component->getRecord();
+
+                if (! $record instanceof HasMedia) {
+                    return;
+                }
+
+                /** @var Model&HasMedia $record */
+                $media = $record->load('media')->getMedia($component->getCollection() ?? 'default')
+                    ->when(
+                        $component->hasMediaFilter(),
+                        fn (Collection $media): Collection => $component->filterMedia($media),
+                    )
+                    ->unless(
+                        $component->isMultiple(),
+                        fn (Collection $media): Collection => $media->take(1),
+                    )
+                    ->mapWithKeys(function (Media $media): array {
+                        $uuid = $media->getAttributeValue('uuid');
+
+                        return [$uuid => $uuid];
+                    })
+                    ->toArray();
+
+                $component->rawState($media);
+            });
     }
 }

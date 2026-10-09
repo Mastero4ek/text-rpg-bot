@@ -23,7 +23,7 @@ it('blocks buy and add when backpack rows are full', function (): void {
     $p = characters()->createDraft(6302);
     $p->backpack_max_rows = 1;
     $p->silver = 999;
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     backpack()->addItem($p->tg_id, 'knife_0');
 
@@ -40,7 +40,7 @@ it('does not count equipped loadout rows toward backpack capacity', function ():
     $p = characters()->createDraft(6303);
     $p->backpack_max_rows = 1;
     $p->silver = 999;
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     backpack()->addItem($p->tg_id, 'knife_0');
     $knife = backpack()->findOwned($p->tg_id, 'knife_0');
@@ -83,7 +83,7 @@ it('allows potion stacking into an existing stack when bag has space via stack',
     $p->bag_max_rows = 1;
     $p->backpack_max_rows = 1;
     $p->silver = 999;
-    $p = placeInCity($p, App\Models\City::KEY_YASEN);
+    $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     backpack()->addItem($p->tg_id, 'knife_0');
     expect(backpack()->isFull($p))->toBeTrue();

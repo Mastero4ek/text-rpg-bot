@@ -23,7 +23,7 @@ beforeEach(function (): void {
 it('does not start a fight from menu:fight', function (): void {
     $p = characters()->createDraft(9120);
     $p->progress_step = ProgressStepEnum::DONE;
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     app(MenuHandler::class)->handleCallback(
         cityCallback($p->tg_id, 'menu:fight'),
@@ -33,28 +33,48 @@ it('does not start a fight from menu:fight', function (): void {
     expect(fights()->exists($p->tg_id))->toBeFalse();
 });
 
-it('starts hall fight with wooden_soldier without forest pivot', function (): void {
-    EnemyCatalog::query()->findOrFail(EnemyCatalog::TUTORIAL_CATALOG_ID)->cities()->sync([]);
+it('opens training pick then starts hall fight without forest pivot', function (): void {
+    $soldier = EnemyCatalog::query()->findOrFail(EnemyCatalog::TUTORIAL_CATALOG_ID);
+    $soldier->cities()->sync([]);
+    $kurgan = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+    $soldier->trainingCities()->sync([$kurgan->id]);
+
     $p = characters()->createDraft(9121);
     $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'Hall';
-    $p = placeInCity($p, City::KEY_KURGAN);
+    $p = placeInCity($p, City::KEY_ELDWOOD);
 
     app(CityHandler::class)->handleCallback(
         cityCallback($p->tg_id, 'city:training'),
         new TelegramResponder(app(TelegramClient::class), cityCallback($p->tg_id, 'city:training')),
     );
 
+    expect(fights()->exists($p->tg_id))->toBeFalse();
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageText')
+            && ($request['text'] ?? null) === __('telegram.location.training')
+            && str_contains((string) $request['reply_markup'], 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID);
+    });
+
+    app(CityHandler::class)->handleCallback(
+        cityCallback($p->tg_id, 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID),
+        new TelegramResponder(
+            app(TelegramClient::class),
+            cityCallback($p->tg_id, 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID),
+        ),
+    );
+
     expect(fights()->exists($p->tg_id))->toBeTrue()
         ->and(fights()->enemy(fights()->findByTgId($p->tg_id))->catalogId)->toBe(EnemyCatalog::TUTORIAL_CATALOG_ID)
-        ->and(fights()->findByTgId($p->tg_id)->tutorial)->toBeFalse();
+        ->and(fights()->findByTgId($p->tg_id)->tutorial)->toBeFalse()
+        ->and(fights()->findByTgId($p->tg_id)->hall)->toBeTrue();
 });
 
 it('does not wear gear or break gems after hall win', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(9122));
     $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'HallWin';
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p = placeInCity($p, City::KEY_ANKRAT);
     $p = grantGem($p, 'ruby_0', 1);
     $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
     $socket = bag()->socket($p, $knuckles->id, looseGem($p, 'ruby_0')->id);
@@ -65,7 +85,7 @@ it('does not wear gear or break gems after hall win', function (): void {
     $knuckles->save();
     $durability = $knuckles->durability;
 
-    $fight = fights()->createTraining($p, woodenSoldier($p));
+    $fight = fights()->createHall($p, woodenSoldier($p));
     $enemy = $fight->enemy;
     $enemy['current_hp'] = 0;
     $fight->enemy = $enemy;
@@ -88,7 +108,7 @@ it('does not wear gear or break gems after hall win', function (): void {
 it('shows arena submenu without creating a fight', function (): void {
     $p = characters()->createDraft(9123);
     $p->progress_step = ProgressStepEnum::DONE;
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     app(CityHandler::class)->handleCallback(
         cityCallback($p->tg_id, 'city:arena'),
@@ -97,16 +117,26 @@ it('shows arena submenu without creating a fight', function (): void {
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && ($request['text'] ?? null) === __('telegram.city.arena');
+        $arena = __('telegram.location.arena');
+
+        if (str_contains($request->url(), '/editMessageMedia')) {
+            return str_contains($request->body(), str_replace("\n", '\\n', $arena))
+                || str_contains($request->body(), $arena);
+        }
+
+        return (str_contains($request->url(), '/editMessageText')
+                || str_contains($request->url(), '/editMessageCaption'))
+            && (($request['text'] ?? $request['caption'] ?? null) === $arena);
     });
 });
 
-it('sends personal reply keyboard after done /start', function (): void {
+it('resumes home panel on done /start without welcome message', function (): void {
     $p = characters()->createDraft(9124);
     $p->username = 'DoneHero';
     $p->progress_step = ProgressStepEnum::DONE;
-    $p = placeInCity($p, City::KEY_YASEN);
+    $p->tg_chat_id = $p->tg_id;
+    $p->tg_message_id = 9;
+    $p = placeInCity($p, City::KEY_ANKRAT);
 
     $update = new TelegramUpdate([
         'update_id' => 9124,
@@ -123,18 +153,14 @@ it('sends personal reply keyboard after done /start', function (): void {
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
+    Http::assertNotSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendMessage')
+            && str_contains((string) ($request['text'] ?? ''), 'С возвращением');
+    });
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
-            return false;
-        }
-
-        $markup = $request['reply_markup'] ?? '';
-
-        if (! is_string($markup)) {
-            return false;
-        }
-
-        return str_contains($markup, 'remove_keyboard');
+        return str_contains($request->url(), '/editMessageMedia')
+            || str_contains($request->url(), '/editMessageCaption')
+            || str_contains($request->url(), '/editMessageText');
     });
 });
 
@@ -155,18 +181,14 @@ it('sends splash keyboard on registration start', function (): void {
     );
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
+        if (! str_contains($request->url(), '/sendPhoto')) {
             return false;
         }
 
-        $markup = $request['reply_markup'] ?? '';
+        $body = $request->body();
 
-        if (! is_string($markup)) {
-            return false;
-        }
-
-        return str_contains($markup, 'ob:rise')
-            && str_contains((string) $request['text'], mb_trim(__('telegram.registration.splash')));
+        return str_contains($body, 'ob:rise')
+            && str_contains($body, mb_trim(__('telegram.registration.splash')));
     });
 });
 

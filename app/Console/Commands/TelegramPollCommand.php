@@ -8,6 +8,7 @@ use App\Services\BotCommandsSync;
 use App\Support\Telegram\TelegramClient;
 use App\Telegram\UpdateProcessor;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Sleep;
 use Throwable;
 
@@ -48,7 +49,12 @@ final class TelegramPollCommand extends Command
         }
 
         $this->info('Polling Telegram updates…');
-        $offset = 0;
+        $offset = Cache::get('telegram:poll_offset', 0);
+
+        if (! is_int($offset)) {
+            $offset = 0;
+        }
+
         $timeout = config('bot.poll_timeout');
 
         if (! is_int($timeout)) {
@@ -64,6 +70,7 @@ final class TelegramPollCommand extends Command
                 foreach ($updates as $update) {
                     if (array_key_exists('update_id', $update) && is_int($update['update_id'])) {
                         $offset = $update['update_id'] + 1;
+                        Cache::forever('telegram:poll_offset', $offset);
                     }
 
                     $processor->handle($update);

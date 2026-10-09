@@ -55,7 +55,7 @@ return [
     'win' => "\n\nПобеда! +:exp опыта, +:silver🪙",
     'drop' => "\nДобыча: :names",
     'enemy_menu_fixed' => ':name [:level]',
-    'enemy_menu_mirror' => ':name [ур. :level]',
+    'enemy_menu_mirror' => ':name [:level]',
     'lose' => "\n\nПоражение. Жди реген или купи зелье.",
     'gear_broke' => "\n\nСломалось: :names. Кузнец починит.",
     'gems_broke' => "\n\nКамни разрушены: :names.",
@@ -64,6 +64,6 @@ return [
     'btn_potion' => '🧪 Зелье HP (вместо удара)',
     'btn_stamina_potion' => '💚 Зелье выносливости (вместо удара)',
     'btn_soldier' => 'Деревянный солдат [0]',
-    'btn_wanderer' => 'Случайный бродяга [ур. :level]',
+    'btn_wanderer' => 'Случайный бродяга [:level]',
     'pick_enemy' => 'Выбери противника:',
 ];

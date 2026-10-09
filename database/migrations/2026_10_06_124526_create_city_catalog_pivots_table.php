@@ -30,10 +30,18 @@ return new class extends Migration
             $table->foreign('enemy_catalog_id')->references('catalog_id')->on('enemy_catalog')->cascadeOnDelete();
             $table->primary(['city_id', 'enemy_catalog_id']);
         });
+
+        Schema::create('city_training_enemy_catalog', function (Blueprint $table) {
+            $table->foreignId('city_id')->constrained('cities')->cascadeOnDelete();
+            $table->string('enemy_catalog_id');
+            $table->foreign('enemy_catalog_id')->references('catalog_id')->on('enemy_catalog')->cascadeOnDelete();
+            $table->primary(['city_id', 'enemy_catalog_id']);
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('city_training_enemy_catalog');
         Schema::dropIfExists('city_enemy_catalog');
         Schema::dropIfExists('city_bag_catalog');
         Schema::dropIfExists('city_backpack_catalog');

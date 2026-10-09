@@ -13,7 +13,7 @@ use App\Services\Backpack\LoadoutService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Handlers\MenuHandler;
+use App\Telegram\Handlers\InventoryHandler;
 use Illuminate\Support\Facades\Http;
 
 it('renders gear text with damage range broken slot and totals', function (): void {
@@ -87,7 +87,7 @@ it('builds item card with damage range durability and empty gem socket', functio
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
@@ -232,7 +232,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
 
     // stance DEFEND, enemyAtk HEAD, enemyDef HEAD, weapon roll, pierce hit, pierce mult
     fakeRandom([0.0, 0.0, 0.0, 0.0, 0.0, 0.5]);
-    app(App\Services\Fight\FightRoundService::class)->resolve($p);
+    app(App\Services\Fight\FightRoundService::class)->runRound($p);
     $fight->refresh();
     expect($fight->pierce_count)->toBe(1);
 
@@ -244,7 +244,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
 
     // stance DEFEND, enemyAtk HEAD, enemyDef LEGS (open hit), weapon roll, dodge miss, variance
     fakeRandom([0.0, 0.0, 0.75, 0.0, 0.99, 0.5]);
-    app(App\Services\Fight\FightRoundService::class)->resolve(characters()->findByTgId($p->tg_id));
+    app(App\Services\Fight\FightRoundService::class)->runRound(characters()->findByTgId($p->tg_id));
     $fight->refresh();
     expect($fight->pierce_count)->toBe(1);
 
@@ -288,7 +288,7 @@ it('shows gear screen broken line through menu callback', function (): void {
         ],
     ]);
 
-    app(MenuHandler::class)->handleCallback(
+    app(InventoryHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );

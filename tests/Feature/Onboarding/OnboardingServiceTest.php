@@ -67,8 +67,8 @@ it('stats equip shop free club full path', function (): void {
 
 it('graduates from each seed city via trainer club', function (string $cityKey): void {
     $p = registration()->ensurePlayer(match ($cityKey) {
-        App\Models\City::KEY_YASEN => 3010,
-        App\Models\City::KEY_KURGAN => 3011,
+        App\Models\City::KEY_ANKRAT => 3010,
+        App\Models\City::KEY_ELDWOOD => 3011,
         default => 3012,
     });
     $p = registration()->setNick($p, 'Grad' . $cityKey)->character;
@@ -89,9 +89,9 @@ it('graduates from each seed city via trainer club', function (string $cityKey):
         ->and($res->character->city_id)->toBe(App\Models\City::query()->where('key', $cityKey)->value('id'))
         ->and($res->character->birth_city_id)->toBe($res->character->city_id);
 })->with([
-    App\Models\City::KEY_YASEN,
-    App\Models\City::KEY_KURGAN,
-    App\Models\City::KEY_LIMAN,
+    App\Models\City::KEY_ANKRAT,
+    App\Models\City::KEY_ELDWOOD,
+    App\Models\City::KEY_THORNBREAK,
 ]);
 
 it('stepHint covers known onboarding steps', function (): void {

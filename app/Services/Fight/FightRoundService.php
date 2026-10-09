@@ -34,7 +34,7 @@ final class FightRoundService
         private readonly LoadoutService $loadout,
     ) {}
 
-    public function resolve(Character $player): FightRoundOutcome
+    public function runRound(Character $player): FightRoundOutcome
     {
         return DB::transaction(function () use ($player): FightRoundOutcome {
             $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
@@ -53,11 +53,11 @@ final class FightRoundService
                 return FightRoundOutcome::missing();
             }
 
-            return $this->runResolve($fresh, $fight, false);
+            return $this->applyRound($fresh, $fight, false);
         });
     }
 
-    public function resolveSkip(Character $player): FightRoundOutcome
+    public function runSkipRound(Character $player): FightRoundOutcome
     {
         return DB::transaction(function () use ($player): FightRoundOutcome {
             $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
@@ -80,11 +80,11 @@ final class FightRoundService
                 return FightRoundOutcome::continueFight($fresh, $fight);
             }
 
-            return $this->runResolve($fresh, $fight, true);
+            return $this->applyRound($fresh, $fight, true);
         });
     }
 
-    private function runResolve(Character $fresh, Fight $fight, bool $skip): FightRoundOutcome
+    private function applyRound(Character $fresh, Fight $fight, bool $skip): FightRoundOutcome
     {
         $enemy = $this->fights->enemy($fight);
         $enemy = $enemy->withStance($this->combat->randomStance());

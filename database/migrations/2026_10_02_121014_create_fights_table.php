@@ -15,6 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tg_id')->primary();
             $table->string('kind')->default(FightKindEnum::PVE->value);
             $table->boolean('tutorial');
+            $table->boolean('hall')->default(false);
             $table->integer('player_hp');
             $table->integer('player_max_hp');
             $table->integer('player_stamina')->default(0);

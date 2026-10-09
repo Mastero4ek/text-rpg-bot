@@ -73,6 +73,8 @@ return [
         'birth_city' => 'Город рождения',
         'birth_characters' => 'Персонажи',
         'cities' => 'Города',
+        'forest' => 'Лес',
+        'training_hall' => 'Тренировочный зал',
         'no_cities' => 'нет городов',
         'city_key' => 'Код',
         'portal_cost_silver' => 'Цена портала',
@@ -285,6 +287,12 @@ return [
         'all_cities' => [
             'label' => 'Все города',
         ],
+        'all_forest_cities' => [
+            'label' => 'Все города',
+        ],
+        'all_training_cities' => [
+            'label' => 'Все города',
+        ],
         'archive' => [
             'label' => 'Архивировать',
             'modal_heading' => 'Архивировать :label',
@@ -420,6 +428,7 @@ return [
         'max_stamina' => 'Макс. выносливость. Ап strength добавляет maxPerStrength.',
         'currency' => 'Валюта цены: серебро или золото. Золото = VIP-витрина (без отдельного флага).',
         'description' => 'Текст для игрока в карточке предмета. Необязательно.',
+        'city_description' => 'Caption обычного дома в Telegram (DONE). HTML: <i>, <b>. Перенос — Enter или \\n. Пусто — fallback telegram.city.you_are_in.',
         'durability_loss_per_fight' => 'Сколько прочности снимается за один бой. Целое ≥ 0. Пусто — без износа.',
         'effect_value' => 'Для зелья HEAL — сколько HP; для STAMINA — сколько выносливости. Целое ≥ 0.',
         'enabled' => 'Мастер-выключатель каталога. Выкл — предмет не продаётся нигде; уже выданные экземпляры у игроков остаются.',

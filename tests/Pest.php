@@ -10,6 +10,7 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->beforeEach(function (): void {
+    Illuminate\Support\Facades\Cache::flush();
     $this->seed(Database\Seeders\BackpackCatalogSeeder::class);
     $this->seed(Database\Seeders\BagCatalogSeeder::class);
     $this->seed(Database\Seeders\EnemyCatalogSeeder::class);

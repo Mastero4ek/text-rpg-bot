@@ -4,57 +4,38 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
-use App\Actions\Backpack\BackpackApplyFightWearAction;
-use App\Actions\Bag\BagGemBreakOnLoseAction;
-use App\Actions\Enemy\EnemyApplyWinLootAction;
-use App\Actions\Fight\FightClearAction;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
-use App\Enums\Equipment\ProfileEnum;
-use App\Enums\Fight\FightStepEnum;
-use App\Enums\Fight\PlayerAttackEnum;
-use App\Enums\ProgressStepEnum;
+use App\Enums\Fight\FightEndUiEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Queries\City\CityQuery;
-use App\Services\Backpack\LoadoutService;
-use App\Services\Bag\BagService;
-use App\Services\CharacterService;
 use App\Services\EnemyService;
+use App\Services\Fight\FightEndResult;
+use App\Services\Fight\FightEndService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
-use App\Services\GameConfig;
-use App\Services\Onboarding\OnboardingService;
-use App\Services\Registration\RegistrationFlow;
-use App\Support\Telegram\FightStatusFormatter;
-use App\Support\Telegram\TelegramHtml;
+use App\Services\Fight\FightStatusFormatter;
+use App\Services\Fight\FightTurnCommit;
+use App\Services\Fight\FightTurnService;
+use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
-use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 final class FightHandler
 {
     public function __construct(
-        private readonly CharacterService $characters,
         private readonly EnemyService $enemies,
-        private readonly FightClearAction $clearFight,
         private readonly FightService $fights,
         private readonly FightRoundService $rounds,
-        private readonly BagService $bag,
-        private readonly BackpackApplyFightWearAction $fightWear,
-        private readonly BagGemBreakOnLoseAction $breakGems,
-        private readonly EnemyApplyWinLootAction $winLoot,
-        private readonly LoadoutService $loadout,
-        private readonly OnboardingService $onboarding,
-        private readonly RegistrationFlow $registration,
-        private readonly GameConfig $config,
+        private readonly FightTurnService $turns,
+        private readonly FightEndService $ends,
         private readonly FightStatusFormatter $fightStatus,
         private readonly CityQuery $cityQuery,
+        private readonly TelegramPlayerGate $gate,
     ) {}
 
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
@@ -108,20 +89,20 @@ final class FightHandler
             return false;
         }
 
-        $outcome = $this->rounds->resolveSkip($player);
+        $outcome = $this->rounds->runSkipRound($player);
 
         if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
             return true;
         }
 
         if ($outcome->kind === 'win') {
-            $this->endFight($responder, $outcome->character, $outcome->fight, true);
+            $this->applyEnd($responder, $this->ends->finishWin($outcome->character, $outcome->fight));
 
             return true;
         }
 
         if ($outcome->kind === 'lose') {
-            $this->endFight($responder, $outcome->character, $outcome->fight, false);
+            $this->applyEnd($responder, $this->ends->finishLose($outcome->character, $outcome->fight));
 
             return true;
         }
@@ -134,238 +115,125 @@ final class FightHandler
         return true;
     }
 
-    private function persistFightMessage(TelegramUpdate $update, Fight $fight): void
-    {
-        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
-    }
-
     private function stance(TelegramUpdate $update, TelegramResponder $responder, StanceEnum $stance): void
     {
-        $saved = DB::transaction(function () use ($update, $stance): ?array {
-            $player = Character::query()->find($update->userId());
+        $commit = $this->turns->commitStance($update->userId(), $stance);
 
-            if ($player === null || ! $this->fights->exists($player->tg_id)) {
-                return null;
-            }
-
-            $fight = $this->fights->findByTgId($player->tg_id);
-
-            if ($fight->step !== FightStepEnum::STANCE) {
-                return null;
-            }
-
-            $fight->use_potion = false;
-            $fight->player_stance = $stance;
-            $fight->step = FightStepEnum::ATTACK;
-            $this->fights->save($fight);
-
-            return ['player' => $player, 'fight' => $fight];
-        });
-
-        if ($saved === null) {
+        if ($commit->kind !== 'attack' || ! $commit->character instanceof Character || ! $commit->fight instanceof Fight) {
             return;
         }
 
-        /** @var Character $player */
-        $player = $saved['player'];
-        /** @var Fight $fight */
-        $fight = $saved['fight'];
-
-        $keyboard = TelegramKeyboards::attack($this->availablePotionAttacks($player, $fight));
-
-        $this->persistFightMessage($update, $fight);
+        $this->fights->rememberTelegramMessage($commit->fight, $update->chatId(), $update->messageId());
         $responder->edit(
-            $this->fightStatus->format($fight, $player->username) . __('combat.pick_attack'),
-            $keyboard,
+            $this->fightStatus->format($commit->fight, $commit->character->username) . __('combat.pick_attack'),
+            TelegramKeyboards::attack(
+                $this->turns->availablePotionAttacks($commit->character, $commit->fight->tutorial),
+            ),
         );
     }
 
     private function attack(TelegramUpdate $update, TelegramResponder $responder, string $choice): void
     {
-        $saved = DB::transaction(function () use ($update, $choice): ?array {
-            $player = Character::query()->find($update->userId());
+        $commit = $this->turns->commitAttack($update->userId(), $choice);
 
-            if ($player === null || ! $this->fights->exists($player->tg_id)) {
-                return null;
-            }
-
-            $fight = $this->fights->findByTgId($player->tg_id);
-
-            if ($fight->step === FightStepEnum::ATTACK_SECOND) {
-                if ($choice === 'POTION' || $choice === 'STAMINA_POTION') {
-                    return null;
-                }
-
-                $fight->player_attack_second = PlayerAttackEnum::from($choice);
-                $fight->step = FightStepEnum::DEFEND;
-                $this->fights->save($fight);
-
-                return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
-            }
-
-            if ($fight->step !== FightStepEnum::ATTACK) {
-                return null;
-            }
-
-            if ($choice === 'POTION' || $choice === 'STAMINA_POTION') {
-                $attack = PlayerAttackEnum::from($choice);
-
-                if ($fight->tutorial || ! $this->canUsePotionAttack($player, $attack)) {
-                    return ['kind' => 'potion_denied'];
-                }
-
-                $fight->use_potion = true;
-                $fight->player_attack = $attack;
-                $fight->player_attack_second = null;
-                $fight->step = FightStepEnum::DEFEND;
-                $this->fights->save($fight);
-
-                return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
-            }
-
-            $fight->use_potion = false;
-            $fight->player_attack = PlayerAttackEnum::from($choice);
-            $fight->player_attack_second = null;
-
-            $loadout = $this->loadout->forCharacter($player);
-
-            if ($loadout->attackSlots >= 2) {
-                $fight->step = FightStepEnum::ATTACK_SECOND;
-                $this->fights->save($fight);
-
-                return ['kind' => 'second', 'player' => $player, 'fight' => $fight];
-            }
-
-            $fight->step = FightStepEnum::DEFEND;
-            $this->fights->save($fight);
-
-            return ['kind' => 'defend', 'player' => $player, 'fight' => $fight];
-        });
-
-        if ($saved === null) {
+        if ($commit->kind === 'noop') {
             return;
         }
 
-        if ($saved['kind'] === 'potion_denied') {
+        if ($commit->kind === 'potion_denied') {
             $responder->reply(__('errors.potion_unavailable'), null);
 
             return;
         }
 
-        /** @var Character $player */
-        $player = $saved['player'];
-        /** @var Fight $fight */
-        $fight = $saved['fight'];
+        if (! $commit->character instanceof Character || ! $commit->fight instanceof Fight) {
+            return;
+        }
 
-        if ($saved['kind'] === 'second') {
-            $this->persistFightMessage($update, $fight);
+        $this->showAttackCommit($update, $responder, $commit);
+    }
+
+    private function showAttackCommit(
+        TelegramUpdate $update,
+        TelegramResponder $responder,
+        FightTurnCommit $commit,
+    ): void {
+        if (! $commit->character instanceof Character || ! $commit->fight instanceof Fight) {
+            return;
+        }
+
+        $this->fights->rememberTelegramMessage($commit->fight, $update->chatId(), $update->messageId());
+
+        if ($commit->kind === 'attack_second') {
             $responder->edit(
-                $this->fightStatus->format($fight, $player->username) . __('combat.pick_attack_second'),
+                $this->fightStatus->format($commit->fight, $commit->character->username) . __('combat.pick_attack_second'),
                 TelegramKeyboards::attackWithoutPotion(),
             );
 
             return;
         }
 
-        if ($fight->use_potion) {
+        if ($commit->fight->use_potion) {
             $prompt = __('combat.potion_then_defend');
         } else {
             $prompt = __('combat.pick_defend');
         }
 
-        $this->persistFightMessage($update, $fight);
         $responder->edit(
-            $this->fightStatus->format($fight, $player->username) . $prompt,
+            $this->fightStatus->format($commit->fight, $commit->character->username) . $prompt,
             TelegramKeyboards::defend(),
         );
     }
 
     private function defend(TelegramUpdate $update, TelegramResponder $responder, ZoneEnum $zone): void
     {
-        $saved = DB::transaction(function () use ($update, $zone): ?array {
-            $player = Character::query()->find($update->userId());
+        $commit = $this->turns->commitDefend($update->userId(), $zone);
 
-            if ($player === null || ! $this->fights->exists($player->tg_id)) {
-                return null;
-            }
-
-            $fight = $this->fights->findByTgId($player->tg_id);
-
-            if ($fight->step === FightStepEnum::DEFEND) {
-                $fight->player_defend = $zone;
-                $fight->player_defend_second = null;
-
-                $loadout = $this->loadout->forCharacter($player);
-
-                if ($loadout->blockSlots >= 2) {
-                    $fight->step = FightStepEnum::DEFEND_SECOND;
-                    $this->fights->save($fight);
-
-                    return [
-                        'kind' => 'second',
-                        'player' => $player,
-                        'fight' => $fight,
-                        'first' => $zone,
-                    ];
-                }
-
-                $this->fights->save($fight);
-
-                return ['kind' => 'resolve', 'player' => $player];
-            }
-
-            if ($fight->step !== FightStepEnum::DEFEND_SECOND) {
-                return null;
-            }
-
-            if ($fight->player_defend === $zone) {
-                return null;
-            }
-
-            $fight->player_defend_second = $zone;
-            $this->fights->save($fight);
-
-            return ['kind' => 'resolve', 'player' => $player];
-        });
-
-        if ($saved === null) {
+        if ($commit->kind === 'noop') {
             return;
         }
 
-        if ($saved['kind'] === 'second') {
-            /** @var Character $player */
-            $player = $saved['player'];
-            /** @var Fight $fight */
-            $fight = $saved['fight'];
-            /** @var ZoneEnum $first */
-            $first = $saved['first'];
+        if ($commit->kind === 'defend_second') {
+            if (
+                ! $commit->character instanceof Character
+                || ! $commit->fight instanceof Fight
+                || ! $commit->firstDefend instanceof ZoneEnum
+            ) {
+                return;
+            }
 
-            $this->persistFightMessage($update, $fight);
+            $this->fights->rememberTelegramMessage($commit->fight, $update->chatId(), $update->messageId());
             $responder->edit(
-                $this->fightStatus->format($fight, $player->username) . __('combat.pick_defend_second'),
-                TelegramKeyboards::defendExcluding($first),
+                $this->fightStatus->format($commit->fight, $commit->character->username) . __('combat.pick_defend_second'),
+                TelegramKeyboards::defendExcluding($commit->firstDefend),
             );
 
             return;
         }
 
-        /** @var Character $player */
-        $player = $saved['player'];
-        $this->persistFightMessage($update, $this->fights->findByTgId($player->tg_id));
-        $outcome = $this->rounds->resolve($player);
+        if ($commit->kind !== 'run_round' || ! $commit->character instanceof Character) {
+            return;
+        }
+
+        $this->fights->rememberTelegramMessage(
+            $this->fights->findByTgId($commit->character->tg_id),
+            $update->chatId(),
+            $update->messageId(),
+        );
+        $outcome = $this->rounds->runRound($commit->character);
 
         if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
             return;
         }
 
         if ($outcome->kind === 'win') {
-            $this->endFight($responder, $outcome->character, $outcome->fight, true);
+            $this->applyEnd($responder, $this->ends->finishWin($outcome->character, $outcome->fight));
 
             return;
         }
 
         if ($outcome->kind === 'lose') {
-            $this->endFight($responder, $outcome->character, $outcome->fight, false);
+            $this->applyEnd($responder, $this->ends->finishLose($outcome->character, $outcome->fight));
 
             return;
         }
@@ -376,11 +244,28 @@ final class FightHandler
         );
     }
 
+    private function applyEnd(TelegramResponder $responder, FightEndResult $result): void
+    {
+        $responder->edit(
+            $result->editText,
+            TelegramKeyboards::fightEndMarkup($result->editUi, $result->character),
+        );
+
+        if ($result->replyText === null || $result->replyUi === FightEndUiEnum::None) {
+            return;
+        }
+
+        $responder->reply(
+            $result->replyText,
+            TelegramKeyboards::fightEndMarkup($result->replyUi, $result->character),
+        );
+    }
+
     private function startFight(TelegramUpdate $update, TelegramResponder $responder, string $catalogId): void
     {
-        $player = $this->requireDone($update, $responder);
+        $player = $this->gate->requireCityPlayer($update, $responder);
 
-        if (! $player instanceof Character) {
+        if ($player === false) {
             return;
         }
 
@@ -420,266 +305,16 @@ final class FightHandler
 
         $enemy = $this->enemies->makeFromCatalog($catalog, $player);
         $fight = $this->fights->createTraining($player, $enemy);
-        $messageId = $responder->reply(
-            $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
-            TelegramKeyboards::stance(),
-        );
+        $text = $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance');
+        $markup = TelegramKeyboards::stance();
+        $imagePath = $catalog->localImagePath();
+
+        if ($imagePath !== null) {
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+        } else {
+            $messageId = $responder->reply($text, $markup);
+        }
+
         $this->fights->rememberTelegramMessage($fight, $update->chatId(), $messageId);
-    }
-
-    private function endFight(
-        TelegramResponder $responder,
-        Character $player,
-        Fight $fight,
-        bool $won,
-    ): void {
-        $text = $this->fightStatus->format($fight, $player->username);
-
-        if ($fight->tutorial) {
-            if ($won) {
-                $player = $this->onboarding->onTutorialWin($player);
-                $this->clearFight->handle($player->tg_id);
-                $reward = $this->tutorialReward();
-                $responder->edit(
-                    $text . __('onboarding.tutorial_win', [
-                        'exp' => $reward['exp'],
-                        'silver' => $reward['silver'],
-                    ]),
-                    null,
-                );
-                $responder->reply(
-                    $this->onboarding->statsQuestText($player),
-                    TelegramKeyboards::statsQuest($player),
-                );
-
-                return;
-            }
-
-            $player = $this->onboarding->onTutorialLose($player);
-            $this->clearFight->handle($player->tg_id);
-            $responder->edit($text . __('onboarding.tutorial_lose'), null);
-            $responder->reply($this->onboarding->introText(), TelegramKeyboards::intro());
-            $player->progress_step = ProgressStepEnum::INTRO;
-            $player->save();
-
-            return;
-        }
-
-        if ($this->isHallFight($fight)) {
-            $this->endHallFight($responder, $player, $fight, $won, $text);
-
-            return;
-        }
-
-        $pierceCount = $fight->pierce_count;
-
-        if ($won) {
-            $broken = $this->fightWear->handleAfterWin($player, $pierceCount);
-            $player = $this->characters->findByTgId($player->tg_id);
-            $brokeSuffix = $this->brokenGearSuffix($broken);
-            $enemy = $this->fights->enemy($fight);
-            $loot = $this->winLoot->handle($player, $enemy);
-            $player = $this->characters->findByTgId($player->tg_id);
-            $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
-            $player->current_stamina = $this->characters->clampStamina(
-                $fight->player_stamina,
-                $this->characters->maxStamina($player),
-            );
-            $player->last_stamina_update = now();
-            $player->save();
-            $this->clearFight->handle($player->tg_id);
-            $responder->edit(
-                $text . __('combat.win', [
-                    'exp' => $loot['exp'],
-                    'silver' => $loot['silver'],
-                ]) . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
-                TelegramKeyboards::mainMenu(),
-            );
-
-            return;
-        }
-
-        $broken = $this->fightWear->handleAfterLose($player, $pierceCount);
-        $gemBroken = $this->breakGems->handle($player);
-        $player = $this->characters->findByTgId($player->tg_id);
-        $brokeSuffix = $this->brokenGearSuffix($broken) . $this->brokenGemsSuffix($gemBroken);
-        $player->current_hp = 0;
-        $player->last_hp_update = now();
-        $player->current_stamina = 0;
-        $player->last_stamina_update = now();
-        $player->save();
-        $this->clearFight->handle($player->tg_id);
-        $responder->edit($text . __('combat.lose') . $brokeSuffix, TelegramKeyboards::mainMenu());
-    }
-
-    /**
-     * @return list<PlayerAttackEnum>
-     */
-    private function availablePotionAttacks(Character $player, Fight $fight): array
-    {
-        if ($fight->tutorial) {
-            return [];
-        }
-
-        $attacks = [];
-
-        if ($this->bag->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0) {
-            $attacks[] = PlayerAttackEnum::POTION;
-        }
-
-        if ($this->bag->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0) {
-            $attacks[] = PlayerAttackEnum::STAMINA_POTION;
-        }
-
-        return $attacks;
-    }
-
-    private function canUsePotionAttack(Character $player, PlayerAttackEnum $attack): bool
-    {
-        if ($attack === PlayerAttackEnum::POTION) {
-            return $this->bag->potionCountByProfile($player->tg_id, ProfileEnum::HEAL) > 0;
-        }
-
-        if ($attack === PlayerAttackEnum::STAMINA_POTION) {
-            return $this->bag->potionCountByProfile($player->tg_id, ProfileEnum::STAMINA) > 0;
-        }
-
-        return false;
-    }
-
-    /**
-     * @param  list<string>  $broken
-     */
-    private function brokenGearSuffix(array $broken): string
-    {
-        if ($broken === []) {
-            return '';
-        }
-
-        return __('combat.gear_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
-    }
-
-    /**
-     * @param  list<string>  $names
-     */
-    private function dropSuffix(array $names): string
-    {
-        if ($names === []) {
-            return '';
-        }
-
-        return __('combat.drop', ['names' => TelegramHtml::escapeJoin($names, ', ')]);
-    }
-
-    /**
-     * @param  list<string>  $broken
-     */
-    private function brokenGemsSuffix(array $broken): string
-    {
-        if ($broken === []) {
-            return '';
-        }
-
-        return __('combat.gems_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
-    }
-
-    private function requireDone(TelegramUpdate $update, TelegramResponder $responder): ?Character
-    {
-        if (! $update->hasFrom()) {
-            return null;
-        }
-
-        $player = Character::query()->find($update->userId());
-
-        if ($player === null) {
-            $responder->reply(__('common.press_start'), null);
-
-            return null;
-        }
-
-        $player = $this->characters->applyRegen($player);
-        $player = $this->loadout->dropUnmetEquipped($player);
-
-        if ($this->registration->isActive($player)) {
-            $this->registration->showNudge($responder, $player);
-
-            return null;
-        }
-
-        if (! $player->progress_step->canPlayCity()) {
-            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
-
-            return null;
-        }
-
-        return $player;
-    }
-
-    /**
-     * @return array{exp: int, silver: int}
-     */
-    private function tutorialReward(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('rewards', $onboarding) || ! is_array($onboarding['rewards'])) {
-            throw new RuntimeException('onboarding.rewards missing.');
-        }
-
-        $row = $onboarding['rewards']['tutorialQuest'] ?? null;
-
-        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
-            throw new RuntimeException('tutorialQuest reward missing.');
-        }
-
-        return ['exp' => $row['exp'], 'silver' => $row['silver']];
-    }
-
-    private function endHallFight(
-        TelegramResponder $responder,
-        Character $player,
-        Fight $fight,
-        bool $won,
-        string $text,
-    ): void {
-        if ($won) {
-            $reward = $this->config->trainingReward();
-            $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
-            $player = $this->characters->findByTgId($player->tg_id);
-            $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
-            $player->current_stamina = $this->characters->clampStamina(
-                $fight->player_stamina,
-                $this->characters->maxStamina($player),
-            );
-            $player->last_stamina_update = now();
-            $player->save();
-            $this->clearFight->handle($player->tg_id);
-            $responder->edit(
-                $text . __('combat.win', [
-                    'exp' => $reward['exp'],
-                    'silver' => $reward['silver'],
-                ]),
-                CityKeyboard::backToCity(),
-            );
-
-            return;
-        }
-
-        $player->current_hp = 0;
-        $player->last_hp_update = now();
-        $player->current_stamina = 0;
-        $player->last_stamina_update = now();
-        $player->save();
-        $this->clearFight->handle($player->tg_id);
-        $responder->edit($text . __('combat.lose'), CityKeyboard::backToCity());
-    }
-
-    private function isHallFight(Fight $fight): bool
-    {
-        if ($fight->tutorial) {
-            return false;
-        }
-
-        return $this->fights->enemy($fight)->catalogId === EnemyCatalog::TUTORIAL_CATALOG_ID;
     }
 }

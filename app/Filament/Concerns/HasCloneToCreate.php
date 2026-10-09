@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Concerns;
 
+use App\Filament\Support\TelegramDescriptionField;
 use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Illuminate\Database\Eloquent\Model;
@@ -74,6 +75,10 @@ trait HasCloneToCreate
             $record->attributesToArray(),
             $this->getCloneExcludedAttributes(),
         );
+
+        if (array_key_exists('description', $data)) {
+            $data['description'] = TelegramDescriptionField::forFormFill($data['description']);
+        }
 
         if (! method_exists($record, 'cities')) {
             return $data;

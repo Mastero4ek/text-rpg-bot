@@ -57,16 +57,19 @@ final class TelegramResponder
     /**
      * @param  array<string, mixed>|null  $replyMarkup
      */
-    public function reply(string $text, ?array $replyMarkup): int
-    {
-        return $this->client->sendMessage($this->update->chatId(), $text, $replyMarkup);
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $replyMarkup
-     */
     public function edit(string $text, ?array $replyMarkup): void
     {
+        if ($this->update->callbackHasPhoto()) {
+            $this->client->editMessageCaption(
+                $this->update->chatId(),
+                $this->update->messageId(),
+                $text,
+                $replyMarkup,
+            );
+
+            return;
+        }
+
         $this->editAt(
             $this->update->chatId(),
             $this->update->messageId(),
@@ -84,6 +87,77 @@ final class TelegramResponder
             $chatId,
             $messageId,
             $text,
+            $replyMarkup,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function editCaptionAt(
+        int|string $chatId,
+        int $messageId,
+        string $caption,
+        ?array $replyMarkup,
+    ): void {
+        $this->client->editMessageCaption(
+            $chatId,
+            $messageId,
+            $caption,
+            $replyMarkup,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function editPhoto(string $photoPath, string $caption, ?array $replyMarkup): void
+    {
+        $this->client->editMessageMedia(
+            $this->update->chatId(),
+            $this->update->messageId(),
+            $photoPath,
+            $caption,
+            $replyMarkup,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function editPhotoAt(
+        int|string $chatId,
+        int $messageId,
+        string $photoPath,
+        string $caption,
+        ?array $replyMarkup,
+    ): void {
+        $this->client->editMessageMedia(
+            $chatId,
+            $messageId,
+            $photoPath,
+            $caption,
+            $replyMarkup,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function reply(string $text, ?array $replyMarkup): int
+    {
+        return $this->client->sendMessage($this->update->chatId(), $text, $replyMarkup);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    public function replyPhoto(string $photoPath, string $caption, ?array $replyMarkup): int
+    {
+        return $this->client->sendPhoto(
+            $this->update->chatId(),
+            $photoPath,
+            $caption,
             $replyMarkup,
         );
     }

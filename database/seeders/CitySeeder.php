@@ -9,6 +9,7 @@ use App\Models\Bag\BagCatalog;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 final class CitySeeder extends Seeder
 {
@@ -17,14 +18,36 @@ final class CitySeeder extends Seeder
     public function run(): void
     {
         foreach ($this->cities() as $row) {
-            City::query()->updateOrCreate(
+            $city = City::query()->updateOrCreate(
                 ['key' => $row['key']],
                 $row,
             );
+
+            $this->attachImage($city);
         }
 
         $this->attachShopCatalog();
         $this->attachForestCatalog();
+        $this->attachTrainingCatalog();
+    }
+
+    private function attachImage(City $city): void
+    {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = resource_path('images/telegram/city/' . $city->key . '.' . $ext);
+
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $city->clearMediaCollection('image');
+            $city->addMedia($path)
+                ->preservingOriginal()
+                ->withProperties(['uuid' => (string) Str::uuid()])
+                ->toMediaCollection('image');
+
+            return;
+        }
     }
 
     /**
@@ -34,8 +57,9 @@ final class CitySeeder extends Seeder
     {
         return [
             [
-                'key' => City::KEY_YASEN,
-                'name' => 'Ясень',
+                'key' => City::KEY_ANKRAT,
+                'name' => 'Анкрат',
+                'description' => "<i>Ты стоишь на круговой площади <b>Анкрата</b>. Солнце садится за башней, тени длинные, толпа гудит у лавок.\n\nЭто главный опорный пункт — нерушимая каменная цитадель, где слово орденов весит больше серебра.</i>",
                 'enabled' => true,
                 'portal_cost_silver' => self::PORTAL_COST_SILVER,
                 'has_blacksmith' => true,
@@ -48,8 +72,9 @@ final class CitySeeder extends Seeder
                 'has_training_room' => true,
             ],
             [
-                'key' => City::KEY_KURGAN,
-                'name' => 'Курган',
+                'key' => City::KEY_ELDWOOD,
+                'name' => 'Эльдвуд',
+                'description' => "<i>Ты стоишь на площади <b>Эльдвуда</b>. Солнце тонет в дымке над холмами, шатры дышат тенью, толпа — сплошные силуэты.\n\nЭто приграничный город: дальше — светящийся портал у ворот и путь, откуда возвращаются не все.</i>",
                 'enabled' => true,
                 'portal_cost_silver' => self::PORTAL_COST_SILVER,
                 'has_blacksmith' => true,
@@ -62,8 +87,9 @@ final class CitySeeder extends Seeder
                 'has_training_room' => true,
             ],
             [
-                'key' => City::KEY_LIMAN,
-                'name' => 'Лиман',
+                'key' => City::KEY_THORNBREAK,
+                'name' => 'Торнбрейк',
+                'description' => "<i>Ты в <b>Торнбрейк</b>. Имя режет, как сломленный хребет. На круглой площади — толпа в плащах, башня сторожит, в центре — каменная чаша, вокруг которой спорят клинок и монета.\n\nШахты, порт, контрабанда: здесь платят за силу, не за улыбку.</i>",
                 'enabled' => true,
                 'portal_cost_silver' => self::PORTAL_COST_SILVER,
                 'has_blacksmith' => true,
@@ -82,7 +108,7 @@ final class CitySeeder extends Seeder
     {
         $forestIds = [];
 
-        foreach (City::query()->whereIn('key', [City::KEY_YASEN, City::KEY_LIMAN])->get() as $city) {
+        foreach (City::query()->whereIn('key', [City::KEY_ANKRAT, City::KEY_THORNBREAK])->get() as $city) {
             $forestIds[] = $city->id;
         }
 
@@ -91,11 +117,28 @@ final class CitySeeder extends Seeder
         }
     }
 
+    private function attachTrainingCatalog(): void
+    {
+        $trainingIds = [];
+
+        foreach (City::query()->where('has_training_room', true)->get() as $city) {
+            $trainingIds[] = $city->id;
+        }
+
+        $soldier = EnemyCatalog::query()->find(EnemyCatalog::TUTORIAL_CATALOG_ID);
+
+        if (! $soldier instanceof EnemyCatalog) {
+            return;
+        }
+
+        $soldier->trainingCities()->sync($trainingIds);
+    }
+
     private function attachShopCatalog(): void
     {
         $shopIds = [];
 
-        foreach (City::query()->whereIn('key', [City::KEY_YASEN, City::KEY_LIMAN])->get() as $city) {
+        foreach (City::query()->whereIn('key', [City::KEY_ANKRAT, City::KEY_THORNBREAK])->get() as $city) {
             $shopIds[] = $city->id;
         }
 

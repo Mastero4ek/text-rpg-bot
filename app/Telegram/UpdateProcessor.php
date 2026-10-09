@@ -12,10 +12,13 @@ use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\FightHandler;
+use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\ShopHandler;
+use App\Telegram\Handlers\SmithHandler;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -28,6 +31,8 @@ final class UpdateProcessor
         private readonly RegistrationFlow $registrationFlow,
         private readonly OnboardingHandler $onboarding,
         private readonly MenuHandler $menu,
+        private readonly InventoryHandler $inventory,
+        private readonly SmithHandler $smith,
         private readonly ShopHandler $shop,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
@@ -42,6 +47,10 @@ final class UpdateProcessor
             $update = new TelegramUpdate($payload);
 
             if (! $update->hasFrom()) {
+                return;
+            }
+
+            if (! Cache::add('telegram:update:' . $update->updateId(), 1, now()->addDay())) {
                 return;
             }
 
@@ -150,35 +159,49 @@ final class UpdateProcessor
             return;
         }
 
-        if (
-            str_starts_with($data, 'menu:')
-            || str_starts_with($data, 'inv:')
-            || str_starts_with($data, 'backpack:')
-            || str_starts_with($data, 'bag:')
-            || str_starts_with($data, 'gear:')
-            || str_starts_with($data, 'stat:')
-            || str_starts_with($data, 'smith:')
-        ) {
-            if ($data === 'menu:shop') {
-                $this->shop->handleCallback($update, $responder);
-
-                return;
-            }
-
-            $this->menu->handleCallback($update, $responder);
+        if ($data === 'menu:shop' || str_starts_with($data, 'shop:')) {
+            $this->shop->handleCallback($update, $responder);
 
             return;
         }
 
-        if (str_starts_with($data, 'shop:')) {
-            $this->shop->handleCallback($update, $responder);
+        if ($data === 'menu:smith' || str_starts_with($data, 'smith:')) {
+            $this->smith->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (
+            str_starts_with($data, 'inv:')
+            || str_starts_with($data, 'backpack:')
+            || str_starts_with($data, 'bag:')
+            || str_starts_with($data, 'gear:')
+            || $data === 'menu:inv'
+            || $data === 'menu:bag'
+            || $data === 'menu:gear'
+            || str_starts_with($data, 'menu:backpack')
+        ) {
+            $this->inventory->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (
+            str_starts_with($data, 'menu:')
+            || str_starts_with($data, 'stat:')
+        ) {
+            $this->menu->handleCallback($update, $responder);
 
             return;
         }
 
         if (str_starts_with($data, 'fight:')) {
             $this->fight->handleCallback($update, $responder);
+
+            return;
         }
+
+        $responder->answerCallback();
     }
 
     private function routeText(TelegramUpdate $update, TelegramResponder $responder): void

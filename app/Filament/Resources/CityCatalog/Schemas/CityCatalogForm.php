@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\CityCatalog\Schemas;
 
+use App\Filament\Support\TelegramDescriptionField;
 use App\Models\City;
 use Closure;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Group;
@@ -30,6 +30,17 @@ final class CityCatalogForm
                     ->columnSpanFull()
                     ->collapsible()
                     ->schema([
+                        Group::make([
+                            SpatieMediaLibraryFileUpload::make('image')
+                                ->label(__('admin.labels.image'))
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
+                                ->collection('image')
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxFiles(1),
+                            TelegramDescriptionField::make()
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.city_description')),
+                        ]),
                         Group::make([
                             Hidden::make('key')
                                 ->unique(ignoreRecord: true)
@@ -55,19 +66,6 @@ final class CityCatalogForm
                             Toggle::make('enabled')
                                 ->label(__('admin.labels.enabled'))
                                 ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.city_enabled')),
-                        ]),
-                        Group::make([
-                            SpatieMediaLibraryFileUpload::make('image')
-                                ->label(__('admin.labels.image'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.image'))
-                                ->collection('image')
-                                ->image()
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->maxFiles(1),
-                            Textarea::make('description')
-                                ->label(__('admin.labels.description'))
-                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.description'))
-                                ->rows(3),
                         ]),
                     ]),
                 Section::make(__('admin.sections.city_services'))

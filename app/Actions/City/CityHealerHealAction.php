@@ -29,7 +29,7 @@ final class CityHealerHealAction
             $city = City::query()->find($character->city_id);
 
             if (! $city instanceof City || ! $city->enabled || ! $city->has_healer) {
-                return ActionResult::fail(__('errors.no_healer'));
+                return ActionResult::fail(__('telegram.npc.error.no_healer'));
             }
 
             $character = $this->characters->applyRegen($character);
@@ -37,7 +37,7 @@ final class CityHealerHealAction
             $maxStamina = $this->characters->maxStamina($character);
 
             if ($character->current_hp >= $maxHp && $character->current_stamina >= $maxStamina) {
-                return ActionResult::fail(__('errors.healer_already_full'));
+                return ActionResult::fail(__('telegram.npc.error.healer_already_full'));
             }
 
             $cost = $this->goldCost();
@@ -47,7 +47,7 @@ final class CityHealerHealAction
                 ->decrement('gold', $cost);
 
             if ($paid <= 0) {
-                return ActionResult::fail(__('errors.not_enough_gold'));
+                return ActionResult::fail(__('telegram.npc.error.healer_not_enough_gold'));
             }
 
             $character = $this->characters->findByTgId($character->tg_id);

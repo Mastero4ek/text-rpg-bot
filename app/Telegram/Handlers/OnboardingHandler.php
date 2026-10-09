@@ -13,12 +13,13 @@ use App\Models\City;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
+use App\Services\EnemyService;
 use App\Services\Fight\FightService;
+use App\Services\Fight\FightStatusFormatter;
 use App\Services\GameConfig;
 use App\Services\Onboarding\OnboardingService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Shop\ShopCatalog;
-use App\Support\Telegram\FightStatusFormatter;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -36,6 +37,7 @@ final class OnboardingHandler
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
         private readonly FightService $fights,
+        private readonly EnemyService $enemies,
         private readonly CityHandler $city,
     ) {}
 
@@ -158,20 +160,16 @@ final class OnboardingHandler
         }
 
         if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-            $player->progress_step = ProgressStepEnum::INTRO;
-            $player->onboarding_skipped = false;
-            $player->save();
-            $responder->edit(__('telegram.city.hall_gone'), TelegramKeyboards::clearInline());
+            $this->onboarding->beginIntro($player);
+            $responder->edit(__('telegram.npc.hall_gone'), TelegramKeyboards::clearInline());
             $this->startIntro($responder);
 
             return;
         }
 
         if ($player->progress_step === ProgressStepEnum::DONE && $player->onboarding_skipped) {
-            $player->progress_step = ProgressStepEnum::INTRO;
-            $player->onboarding_skipped = false;
-            $player->save();
-            $responder->edit(__('telegram.city.hall_gone'), TelegramKeyboards::clearInline());
+            $this->onboarding->beginIntro($player);
+            $responder->edit(__('telegram.npc.hall_gone'), TelegramKeyboards::clearInline());
             $this->startIntro($responder);
 
             return;
@@ -223,9 +221,7 @@ final class OnboardingHandler
             return;
         }
 
-        $player->progress_step = ProgressStepEnum::DONE;
-        $player->onboarding_skipped = true;
-        $player->save();
+        $player = $this->onboarding->skipHall($player);
         $player = $this->characters->applyRegen($player);
         $this->city->home($responder, $player);
     }
@@ -274,8 +270,7 @@ final class OnboardingHandler
     private function resumeTutorialFight(TelegramResponder $responder, Character $player): void
     {
         if (! $this->fights->exists($player->tg_id)) {
-            $player->progress_step = ProgressStepEnum::INTRO;
-            $player->save();
+            $this->onboarding->resetToIntro($player);
             $this->startIntro($responder);
 
             return;
@@ -283,29 +278,47 @@ final class OnboardingHandler
 
         $fight = $this->fights->findByTgId($player->tg_id);
         $base = $this->fightStatus->format($fight, $player->username);
+        $imagePath = $this->enemies->tutorialCatalog()->localImagePath();
 
         if ($fight->step === FightStepEnum::STANCE) {
-            $responder->reply($base . __('combat.pick_stance'), TelegramKeyboards::stance());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_stance'),
+                TelegramKeyboards::stance(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::ATTACK_SECOND) {
-            $responder->reply($base . __('combat.pick_attack_second'), TelegramKeyboards::attackWithoutPotion());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_attack_second'),
+                TelegramKeyboards::attackWithoutPotion(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::ATTACK) {
-            $responder->reply($base . __('combat.pick_attack'), TelegramKeyboards::attackWithoutPotion());
+            $this->replyTutorialPrompt(
+                $responder,
+                $base . __('combat.pick_attack'),
+                TelegramKeyboards::attackWithoutPotion(),
+                $imagePath,
+            );
 
             return;
         }
 
         if ($fight->step === FightStepEnum::DEFEND_SECOND && $fight->player_defend instanceof ZoneEnum) {
-            $responder->reply(
+            $this->replyTutorialPrompt(
+                $responder,
                 $base . __('combat.pick_defend_second'),
                 TelegramKeyboards::defendExcluding($fight->player_defend),
+                $imagePath,
             );
 
             return;
@@ -317,7 +330,12 @@ final class OnboardingHandler
             $prompt = __('combat.pick_defend');
         }
 
-        $responder->reply($base . $prompt, TelegramKeyboards::defend());
+        $this->replyTutorialPrompt(
+            $responder,
+            $base . $prompt,
+            TelegramKeyboards::defend(),
+            $imagePath,
+        );
     }
 
     private function introFight(TelegramUpdate $update, TelegramResponder $responder): void
@@ -335,16 +353,39 @@ final class OnboardingHandler
             return;
         }
 
-        $player = $this->characters->applyRegen($player);
-        $player->current_hp = $this->characters->maxHp($player);
-        $player->save();
+        $player = $this->onboarding->fillHp($player);
         $fight = $this->onboarding->startTutorialFight($player);
-        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $update->messageId());
+        $text = $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance');
+        $markup = TelegramKeyboards::stance();
+        $imagePath = $this->enemies->tutorialCatalog()->localImagePath();
 
-        $responder->edit(
-            $this->fightStatus->format($fight, $player->username) . __('combat.pick_stance'),
-            TelegramKeyboards::stance(),
-        );
+        if ($imagePath !== null) {
+            $responder->deleteUpdateMessage();
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+        } else {
+            $responder->edit($text, $markup);
+            $messageId = $update->messageId();
+        }
+
+        $this->fights->rememberTelegramMessage($fight, $update->chatId(), $messageId);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    private function replyTutorialPrompt(
+        TelegramResponder $responder,
+        string $text,
+        ?array $replyMarkup,
+        ?string $imagePath,
+    ): void {
+        if ($imagePath !== null) {
+            $responder->replyPhoto($imagePath, $text, $replyMarkup);
+
+            return;
+        }
+
+        $responder->reply($text, $replyMarkup);
     }
 
     private function stat(TelegramUpdate $update, TelegramResponder $responder, string $stat): void

@@ -71,7 +71,7 @@ final class CityMenuService
         }
 
         if ($character->progress_step === ProgressStepEnum::ARRIVED) {
-            return CityKeyboard::firstHome($city);
+            return CityKeyboard::firstHome();
         }
 
         return CityKeyboard::services($city);
@@ -86,7 +86,11 @@ final class CityMenuService
         }
 
         if ($character->progress_step === ProgressStepEnum::ARRIVED) {
-            return __('telegram.city.first_home');
+            return __('telegram.npc.first_home');
+        }
+
+        if ($city->description !== null && $city->description !== '') {
+            return str_replace('\\n', "\n", $city->description);
         }
 
         return __('telegram.city.you_are_in');
@@ -98,7 +102,7 @@ final class CityMenuService
     public function portalMarkup(Character $character): array
     {
         if ($character->city_id === null) {
-            return CityKeyboard::backToCity();
+            return CityKeyboard::backToGates();
         }
 
         return CityKeyboard::portalTargets($this->cities->portalTargets($character->city_id));

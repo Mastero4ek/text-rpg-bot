@@ -67,7 +67,7 @@ it('drains attacker and defender stamina on a clean exchange', function (): void
     // defender weapon, dodge miss, crit miss, variance
     fakeRandom([0.99, 0.0, 0.75, 0.0, 0.99, 0.99, 0.5, 0.0, 0.99, 0.99, 0.5]);
 
-    $outcome = app(FightRoundService::class)->resolve($p);
+    $outcome = app(FightRoundService::class)->runRound($p);
     expect($outcome->kind)->toBe('continue');
 
     $fight->refresh();
@@ -105,7 +105,7 @@ it('adds attacker extra drain on pierce and defender extra on dodge', function (
     // blocked pierce success, then enemy open hit lands
     fakeRandom([0.99, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.99, 0.99, 0.5]);
 
-    app(FightRoundService::class)->resolve($p);
+    app(FightRoundService::class)->runRound($p);
     $fight->refresh();
 
     expect($fight->player_stamina)->toBe(
@@ -126,7 +126,7 @@ it('adds attacker extra drain on pierce and defender extra on dodge', function (
     // open hit, enemy dodges; then enemy open hit lands
     fakeRandom([0.99, 0.0, 0.75, 0.0, 0.0, 0.0, 0.99, 0.99, 0.5]);
 
-    app(FightRoundService::class)->resolve(characters()->findByTgId($p->tg_id));
+    app(FightRoundService::class)->runRound(characters()->findByTgId($p->tg_id));
     $fight->refresh();
     $enemyAfter = fights()->enemy($fight);
 
@@ -157,7 +157,7 @@ it('keeps player stamina on skip while enemy spends for the free hit', function 
     // stance ATTACK, zones, defender weapon, dodge miss, crit miss, variance
     fakeRandom([0.99, 0.0, 0.0, 0.0, 0.99, 0.99, 0.5]);
 
-    $outcome = app(FightRoundService::class)->resolveSkip($p);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
     expect($outcome->kind)->toBe('continue');
 
     $fight = $outcome->fight;

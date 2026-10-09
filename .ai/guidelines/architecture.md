@@ -2,7 +2,7 @@
 
 ## Application surfaces
 
-- **Telegram bot** (`app/Telegram/`) — player-facing UI via `irazasyed/telegram-bot-sdk`.
+- **Telegram bot** (`app/Telegram/`) — player-facing UI via `TelegramClient` + Laravel `Http` (fakeable).
   - Dev bot: long polling (`php artisan telegram:poll`) when `TELEGRAM_WEBHOOK_URL` is empty.
   - Prod bot: webhook `POST /telegram/webhook` when `TELEGRAM_WEBHOOK_URL` is set. `telegram:poll` must refuse to start. Secret token + Telegram IP allowlist.
   - `TELEGRAM_ASYNC=true` only in production (Redis queue → `ProcessTelegramUpdateJob`). Local: sync.

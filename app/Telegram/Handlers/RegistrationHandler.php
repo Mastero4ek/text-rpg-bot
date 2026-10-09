@@ -8,15 +8,11 @@ use App\Actions\Registration\SetLocationAction;
 use App\Actions\Registration\SetNickAction;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character;
-use App\Models\City;
 use App\Services\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Registration\RegistrationService;
-use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Keyboards\TelegramKeyboards;
-use RuntimeException;
 
 final class RegistrationHandler
 {
@@ -34,23 +30,13 @@ final class RegistrationHandler
         $player = $this->registration->ensurePlayer($update->userId());
         $responder->deleteUpdateMessage();
 
-        if ($player->progress_step === ProgressStepEnum::DONE) {
+        if (
+            $player->progress_step === ProgressStepEnum::DONE
+            || $player->progress_step === ProgressStepEnum::ARRIVED
+        ) {
             $player = $this->characters->applyRegen($player);
-            $this->city->sendHome(
-                $responder,
-                $player,
-                __('telegram.registration.welcome_back', [
-                    'name' => TelegramHtml::escape((string) $player->username),
-                    'profile' => $this->characters->profileText($player),
-                ]),
-            );
-
-            return;
-        }
-
-        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-            $player = $this->characters->applyRegen($player);
-            $this->city->sendHomePanel($responder, $player);
+            $homeMessageId = $this->city->resumeHomePanel($responder, $player);
+            $this->registration->rememberTelegramMessage($player, $responder->chatId(), $homeMessageId);
 
             return;
         }
@@ -146,7 +132,7 @@ final class RegistrationHandler
 
         $player = $this->registration->rise($player);
         $this->flow->syncAnchor($player, $update);
-        $this->flow->showClean($responder, $player);
+        $this->flow->showSwappingPhoto($responder, $player);
     }
 
     private function backToSplash(TelegramUpdate $update, TelegramResponder $responder): void
@@ -159,7 +145,7 @@ final class RegistrationHandler
 
         $player = $this->registration->backToSplash($player);
         $this->flow->syncAnchor($player, $update);
-        $this->flow->showClean($responder, $player);
+        $this->flow->showSwappingPhoto($responder, $player);
     }
 
     private function chooseCity(TelegramUpdate $update, TelegramResponder $responder, string $cityKey): void
@@ -170,9 +156,16 @@ final class RegistrationHandler
             return;
         }
 
+        $photoMessageId = $update->messageId();
         $res = $this->setLocation->handle($player, $cityKey);
 
         if (! $res->ok || ! $res->character instanceof Character) {
+            $player->refresh();
+
+            if ($player->progress_step->canPlayCity()) {
+                return;
+            }
+
             $this->flow->show(
                 $responder,
                 $player,
@@ -183,29 +176,10 @@ final class RegistrationHandler
         }
 
         $chosen = $res->character;
-        $chosen->loadMissing('city');
 
-        if ($chosen->city instanceof City) {
-            $cityLabel = $chosen->city->name;
-        } else {
-            $cityLabel = $cityKey;
-        }
+        $responder->deleteMessage($photoMessageId);
 
-        if ($chosen->username === null) {
-            throw new RuntimeException('Registration final requires username.');
-        }
-
-        $this->flow->syncAnchor($chosen, $update);
-        $this->flow->editOrSend(
-            $responder,
-            $chosen,
-            __('telegram.registration.done', [
-                'city' => TelegramHtml::escape($cityLabel),
-                'name' => TelegramHtml::escape($chosen->username),
-            ]),
-            TelegramKeyboards::clearInline(),
-        );
-
-        $this->city->sendHomePanel($responder, $chosen);
+        $homeMessageId = $this->city->sendHomePanel($responder, $chosen);
+        $this->registration->rememberTelegramMessage($chosen, $responder->chatId(), $homeMessageId);
     }
 }

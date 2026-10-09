@@ -66,11 +66,11 @@ final class City extends Model implements HasMedia
 
     public const int DEFAULT_CHARACTERS_MAX_ROWS = 100;
 
-    public const string KEY_YASEN = 'yasen';
+    public const string KEY_ANKRAT = 'ankrat';
 
-    public const string KEY_KURGAN = 'kurgan';
+    public const string KEY_ELDWOOD = 'eldwood';
 
-    public const string KEY_LIMAN = 'liman';
+    public const string KEY_THORNBREAK = 'thornbreak';
 
     protected static string $factory = CityFactory::class;
 
@@ -162,6 +162,19 @@ final class City extends Model implements HasMedia
         return $this->belongsToMany(
             EnemyCatalog::class,
             'city_enemy_catalog',
+            'city_id',
+            'enemy_catalog_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<EnemyCatalog, $this>
+     */
+    public function trainingEnemyCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EnemyCatalog::class,
+            'city_training_enemy_catalog',
             'city_id',
             'enemy_catalog_id',
         );

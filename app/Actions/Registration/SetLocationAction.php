@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Registration\RegistrationService;
 use App\Support\ActionResult;
 use Filament\Notifications\Notification;
+use Throwable;
 
 final class SetLocationAction
 {
@@ -26,7 +27,11 @@ final class SetLocationAction
             return $result;
         }
 
-        $this->notifyAdmin($result->character);
+        try {
+            $this->notifyAdmin($result->character);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $result;
     }

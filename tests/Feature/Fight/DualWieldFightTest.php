@@ -138,7 +138,7 @@ it('resolves two player hits with split hand damage', function (): void {
     $enemyHpBefore = (int) $fight->enemy['current_hp'];
     expect($fight->player_attack_second)->toBe(PlayerAttackEnum::LEGS);
 
-    $outcome = app(App\Services\Fight\FightRoundService::class)->resolve($p);
+    $outcome = app(App\Services\Fight\FightRoundService::class)->runRound($p);
 
     expect($outcome->kind)->not->toBe('missing');
     $fight->refresh();
