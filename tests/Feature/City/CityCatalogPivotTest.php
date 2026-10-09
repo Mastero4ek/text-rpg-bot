@@ -18,7 +18,7 @@ it('hides shop and forest items without pivot rows', function (): void {
     $p->silver = 999;
     $p->save();
 
-    expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
+    expect(blacksmithService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
         ->and(app(CityQuery::class)->forestCatalogs($yasen->id)->pluck('catalog_id')->all())
         ->not->toContain('chance_wanderer');
 });
@@ -46,6 +46,6 @@ it('rejects shop buy when city has no blacksmith even if pivot exists', function
     $p->silver = 999;
     $p->save();
 
-    expect(shopService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_blacksmith'));
+    expect(blacksmithService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
+        ->and(blacksmithService()->buyWeapon($p->tg_id, 'knife_0')->error)->toBe(__('errors.no_blacksmith'));
 });

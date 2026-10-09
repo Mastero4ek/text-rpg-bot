@@ -36,6 +36,34 @@ final class TelegramClient
     /**
      * @param  array<string, mixed>|null  $replyMarkup
      */
+    public function editMessageReplyMarkup(
+        int|string $chatId,
+        int $messageId,
+        ?array $replyMarkup,
+    ): void {
+        $params = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ];
+
+        if ($replyMarkup !== null) {
+            $params['reply_markup'] = json_encode($replyMarkup, JSON_THROW_ON_ERROR);
+        }
+
+        try {
+            $this->post('editMessageReplyMarkup', $params);
+        } catch (RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'message is not modified')) {
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
     public function editMessageCaption(
         int|string $chatId,
         int $messageId,

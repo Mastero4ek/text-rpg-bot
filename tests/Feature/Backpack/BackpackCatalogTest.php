@@ -110,7 +110,7 @@ it('buys weapon for gold vip wallet', function (): void {
     $character->gold = 3;
     $character = placeInCity($character, App\Models\City::KEY_ANKRAT);
 
-    $buy = shopService()->buyWeapon($character->tg_id, 'sword_0');
+    $buy = blacksmithService()->buyWeapon($character->tg_id, 'sword_0');
 
     expect($buy->ok)->toBeTrue()
         ->and($buy->character->gold)->toBe(0)
@@ -122,8 +122,8 @@ it('buys weapon for gold vip wallet', function (): void {
     $poor->gold = 0;
     $poor = placeInCity($poor, App\Models\City::KEY_ANKRAT);
 
-    expect(shopService()->buyWeapon($poor->tg_id, 'sword_0')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($poor->tg_id, 'sword_0')->error)->toBe(__('errors.not_enough_gold'));
+    expect(blacksmithService()->buyWeapon($poor->tg_id, 'sword_0')->ok)->toBeFalse()
+        ->and(blacksmithService()->buyWeapon($poor->tg_id, 'sword_0')->error)->toBe(__('errors.not_enough_gold'));
 });
 
 it('rejects buying weapons hidden from shop', function (): void {
@@ -135,7 +135,7 @@ it('rejects buying weapons hidden from shop', function (): void {
     $character->silver = 999;
     $character = placeInCity($character, App\Models\City::KEY_ANKRAT);
 
-    expect(shopService()->buyWeapon($character->tg_id, 'hammer_0')->ok)->toBeFalse();
+    expect(blacksmithService()->buyWeapon($character->tg_id, 'hammer_0')->ok)->toBeFalse();
 });
 
 it('invalidates catalog cache and recovers from corrupt cache payload', function (): void {

@@ -29,8 +29,8 @@ it('blocks buy and add when backpack rows are full', function (): void {
 
     expect(backpack()->isFull($p))->toBeTrue()
         ->and(backpack()->canAcceptItem($p))->toBeFalse()
-        ->and(shopService()->buyWeapon($p->tg_id, 'axe_0')->ok)->toBeFalse()
-        ->and(shopService()->buyWeapon($p->tg_id, 'axe_0')->error)->toBe(__('errors.inventory_full'));
+        ->and(blacksmithService()->buyWeapon($p->tg_id, 'axe_0')->ok)->toBeFalse()
+        ->and(blacksmithService()->buyWeapon($p->tg_id, 'axe_0')->error)->toBe(__('errors.inventory_full'));
 
     expect(fn (): BackpackItem => backpack()->addItem($p->tg_id, 'axe_0'))
         ->toThrow(RuntimeException::class, 'Backpack is full.');
@@ -51,7 +51,7 @@ it('does not count equipped loadout rows toward backpack capacity', function ():
         ->and(backpack()->rowCount($p->tg_id))->toBe(0)
         ->and(backpack()->isFull($equip->character))->toBeFalse();
 
-    $buy = shopService()->buyWeapon($equip->character->tg_id, 'axe_0');
+    $buy = blacksmithService()->buyWeapon($equip->character->tg_id, 'axe_0');
 
     expect($buy->ok)->toBeTrue()
         ->and(backpack()->rowCount($p->tg_id))->toBe(1)
@@ -93,7 +93,7 @@ it('allows potion stacking into an existing stack when bag has space via stack',
     expect(bag()->isBagFull($p))->toBeTrue()
         ->and(bag()->canAcceptPotion($p, bagCatalog()->shopPotionId()))->toBeTrue();
 
-    $buy = shopService()->buyPotion($p->tg_id);
+    $buy = buyerService()->buyPotion($p->tg_id);
 
     expect($buy->ok)->toBeTrue()
         ->and(bag()->loosePotions($buy->character)->first()->quantity)->toBe(2)

@@ -109,10 +109,10 @@ it('sells new doll wearables from shop', function (): void {
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
     foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'vital_0', 'knife_0'] as $itemId) {
-        $buy = shopService()->buyGear($p->tg_id, $itemId);
+        $buy = blacksmithService()->buyGear($p->tg_id, $itemId);
 
         if ($itemId === 'knife_0') {
-            $buy = shopService()->buyWeapon($p->tg_id, $itemId);
+            $buy = blacksmithService()->buyWeapon($p->tg_id, $itemId);
         }
 
         expect($buy->ok)->toBeTrue("failed buying {$itemId}")

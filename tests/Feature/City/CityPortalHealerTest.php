@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Actions\City\CityHealerHealAction;
 use App\Actions\City\CityPortalAction;
 use App\Models\City;
 
@@ -58,35 +57,4 @@ it('allows free portal without silver', function (): void {
     expect($res->ok)->toBeTrue()
         ->and($res->character->city_id)->toBe($liman->id)
         ->and($res->character->silver)->toBe(0);
-});
-
-it('fills hp and stamina for gold at healer', function (): void {
-    $p = placeInCity(characters()->createDraft(9105), City::KEY_ANKRAT);
-    $p->gold = 1;
-    $p->current_hp = 1;
-    $p->current_stamina = 0;
-    $p->save();
-
-    $res = app(CityHealerHealAction::class)->handle($p);
-
-    expect($res->ok)->toBeTrue()
-        ->and($res->character->gold)->toBe(0)
-        ->and($res->character->current_hp)->toBe(characters()->maxHp($res->character))
-        ->and($res->character->current_stamina)->toBe(characters()->maxStamina($res->character));
-});
-
-it('rejects healer without gold or when already full', function (): void {
-    $p = placeInCity(characters()->createDraft(9106), City::KEY_ANKRAT);
-    $p->gold = 0;
-    $p->current_hp = 1;
-    $p->save();
-
-    expect(app(CityHealerHealAction::class)->handle($p)->ok)->toBeFalse();
-
-    $p->gold = 1;
-    $p->current_hp = characters()->maxHp($p);
-    $p->current_stamina = characters()->maxStamina($p);
-    $p->save();
-
-    expect(app(CityHealerHealAction::class)->handle($p)->error)->toBe(__('telegram.npc.error.healer_already_full'));
 });

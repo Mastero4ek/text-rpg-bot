@@ -370,7 +370,7 @@ it('nudges mid-reg side-entry callbacks', function (string $data): void {
 })->with([
     'menu:profile',
     'city:home',
-    'shop:sell',
+    'city:buyer:sell',
     'fight:start:wolf_0',
 ]);
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Fight;
 
 use App\Enums\Fight\FightKindEnum;
+use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Character;
@@ -25,17 +26,17 @@ final class FightService
 
     public function createHall(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, false, true);
+        return $this->createFight($character, $enemy, false, true, FightReturnEnum::Training);
     }
 
     public function createTraining(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, false, false);
+        return $this->createFight($character, $enemy, false, false, FightReturnEnum::Forest);
     }
 
     public function createTutorial(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, true, false);
+        return $this->createFight($character, $enemy, true, false, null);
     }
 
     public function findByTgId(int $tgId): Fight
@@ -87,6 +88,21 @@ final class FightService
         return $this->save($fight);
     }
 
+    public function rememberTelegramPanel(
+        Fight $fight,
+        int $chatId,
+        int $statusMessageId,
+        string $replyKind,
+        ?int $keyboardMessageId,
+    ): Fight {
+        $fight->tg_chat_id = $chatId;
+        $fight->tg_message_id = $statusMessageId;
+        $fight->tg_log_message_id = $keyboardMessageId;
+        $fight->tg_reply_kind = $replyKind;
+
+        return $this->save($fight);
+    }
+
     public function scheduleTurn(Fight $fight): Fight
     {
         $seconds = $this->turnTimeoutSeconds();
@@ -109,19 +125,27 @@ final class FightService
         return ! $fight->turn_deadline_at->isFuture();
     }
 
-    private function createFight(Character $character, Enemy $enemy, bool $tutorial, bool $hall): Fight
-    {
-        return DB::transaction(function () use ($character, $enemy, $tutorial, $hall): Fight {
+    private function createFight(
+        Character $character,
+        Enemy $enemy,
+        bool $tutorial,
+        bool $hall,
+        ?FightReturnEnum $returnTo,
+    ): Fight {
+        return DB::transaction(function () use ($character, $enemy, $tutorial, $hall, $returnTo): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
 
             $character = $this->characters->applyRegen($character);
             $maxStamina = $this->characters->maxStamina($character);
+            $character->fight_return = $returnTo;
+            $character->save();
 
             $fight = new Fight;
             $fight->tg_id = $character->tg_id;
             $fight->kind = $tutorial ? FightKindEnum::TUTORIAL : FightKindEnum::PVE;
             $fight->tutorial = $tutorial;
             $fight->hall = $hall;
+            $fight->return_to = $returnTo;
             $fight->player_hp = $character->current_hp;
             $fight->player_max_hp = $this->characters->maxHp($character);
             $fight->player_stamina = $this->characters->clampStamina(
@@ -139,10 +163,12 @@ final class FightService
             $fight->use_potion = false;
             $fight->pierce_count = 0;
             $fight->log = [];
+            $fight->last_round = null;
             $fight->turn_seq = 0;
             $fight->turn_deadline_at = null;
             $fight->tg_chat_id = null;
             $fight->tg_message_id = null;
+            $fight->tg_log_message_id = null;
             $fight->save();
 
             return $this->scheduleTurn($this->findByTgId($character->tg_id));

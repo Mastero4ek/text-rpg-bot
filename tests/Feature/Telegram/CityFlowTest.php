@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
-use App\Models\Character;
 use App\Models\City;
 use App\Services\CityMenuService;
 use Illuminate\Http\Client\Request;
@@ -15,142 +14,6 @@ beforeEach(function (): void {
     ]);
 });
 
-function cityFlowWebhook(array $payload): void
-{
-    test()->postJson('/telegram/webhook', $payload, [
-        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
-    ])->assertOk();
-}
-
-function cityFlowCallback(int $tgId, int $messageId, string $data): void
-{
-    cityFlowWebhook([
-        'update_id' => $tgId * 10 + $messageId,
-        'callback_query' => [
-            'id' => 'cb-' . $tgId . '-' . $messageId . '-' . $data,
-            'data' => $data,
-            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
-            'message' => [
-                'message_id' => $messageId,
-                'chat' => ['id' => $tgId, 'type' => 'private'],
-                'text' => 'city',
-            ],
-        ],
-    ]);
-}
-
-function cityFlowText(int $tgId, int $messageId, string $text): void
-{
-    cityFlowWebhook([
-        'update_id' => $tgId * 10 + $messageId,
-        'message' => [
-            'message_id' => $messageId,
-            'text' => $text,
-            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
-            'chat' => ['id' => $tgId, 'type' => 'private'],
-        ],
-    ]);
-}
-
-function cityArrived(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
-{
-    $player = registration()->ensurePlayer($tgId);
-    $player = registration()->setNick($player, $nick)->character;
-
-    return registration()->setLocation($player, $cityKey)->character;
-}
-
-function cityDone(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
-{
-    $player = cityArrived($tgId, $nick, $cityKey);
-    $player->progress_step = ProgressStepEnum::DONE;
-    $player->onboarding_skipped = false;
-    $player->save();
-
-    return $player->fresh();
-}
-
-function citySkipped(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
-{
-    $player = cityArrived($tgId, $nick, $cityKey);
-    $player->progress_step = ProgressStepEnum::DONE;
-    $player->onboarding_skipped = true;
-    $player->save();
-
-    return $player->fresh();
-}
-
-function assertCityEditHas(string $needle): void
-{
-    Http::assertSent(function (Request $request) use ($needle): bool {
-        if (str_contains($request->url(), '/editMessageMedia')) {
-            $body = $request->body();
-
-            if (str_contains($body, $needle)) {
-                return true;
-            }
-
-            return str_contains($body, str_replace("\n", '\\n', $needle));
-        }
-
-        if (! str_contains($request->url(), '/editMessageText')
-            && ! str_contains($request->url(), '/editMessageCaption')) {
-            return false;
-        }
-
-        $text = (string) ($request['text'] ?? $request['caption'] ?? '');
-
-        return str_contains($text, $needle);
-    });
-}
-
-function assertCitySendHas(string $needle): void
-{
-    Http::assertSent(function (Request $request) use ($needle): bool {
-        if (str_contains($request->url(), '/sendPhoto')) {
-            return str_contains($request->body(), $needle);
-        }
-
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) ($request['text'] ?? ''), $needle);
-    });
-}
-
-function assertCityEditMarkupHas(string $needle): void
-{
-    Http::assertSent(function (Request $request) use ($needle): bool {
-        if (str_contains($request->url(), '/editMessageMedia')) {
-            return str_contains($request->body(), $needle);
-        }
-
-        if (! str_contains($request->url(), '/editMessageText')
-            && ! str_contains($request->url(), '/editMessageCaption')) {
-            return false;
-        }
-
-        $markup = $request['reply_markup'] ?? '';
-
-        return is_string($markup) && str_contains($markup, $needle);
-    });
-}
-
-function assertCitySendMarkupHas(string $needle): void
-{
-    Http::assertSent(function (Request $request) use ($needle): bool {
-        if (str_contains($request->url(), '/sendPhoto')) {
-            return str_contains($request->body(), $needle);
-        }
-
-        if (! str_contains($request->url(), '/sendMessage')) {
-            return false;
-        }
-
-        $markup = $request['reply_markup'] ?? '';
-
-        return is_string($markup) && str_contains($markup, $needle);
-    });
-}
-
 it('shows first home with pass and hall cta after arrival', function (): void {
     $player = cityArrived(9601, 'ArriveHero');
 
@@ -158,7 +21,7 @@ it('shows first home with pass and hall cta after arrival', function (): void {
 
     cityFlowCallback($player->tg_id, 9, 'city:home');
 
-    assertCityEditHas(mb_trim(__('telegram.npc.first_home')));
+    assertCityEditHas(mb_trim(__('telegram.npc.overseer.first_home')));
     assertCityEditMarkupHas('ob:pass');
     assertCityEditMarkupHas('ob:hall');
     assertCityEditMarkupHas('"style":"danger"');
@@ -199,7 +62,7 @@ it('enters onboarding hall from first home cta', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::INTRO)
         ->and($player->onboarding_skipped)->toBeFalse();
 
-    assertCityEditHas(mb_trim(__('telegram.npc.hall_gone')));
+    assertCityEditHas(mb_trim(__('telegram.npc.overseer.hall_gone')));
     assertCitySendHas(mb_trim(__('onboarding.intro')));
 });
 
@@ -241,7 +104,7 @@ it('keeps hub locked on arrived when city callback arrives', function (): void {
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED);
 
-    assertCityEditHas(mb_trim(__('telegram.npc.first_home')));
+    assertCityEditHas(mb_trim(__('telegram.npc.overseer.first_home')));
     assertCityEditMarkupHas('ob:hall');
     assertCityEditMarkupHas('ob:pass');
 });
@@ -284,7 +147,7 @@ it('resumes first home on start while arrived', function (): void {
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED);
 
-    assertCitySendHas(mb_trim(__('telegram.npc.first_home')));
+    assertCitySendHas(mb_trim(__('telegram.npc.overseer.first_home')));
     assertCitySendHas('training_attendant.png');
     assertCitySendMarkupHas('ob:hall');
 });
@@ -372,10 +235,7 @@ it('rejects buyer in city without buyer flag', function (): void {
 
     cityFlowCallback($player->tg_id, 9, 'city:buyer');
 
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.no_buyer')));
-    });
+    assertCityEditHas(mb_trim(__('telegram.npc.buyer.error.no_buyer')));
 });
 
 it('rejects forest in city without forest flag', function (): void {
@@ -431,7 +291,7 @@ it('shows overseer after skip and enters hall from tavern', function (): void {
     assertCityEditMarkupHas('city:overseer');
 
     cityFlowCallback($player->tg_id, 10, 'city:overseer');
-    assertCityEditHas(mb_trim(__('telegram.npc.overseer_skip')));
+    assertCityEditHas(mb_trim(__('telegram.npc.overseer.skip')));
     assertCityEditMarkupHas('ob:not_now');
     assertCityEditMarkupHas('ob:hall');
 
@@ -515,7 +375,8 @@ it('opens blacksmith submenu', function (): void {
 
     cityFlowCallback($player->tg_id, 9, 'city:blacksmith');
 
-    assertCityEditHas(mb_trim(__('telegram.npc.blacksmith')));
+    assertCityEditHas(mb_trim(__('telegram.npc.blacksmith.offer')));
+    assertCityEditHas('blacksmith_tavern.png');
     assertCityEditMarkupHas('city:blacksmith:gear');
     assertCityEditMarkupHas('city:blacksmith:repair');
 });

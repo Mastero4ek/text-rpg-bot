@@ -9,9 +9,10 @@ use App\Models\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\CharacterService;
+use App\Services\City\BlacksmithService;
+use App\Services\City\BuyerService;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
-use App\Services\Shop\ShopService;
 use App\Support\ActionResult;
 use App\Support\Equipment\EquipmentDef;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,8 @@ final class ShopQuest
         private readonly BackpackService $backpack,
         private readonly LoadoutService $loadout,
         private readonly ShopCatalog $shop,
-        private readonly ShopService $shopService,
+        private readonly BlacksmithService $blacksmith,
+        private readonly BuyerService $buyer,
     ) {}
 
     public function finishWithPurchase(Character $character, string $itemId): ActionResult
@@ -50,7 +52,7 @@ final class ShopQuest
             $player = $character;
 
             if (! $this->backpack->owns($player->tg_id, $itemId)) {
-                $buy = $this->shopService->buyWeapon($player->tg_id, $itemId);
+                $buy = $this->blacksmith->buyWeapon($player->tg_id, $itemId);
 
                 if (! $buy->ok || ! $buy->character instanceof Character) {
                     return $buy;
@@ -92,7 +94,7 @@ final class ShopQuest
 
     public function buyPotion(Character $character): ActionResult
     {
-        return $this->shopService->buyPotion($character->tg_id);
+        return $this->buyer->buyPotion($character->tg_id);
     }
 
     private function noviceWeaponOrFail(string $itemId): ActionResult|EquipmentDef

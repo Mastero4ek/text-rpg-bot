@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightKindEnum;
+use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property FightKindEnum $kind
  * @property bool $tutorial
  * @property bool $hall
+ * @property FightReturnEnum|null $return_to
  * @property int $player_hp
  * @property int $player_max_hp
  * @property int $player_stamina
@@ -33,16 +35,20 @@ use Illuminate\Support\Carbon;
  * @property bool $use_potion
  * @property int $pierce_count
  * @property list<string> $log
+ * @property array<string, mixed>|null $last_round
  * @property Carbon|null $turn_deadline_at
  * @property int $turn_seq
  * @property int|null $tg_chat_id
  * @property int|null $tg_message_id
+ * @property int|null $tg_log_message_id
+ * @property string|null $tg_reply_kind
  */
 #[Fillable([
     'tg_id',
     'kind',
     'tutorial',
     'hall',
+    'return_to',
     'player_hp',
     'player_max_hp',
     'player_stamina',
@@ -57,10 +63,13 @@ use Illuminate\Support\Carbon;
     'use_potion',
     'pierce_count',
     'log',
+    'last_round',
     'turn_deadline_at',
     'turn_seq',
     'tg_chat_id',
     'tg_message_id',
+    'tg_log_message_id',
+    'tg_reply_kind',
 ])]
 final class Fight extends Model
 {
@@ -90,6 +99,7 @@ final class Fight extends Model
             'kind' => FightKindEnum::class,
             'tutorial' => 'boolean',
             'hall' => 'boolean',
+            'return_to' => FightReturnEnum::class,
             'player_hp' => 'integer',
             'player_max_hp' => 'integer',
             'player_stamina' => 'integer',
@@ -104,10 +114,13 @@ final class Fight extends Model
             'use_potion' => 'boolean',
             'pierce_count' => 'integer',
             'log' => 'array',
+            'last_round' => 'array',
             'turn_deadline_at' => 'datetime',
             'turn_seq' => 'integer',
             'tg_chat_id' => 'integer',
             'tg_message_id' => 'integer',
+            'tg_log_message_id' => 'integer',
+            'tg_reply_kind' => 'string',
         ];
     }
 }
