@@ -81,6 +81,7 @@ return [
         'has_blacksmith' => 'Кузнец',
         'has_healer' => 'Лекарь',
         'has_buyer' => 'Скупщик',
+        'has_overseer' => 'Смотритель',
         'has_quest_board' => 'Доска объявлений',
         'has_portal' => 'Портал',
         'has_forest' => 'Лес',

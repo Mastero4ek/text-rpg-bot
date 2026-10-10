@@ -6,7 +6,7 @@ namespace App\Telegram\Keyboards;
 
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Character;
+use App\Enums\StatKeyEnum;
 use App\Models\City;
 
 final class CityKeyboard
@@ -136,6 +136,16 @@ final class CityKeyboard
     {
         return self::inline([
             [self::cbDanger(__('telegram.btn.back'), 'city:healer')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToOverseer(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'city:overseer')],
         ]);
     }
 
@@ -380,6 +390,16 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function idleSession(string $cityName): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.btn.idle_to_city', ['name' => $cityName]), 'city:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function gates(City $city): array
     {
         $rows = [];
@@ -406,6 +426,44 @@ final class CityKeyboard
             [
                 self::cbDanger(__('telegram.btn.not_now'), 'ob:not_now'),
                 self::cbSuccess(__('telegram.btn.hall'), 'ob:hall'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerStats(int $statPoints): array
+    {
+        $rows = [
+            [self::cbSuccess(__('telegram.btn.reset_stats'), 'city:overseer:reset')],
+        ];
+
+        if ($statPoints > 0) {
+            $rows[] = [
+                self::cb(__('profile.btn_str'), 'city:overseer:stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'city:overseer:stat:' . StatKeyEnum::AGILITY->value),
+            ];
+            $rows[] = [
+                self::cb(__('profile.btn_inst'), 'city:overseer:stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'city:overseer:stat:' . StatKeyEnum::VITALITY->value),
+            ];
+        }
+
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:tavern')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerResetConfirm(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.no'), 'city:overseer'),
+                self::cbSuccess(__('telegram.btn.yes'), 'city:overseer:reset_yes'),
             ],
         ]);
     }
@@ -559,7 +617,7 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function tavern(City $city, Character $character): array
+    public static function tavern(City $city): array
     {
         $rows = [];
 
@@ -575,7 +633,7 @@ final class CityKeyboard
             $rows[] = [self::cb(__('telegram.btn.buyer'), 'city:buyer')];
         }
 
-        if ($character->onboarding_skipped) {
+        if ($city->has_overseer) {
             $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
         }
 

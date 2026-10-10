@@ -45,16 +45,6 @@ final class FightHandler
         $data = $update->callbackData();
         $responder->answerCallback();
 
-        if (
-            (
-                preg_match('/^fight:(stance|atk|def):/', $data) === 1
-                || $data === 'fight:flee'
-            )
-            && $this->handleTimedOutTurn($update, $responder)
-        ) {
-            return;
-        }
-
         if (preg_match('/^fight:stance:(ATTACK|DEFEND)$/', $data, $m) === 1) {
             $this->stance($update, StanceEnum::from($m[1]));
 
@@ -82,43 +72,6 @@ final class FightHandler
         if (preg_match('/^fight:start:(.+)$/', $data, $m) === 1) {
             $this->startFight($update, $responder, $m[1]);
         }
-    }
-
-    private function handleTimedOutTurn(TelegramUpdate $update, TelegramResponder $responder): bool
-    {
-        $player = Character::query()->find($update->userId());
-
-        if ($player === null || ! $this->fights->exists($player->tg_id)) {
-            return false;
-        }
-
-        $fight = $this->fights->findByTgId($player->tg_id);
-
-        if (! $this->fights->turnTimedOut($fight)) {
-            return false;
-        }
-
-        $outcome = $this->rounds->runSkipRound($player);
-
-        if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
-            return true;
-        }
-
-        if ($outcome->kind === 'win') {
-            $this->applyEnd($this->ends->finishWin($outcome->character, $outcome->fight), $outcome->fight, $responder);
-
-            return true;
-        }
-
-        if ($outcome->kind === 'lose') {
-            $this->applyEnd($this->ends->finishLose($outcome->character, $outcome->fight), $outcome->fight, $responder);
-
-            return true;
-        }
-
-        $this->panel->refresh($this->telegram, $outcome->fight, $outcome->character);
-
-        return true;
     }
 
     private function flee(TelegramUpdate $update, TelegramResponder $responder): void

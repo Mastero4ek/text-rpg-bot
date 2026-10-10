@@ -62,8 +62,8 @@ it('enters onboarding hall from first home cta', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::INTRO)
         ->and($player->onboarding_skipped)->toBeFalse();
 
-    assertCityEditHas(mb_trim(__('telegram.npc.overseer.hall_gone')));
-    assertCitySendHas(mb_trim(__('onboarding.intro')));
+    assertCityEditHas(mb_trim(__('onboarding.intro')));
+    assertCityEditMarkupHas('ob:intro_fight');
 });
 
 it('skips onboarding via pass and shows ordinary home', function (): void {
@@ -148,7 +148,7 @@ it('resumes first home on start while arrived', function (): void {
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED);
 
     assertCitySendHas(mb_trim(__('telegram.npc.overseer.first_home')));
-    assertCitySendHas('training_attendant.png');
+    assertCitySendHas('overseer.png');
     assertCitySendMarkupHas('ob:hall');
 });
 
@@ -329,6 +329,7 @@ it('shows tavern empty when no npc flags and no skip', function (): void {
         'has_healer' => false,
         'has_blacksmith' => false,
         'has_buyer' => false,
+        'has_overseer' => false,
     ]);
 
     $player = characters()->createDraft(9617);

@@ -47,6 +47,18 @@ final class GameConfig
     /**
      * @return array<string, mixed>
      */
+    public function telegram(): array
+    {
+        if (! array_key_exists('telegram', $this->settings) || ! is_array($this->settings['telegram'])) {
+            throw new RuntimeException('settings.telegram missing.');
+        }
+
+        return $this->settings['telegram'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function onboarding(): array
     {
         return $this->onboarding;

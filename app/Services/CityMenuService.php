@@ -130,11 +130,10 @@ final class CityMenuService
             return false;
         }
 
-        if ($city->has_healer || $city->has_blacksmith || $city->has_buyer) {
-            return true;
-        }
-
-        return $character->onboarding_skipped;
+        return $city->has_healer
+            || $city->has_blacksmith
+            || $city->has_buyer
+            || $city->has_overseer;
     }
 
     /**
@@ -148,6 +147,6 @@ final class CityMenuService
             return null;
         }
 
-        return CityKeyboard::tavern($city, $character);
+        return CityKeyboard::tavern($city);
     }
 }

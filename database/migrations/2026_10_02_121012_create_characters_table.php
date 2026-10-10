@@ -33,6 +33,7 @@ return new class extends Migration
             $table->unsignedInteger('current_stamina');
             $table->unsignedInteger('max_stamina');
             $table->timestamp('last_stamina_update');
+            $table->timestamp('last_action_at')->nullable();
             $table->integer('stat_points')->default(3);
             $table->unsignedInteger('bag_max_rows')->default(10);
             $table->unsignedInteger('backpack_max_rows')->default(50);

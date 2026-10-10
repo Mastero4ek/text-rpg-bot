@@ -18,6 +18,7 @@ use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
 use App\Services\Registration\RegistrationService;
+use App\Support\LangVariant;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -166,12 +167,6 @@ final class CityHandler
             return;
         }
 
-        if ($data === 'city:overseer') {
-            $this->overseer($responder, $player);
-
-            return;
-        }
-
         if (preg_match('/^portal:(\d+)$/', $data, $m) === 1) {
             $this->travel($responder, $player, (int) $m[1]);
 
@@ -253,25 +248,77 @@ final class CityHandler
 
     public function sendHomePanel(TelegramResponder $responder, Character $player): int
     {
-        $text = $this->cityMenu->homeText($player);
-        $markup = $this->cityMenu->homeMarkup($player);
-        $imagePath = $this->homePanelImagePath($player);
+        return $this->sendHomePanelWithText(
+            $responder,
+            $player,
+            $this->cityMenu->homeText($player),
+        );
+    }
+
+    public function sendIdleHomePanel(TelegramResponder $responder, Character $player): int
+    {
+        $city = $this->cityMenu->currentCity($player);
+        $text = LangVariant::pick('telegram.city.idle');
+
+        if ($city instanceof City) {
+            $markup = CityKeyboard::idleSession($city->name);
+        } else {
+            $markup = CityKeyboard::backToCity();
+        }
+
+        $image = config('bot.idle_session_image');
+        $imagePath = null;
+
+        if (is_string($image) && $image !== '' && is_file($image)) {
+            $imagePath = $image;
+        }
+
+        $chatId = $player->tg_chat_id;
+        $messageId = $player->tg_message_id;
+
+        if ($chatId !== null && $messageId !== null) {
+            if ($imagePath !== null) {
+                try {
+                    $responder->editPhotoAt($chatId, $messageId, $imagePath, $text, $markup);
+                    $this->registrationService->rememberTelegramMessage($player, $chatId, $messageId);
+
+                    return $messageId;
+                } catch (Throwable) {
+                }
+            }
+
+            try {
+                $responder->editCaptionAt($chatId, $messageId, $text, $markup);
+                $this->registrationService->rememberTelegramMessage($player, $chatId, $messageId);
+
+                return $messageId;
+            } catch (Throwable) {
+            }
+
+            try {
+                $responder->editAt($chatId, $messageId, $text, $markup);
+                $this->registrationService->rememberTelegramMessage($player, $chatId, $messageId);
+
+                return $messageId;
+            } catch (Throwable) {
+            }
+        }
 
         if ($imagePath !== null) {
-            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+            $sentId = $responder->replyPhoto($imagePath, $text, $markup);
             $this->registrationService->rememberTelegramMessage(
                 $player,
                 $responder->chatId(),
-                $messageId,
+                $sentId,
             );
 
-            return $messageId;
+            return $sentId;
         }
 
-        $messageId = $responder->reply($text, $markup);
-        $this->registrationService->rememberTelegramMessage($player, $responder->chatId(), $messageId);
+        $sentId = $responder->reply($text, $markup);
+        $this->registrationService->rememberTelegramMessage($player, $responder->chatId(), $sentId);
 
-        return $messageId;
+        return $sentId;
     }
 
     public function showTavern(TelegramResponder $responder, Character $player): void
@@ -312,10 +359,10 @@ final class CityHandler
     private function homePanelImagePath(Character $player): ?string
     {
         if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-            $attendant = config('bot.training_attendant_image');
+            $overseerImage = config('bot.overseer_image');
 
-            if (is_string($attendant) && $attendant !== '' && is_file($attendant)) {
-                return $attendant;
+            if (is_string($overseerImage) && $overseerImage !== '' && is_file($overseerImage)) {
+                return $overseerImage;
             }
         }
 
@@ -338,6 +385,31 @@ final class CityHandler
         }
 
         return $imagePath;
+    }
+
+    private function sendHomePanelWithText(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+    ): int {
+        $markup = $this->cityMenu->homeMarkup($player);
+        $imagePath = $this->homePanelImagePath($player);
+
+        if ($imagePath !== null) {
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $messageId,
+            );
+
+            return $messageId;
+        }
+
+        $messageId = $responder->reply($text, $markup);
+        $this->registrationService->rememberTelegramMessage($player, $responder->chatId(), $messageId);
+
+        return $messageId;
     }
 
     private function arena(TelegramResponder $responder, Character $player): void
@@ -594,30 +666,6 @@ final class CityHandler
             $responder->chatId(),
             $responder->messageId(),
         );
-    }
-
-    private function overseer(TelegramResponder $responder, Character $player): void
-    {
-        if (! $player->onboarding_skipped) {
-            $this->tavern($responder, $player);
-
-            return;
-        }
-
-        $text = __('telegram.npc.overseer.skip');
-        $markup = CityKeyboard::overseerOffer();
-        $attendantImage = config('bot.training_attendant_tavern_image');
-
-        if (is_string($attendantImage) && $attendantImage !== '' && is_file($attendantImage)) {
-            try {
-                $responder->editPhoto($attendantImage, $text, $markup);
-
-                return;
-            } catch (Throwable) {
-            }
-        }
-
-        $responder->edit($text, $markup);
     }
 
     private function portalScreen(TelegramResponder $responder, Character $player, string $filter, int $page): void

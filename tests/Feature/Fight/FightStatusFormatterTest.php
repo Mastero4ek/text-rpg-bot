@@ -57,14 +57,18 @@ it('renders last round attack and defend without outcome icons', function (): vo
     $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->player_hp = 50;
     $fight->player_max_hp = 100;
+    $fight->player_stamina = 12;
+    $fight->player_max_stamina = 18;
     $fight->last_round = [
         'skipped' => false,
         'player_hp_delta' => -14,
         'enemy_hp_delta' => -27,
+        'player_stance' => 'ATTACK',
         'player_attack' => 'BELLY',
         'player_attack_second' => null,
         'player_defend' => 'HEAD',
         'player_defend_second' => 'CHEST',
+        'enemy_stance' => 'DEFEND',
         'enemy_attack' => 'LEGS',
         'enemy_attack_second' => null,
         'enemy_defend' => 'BELLY',
@@ -75,10 +79,19 @@ it('renders last round attack and defend without outcome icons', function (): vo
     $status = app(FightStatusFormatter::class)->statusCaption($fight, $p);
 
     expect($status)->toContain('❤️ Здоровье: 50/100')
+        ->and($status)->toContain("💚 Выносливость: 12/18\n\n🤺 Стойка: " . __('combat.stances.ATTACK'))
+        ->and($status)->toContain('🤺 Стойка: ' . __('combat.stances.ATTACK'))
+        ->and($status)->toContain('🤺 Стойка: ' . __('combat.stances.DEFEND'))
         ->and($status)->toContain('⚔️ Атака: ' . __('combat.zone_label.BELLY'))
         ->and($status)->toContain('🛡️ Защита: ' . __('combat.zone_label.HEAD') . ', ' . __('combat.zone_label.CHEST'))
         ->and($status)->not->toContain('✅')
         ->and($status)->not->toContain('❌');
+
+    $end = app(FightStatusFormatter::class)->format($fight, $p);
+
+    expect($end)->not->toContain('🤺 Стойка:')
+        ->and($end)->not->toContain('⚔️ Атака:')
+        ->and($end)->not->toContain('🛡️ Защита:');
 });
 
 it('hides player attack lines after skipped round', function (): void {
@@ -125,5 +138,6 @@ it('puts step prompt into panel caption', function (): void {
     $panel = app(FightStatusFormatter::class)->panelCaption($fight, $p);
 
     expect($panel)->toContain(__('combat.log_prompt.STANCE', ['round' => max(1, $fight->turn_seq)]))
-        ->and($panel)->toContain('PromptHero');
+        ->and($panel)->toContain('PromptHero')
+        ->and($panel)->not->toContain('сек');
 });

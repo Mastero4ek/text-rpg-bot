@@ -79,7 +79,6 @@
 |------|--------|
 | `aiDefendChance` | вероятность AI выбрать стойку DEFEND (0…1) |
 | `dualWieldMinLevel` | мин. уровень для 2 ударов (нож/кастет в LH) |
-| `turnTimeoutSeconds` | таймаут хода боя |
 | `mfPerStat` | МФ с 1 очка стата (ловкость→уворот, инстинкт→крит, …) |
 
 #### `combat.stamina`

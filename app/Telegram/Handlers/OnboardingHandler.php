@@ -159,16 +159,14 @@ final class OnboardingHandler
 
         if ($player->progress_step === ProgressStepEnum::ARRIVED) {
             $this->onboarding->beginIntro($player);
-            $responder->edit(__('telegram.npc.overseer.hall_gone'), TelegramKeyboards::clearInline());
-            $this->startIntro($responder);
+            $responder->edit($this->onboarding->introText(), TelegramKeyboards::intro());
 
             return;
         }
 
         if ($player->progress_step === ProgressStepEnum::DONE && $player->onboarding_skipped) {
             $this->onboarding->beginIntro($player);
-            $responder->edit(__('telegram.npc.overseer.hall_gone'), TelegramKeyboards::clearInline());
-            $this->startIntro($responder);
+            $responder->edit($this->onboarding->introText(), TelegramKeyboards::intro());
 
             return;
         }

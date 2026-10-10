@@ -151,7 +151,6 @@ it('keeps player stamina on skip while enemy spends for the free hit', function 
     $fight->enemy = $enemy;
     $fight->player_stamina = 60;
     $fight->player_max_stamina = 60;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     // stance ATTACK, zones, defender weapon, dodge miss, crit miss, variance

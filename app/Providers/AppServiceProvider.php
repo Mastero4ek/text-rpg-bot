@@ -29,5 +29,9 @@ final class AppServiceProvider extends ServiceProvider
         if (! is_string($webhookUrl) || $webhookUrl === '') {
             DevCommands::artisan('telegram:poll', 'telegram');
         }
+
+        if (config('queue.default') === 'sync') {
+            DevCommands::artisan('queue:listen database --tries=1 --timeout=0', 'queue');
+        }
     }
 }

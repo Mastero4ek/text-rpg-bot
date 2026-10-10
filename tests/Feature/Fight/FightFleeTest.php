@@ -192,7 +192,7 @@ it('rejects flee in tutorial fight', function (): void {
     });
 });
 
-it('rejects flee when fight is not on stance step', function (): void {
+it('flees when fight is on attack step', function (): void {
     $p = characters()->createDraft(9804);
     $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'FleeAtk';
@@ -201,7 +201,12 @@ it('rejects flee when fight is not on stance step', function (): void {
     $fight = fights()->createTraining($p, woodenSoldier($p));
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 1;
+    $fight->tg_reply_kind = 'zones_atk';
     $fight->step = FightStepEnum::ATTACK;
+    $fight->player_hp = 42;
+    $fight->player_max_hp = 60;
+    $fight->player_stamina = 11;
+    $fight->player_max_stamina = 18;
     $fight->save();
 
     fakeRandom([0.0]);
@@ -212,19 +217,17 @@ it('rejects flee when fight is not on stance step', function (): void {
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    $fight->refresh();
+    $p->refresh();
 
-    expect(fights()->exists($p->tg_id))->toBeTrue()
-        ->and($fight->step)->toBe(FightStepEnum::ATTACK);
+    expect(fights()->exists($p->tg_id))->toBeFalse()
+        ->and($p->current_hp)->toBe(42)
+        ->and($p->current_stamina)->toBe(11);
 
-    Http::assertNotSent(function (Request $request): bool {
-        $caption = (string) ($request['caption'] ?? '');
-
+    Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageCaption')
-            && (
-                str_contains($caption, mb_trim(__('combat.flee')))
-                || str_contains($caption, mb_trim(__('combat.flee_fail')))
-            );
+            && (int) $request['message_id'] === 1
+            && str_contains((string) $request['caption'], mb_trim(__('combat.flee')))
+            && ! str_contains((string) $request['reply_markup'], 'fight:flee');
     });
 });
 

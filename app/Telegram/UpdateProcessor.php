@@ -7,6 +7,7 @@ namespace App\Telegram;
 use App\Models\Character;
 use App\Services\CharacterService;
 use App\Services\Registration\RegistrationFlow;
+use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -18,6 +19,7 @@ use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OnboardingHandler;
+use App\Telegram\Handlers\OverseerHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
 use Illuminate\Support\Facades\Cache;
@@ -29,6 +31,7 @@ final class UpdateProcessor
     public function __construct(
         private readonly TelegramClient $client,
         private readonly CharacterService $characters,
+        private readonly IdleSessionService $idleSession,
         private readonly RegistrationHandler $registration,
         private readonly RegistrationFlow $registrationFlow,
         private readonly OnboardingHandler $onboarding,
@@ -38,6 +41,7 @@ final class UpdateProcessor
         private readonly BlacksmithHandler $blacksmith,
         private readonly HealerHandler $healer,
         private readonly BuyerHandler $buyer,
+        private readonly OverseerHandler $overseer,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
     ) {}
@@ -64,6 +68,8 @@ final class UpdateProcessor
                 return;
             }
 
+            $this->trackIdleSession($update, $responder);
+
             if ($update->isCallback()) {
                 $this->routeCallback($update, $responder);
 
@@ -72,6 +78,7 @@ final class UpdateProcessor
 
             if ($update->isStartCommand()) {
                 $this->routeStart($update, $responder);
+                $this->trackIdleSession($update, $responder);
 
                 return;
             }
@@ -108,21 +115,6 @@ final class UpdateProcessor
         }
 
         return false;
-    }
-
-    private function routeStart(TelegramUpdate $update, TelegramResponder $responder): void
-    {
-        $this->registration->handleStart($update, $responder);
-
-        $player = Character::query()->find($update->userId());
-
-        if (
-            $player instanceof Character
-            && ! $this->registrationFlow->isActive($player)
-            && ! $player->progress_step->canPlayCity()
-        ) {
-            $this->onboarding->handleStart($update, $responder);
-        }
     }
 
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void
@@ -167,6 +159,12 @@ final class UpdateProcessor
 
         if (str_starts_with($data, 'city:buyer')) {
             $this->buyer->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'city:overseer')) {
+            $this->overseer->handleCallback($update, $responder);
 
             return;
         }
@@ -220,6 +218,21 @@ final class UpdateProcessor
         $responder->answerCallback();
     }
 
+    private function routeStart(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $this->registration->handleStart($update, $responder);
+
+        $player = Character::query()->find($update->userId());
+
+        if (
+            $player instanceof Character
+            && ! $this->registrationFlow->isActive($player)
+            && ! $player->progress_step->canPlayCity()
+        ) {
+            $this->onboarding->handleStart($update, $responder);
+        }
+    }
+
     private function routeText(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $character = Character::query()->find($update->userId());
@@ -243,5 +256,17 @@ final class UpdateProcessor
         }
 
         $this->onboarding->handleText($update, $responder);
+    }
+
+    private function trackIdleSession(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if (! $player instanceof Character) {
+            return;
+        }
+
+        $this->idleSession->notifyIfIdle($player, $responder);
+        $this->idleSession->touch($player);
     }
 }

@@ -177,7 +177,7 @@ it('runs splash rise nick city happy path into intro', function (): void {
     Http::assertSent(function (Request $request): bool {
         if (str_contains($request->url(), '/sendPhoto')) {
             return str_contains($request->body(), 'Чужая улица, чужой воздух.')
-                && str_contains($request->body(), 'training_attendant.png');
+                && str_contains($request->body(), 'overseer.png');
         }
 
         return str_contains($request->url(), '/sendMessage')

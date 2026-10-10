@@ -28,6 +28,7 @@ final class CityFactory extends Factory
             'has_blacksmith' => true,
             'has_healer' => true,
             'has_buyer' => true,
+            'has_overseer' => true,
             'has_quest_board' => true,
             'has_portal' => true,
             'has_forest' => true,

@@ -39,6 +39,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $current_stamina
  * @property int $max_stamina
  * @property CarbonInterface $last_stamina_update
+ * @property CarbonInterface|null $last_action_at
  * @property int $stat_points
  * @property int $bag_max_rows
  * @property int $backpack_max_rows
@@ -79,6 +80,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'current_stamina',
     'max_stamina',
     'last_stamina_update',
+    'last_action_at',
     'stat_points',
     'bag_max_rows',
     'backpack_max_rows',
@@ -181,6 +183,7 @@ final class Character extends Model implements HasMedia
             'current_stamina' => 'integer',
             'max_stamina' => 'integer',
             'last_stamina_update' => 'datetime',
+            'last_action_at' => 'datetime',
             'stat_points' => 'integer',
             'bag_max_rows' => 'integer',
             'backpack_max_rows' => 'integer',

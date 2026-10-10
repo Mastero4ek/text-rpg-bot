@@ -8,6 +8,7 @@ use App\Enums\Fight\FightEndUiEnum;
 use App\Models\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
+use App\Services\Registration\RegistrationService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Telegram\Keyboards\TelegramKeyboards;
@@ -19,6 +20,7 @@ final class FightPanelService
     public function __construct(
         private readonly FightService $fights,
         private readonly FightStatusFormatter $fightStatus,
+        private readonly RegistrationService $registration,
     ) {}
 
     public function open(
@@ -32,13 +34,16 @@ final class FightPanelService
         $replyKind = TelegramKeyboards::fightMarkupKind($fight);
         $statusId = $this->openPanel($responder, $imagePath, $caption, $markup);
 
-        return $this->fights->rememberTelegramPanel(
+        $fight = $this->fights->rememberTelegramPanel(
             $fight,
             (int) $responder->chatId(),
             $statusId,
             $replyKind,
             null,
         );
+        $this->registration->rememberTelegramMessage($player, $responder->chatId(), $statusId);
+
+        return $fight;
     }
 
     public function publishEnd(
@@ -95,6 +100,7 @@ final class FightPanelService
         $markup = TelegramKeyboards::fightInlineForStep($fight);
         $statusId = $this->refreshPanel($telegram, $chatId, $fight, $caption, $markup);
         $this->fights->rememberTelegramPanel($fight, (int) $chatId, $statusId, $replyKind, null);
+        $this->registration->rememberTelegramMessage($player, $chatId, $statusId);
     }
 
     public function showError(TelegramClient $telegram, Fight $fight, Character $player, string $error): void
@@ -110,6 +116,7 @@ final class FightPanelService
         $markup = TelegramKeyboards::fightInlineForStep($fight);
         $statusId = $this->refreshPanel($telegram, $chatId, $fight, $caption, $markup);
         $this->fights->rememberTelegramPanel($fight, (int) $chatId, $statusId, $replyKind, null);
+        $this->registration->rememberTelegramMessage($player, $chatId, $statusId);
     }
 
     private function enemyImagePath(Fight $fight): ?string

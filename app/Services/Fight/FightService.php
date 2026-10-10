@@ -7,21 +7,17 @@ namespace App\Services\Fight;
 use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Services\CharacterService;
-use App\Services\GameConfig;
 use App\Support\Enemy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 final class FightService
 {
     public function __construct(
         private readonly CharacterService $characters,
-        private readonly GameConfig $config,
     ) {}
 
     public function createHall(Character $character, Enemy $enemy): Fight
@@ -55,16 +51,16 @@ final class FightService
         return Fight::query()->whereKey($tgId)->exists();
     }
 
+    public function clear(int $tgId): void
+    {
+        Fight::query()->whereKey($tgId)->delete();
+    }
+
     public function save(Fight $fight): Fight
     {
         $fight->save();
 
         return $fight;
-    }
-
-    public function clear(int $tgId): void
-    {
-        Fight::query()->whereKey($tgId)->delete();
     }
 
     public function enemy(Fight $fight): Enemy
@@ -105,24 +101,11 @@ final class FightService
 
     public function scheduleTurn(Fight $fight): Fight
     {
-        $seconds = $this->turnTimeoutSeconds();
         $fight->turn_seq += 1;
-        $fight->turn_deadline_at = now()->addSeconds($seconds);
+        $fight->turn_deadline_at = null;
         $this->save($fight);
 
-        dispatch(new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq))
-            ->delay($fight->turn_deadline_at);
-
         return $fight;
-    }
-
-    public function turnTimedOut(Fight $fight): bool
-    {
-        if ($fight->turn_deadline_at === null) {
-            return false;
-        }
-
-        return ! $fight->turn_deadline_at->isFuture();
     }
 
     private function createFight(
@@ -132,7 +115,7 @@ final class FightService
         bool $hall,
         ?FightReturnEnum $returnTo,
     ): Fight {
-        return DB::transaction(function () use ($character, $enemy, $tutorial, $hall, $returnTo): Fight {
+        $fight = DB::transaction(function () use ($character, $enemy, $tutorial, $hall, $returnTo): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
 
             $character = $this->characters->applyRegen($character);
@@ -171,22 +154,9 @@ final class FightService
             $fight->tg_log_message_id = null;
             $fight->save();
 
-            return $this->scheduleTurn($this->findByTgId($character->tg_id));
+            return $this->findByTgId($character->tg_id);
         });
-    }
 
-    private function turnTimeoutSeconds(): int
-    {
-        $combat = $this->config->combat();
-
-        if (! array_key_exists('turnTimeoutSeconds', $combat) || ! is_int($combat['turnTimeoutSeconds'])) {
-            throw new RuntimeException('settings.combat.turnTimeoutSeconds missing.');
-        }
-
-        if ($combat['turnTimeoutSeconds'] < 1) {
-            throw new RuntimeException('settings.combat.turnTimeoutSeconds must be >= 1.');
-        }
-
-        return $combat['turnTimeoutSeconds'];
+        return $this->scheduleTurn($fight);
     }
 }

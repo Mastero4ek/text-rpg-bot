@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
-use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
+use App\Services\Fight\FightEndService;
+use App\Services\Fight\FightRoundService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -93,11 +94,15 @@ it('does not wear gear or break gems after hall win', function (): void {
     $fight->player_stamina = 12;
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 55;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     fakeRandom([0.99, 0.0, 0.0]);
-    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
+    expect($outcome->kind)->toBe('win')
+        ->and($outcome->character)->not->toBeNull()
+        ->and($outcome->fight)->not->toBeNull();
+
+    app(FightEndService::class)->finishWin($outcome->character, $outcome->fight);
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     $knuckles->refresh();

@@ -249,7 +249,12 @@ describe('positive fight flow', function (): void {
         $fight->tg_chat_id = $p->tg_id;
         $fight->tg_message_id = 1;
         $fight->tg_reply_kind = 'stance_potions';
+        $fight->player_hp = 20;
+        $fight->player_max_hp = 200;
         $fight->save();
+
+        $heal = bagCatalog()->potionHeal();
+        $hpBefore = $fight->player_hp;
 
         app(FightHandler::class)->handleCallback(
             fightInlineCallback($p->tg_id, 'fight:atk:POTION'),
@@ -258,17 +263,27 @@ describe('positive fight flow', function (): void {
 
         $fight->refresh();
         expect($fight->step)->toBe(FightStepEnum::DEFEND)
-            ->and($fight->use_potion)->toBeTrue()
+            ->and($fight->use_potion)->toBeFalse()
             ->and($fight->player_attack)->toBe(PlayerAttackEnum::POTION)
             ->and($fight->player_stance)->toBe(StanceEnum::DEFEND)
+            ->and($fight->player_hp)->toBe($hpBefore + $heal)
+            ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
             ->and($fight->tg_message_id)->toBe(1)
-            ->and($fight->tg_reply_kind)->toBe('zones_def');
+            ->and($fight->tg_reply_kind)->toBe('zones_def')
+            ->and(implode("\n", $fight->log))->toContain((string) $heal);
 
-        Http::assertSent(function (Request $request): bool {
-            return str_contains($request->url(), '/editMessageCaption')
-                && (int) $request['message_id'] === 1
+        Http::assertSent(function (Request $request) use ($heal): bool {
+            if (! str_contains($request->url(), '/editMessageCaption')) {
+                return false;
+            }
+
+            $caption = (string) $request['caption'];
+
+            return (int) $request['message_id'] === 1
                 && str_contains((string) $request['reply_markup'], 'fight:def:HEAD')
-                && ! str_contains((string) $request['caption'], mb_trim(__('errors.potion_unavailable')));
+                && str_contains($caption, (string) $heal)
+                && str_contains($caption, 'Выбери блок')
+                && ! str_contains($caption, mb_trim(__('errors.potion_unavailable')));
         });
     });
 });

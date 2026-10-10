@@ -283,18 +283,25 @@ final class TelegramKeyboards
         }
 
         if ($fight->step === FightStepEnum::ATTACK || $fight->step === FightStepEnum::ATTACK_SECOND) {
-            return self::attackWithoutPotion();
-        }
-
-        if ($fight->step === FightStepEnum::DEFEND_SECOND) {
+            $markup = self::attackWithoutPotion();
+        } elseif ($fight->step === FightStepEnum::DEFEND_SECOND) {
             if (! $fight->player_defend instanceof ZoneEnum) {
                 throw new RuntimeException('Fight defend zone missing for second block.');
             }
 
-            return self::defendExcluding($fight->player_defend);
+            $markup = self::defendExcluding($fight->player_defend);
+        } else {
+            $markup = self::defend();
         }
 
-        return self::defend();
+        if ($fight->tutorial) {
+            return $markup;
+        }
+
+        $rows = $markup['inline_keyboard'];
+        $rows[] = [self::cbDanger(__('combat.btn_flee'), 'fight:flee')];
+
+        return self::inline($rows);
     }
 
     public static function fightMarkupKind(Fight $fight): string

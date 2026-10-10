@@ -13,6 +13,9 @@ use App\Models\Character;
 use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
+use App\Services\CharacterService;
+use App\Support\PotionDef;
+use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 
 final class FightTurnService
@@ -21,6 +24,7 @@ final class FightTurnService
         private readonly FightService $fights,
         private readonly LoadoutService $loadout,
         private readonly BagService $bag,
+        private readonly CharacterService $characters,
     ) {}
 
     public function commitAttack(int $tgId, string $choice): FightTurnCommit
@@ -173,7 +177,50 @@ final class FightTurnService
             return FightTurnCommit::potionDenied($player, $fight);
         }
 
-        $fight->use_potion = true;
+        if ($attack === PlayerAttackEnum::STAMINA_POTION) {
+            $profile = ProfileEnum::STAMINA;
+        } else {
+            $profile = ProfileEnum::HEAL;
+        }
+
+        $consumed = $this->bag->consumePotion($player->tg_id, $profile);
+
+        if (! $consumed->ok || ! $consumed->potion instanceof PotionDef) {
+            return FightTurnCommit::potionDenied($player, $fight);
+        }
+
+        $heal = $consumed->potion->effectValue;
+
+        if ($player->username === null) {
+            $drinkName = __('common.you');
+        } else {
+            $drinkName = TelegramHtml::escape($player->username);
+        }
+
+        $log = $fight->log;
+
+        if ($profile === ProfileEnum::STAMINA) {
+            $fight->player_stamina = $this->characters->clampStamina(
+                $fight->player_stamina + $heal,
+                $fight->player_max_stamina,
+            );
+            $log[] = __('combat.drink_stamina_potion', [
+                'name' => $drinkName,
+                'heal' => $heal,
+            ]);
+        } else {
+            $fight->player_hp = $this->characters->clampHp(
+                $fight->player_hp + $heal,
+                $fight->player_max_hp,
+            );
+            $log[] = __('combat.drink_potion', [
+                'name' => $drinkName,
+                'heal' => $heal,
+            ]);
+        }
+
+        $fight->log = $log;
+        $fight->use_potion = false;
         $fight->player_stance = StanceEnum::DEFEND;
         $fight->player_attack = $attack;
         $fight->player_attack_second = null;

@@ -1,4 +1,7 @@
 {
+    "telegram": {
+        "idleSessionSeconds": 600
+    },
     "backpack": {
         "maxRows": 50
     },
@@ -35,7 +38,6 @@
     "combat": {
         "aiDefendChance": 0.55,
         "dualWieldMinLevel": 0,
-        "turnTimeoutSeconds": 180,
         "mfPerStat": 3,
         "stamina": {
             "maxPerStrength": 6,
