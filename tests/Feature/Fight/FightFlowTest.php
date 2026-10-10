@@ -213,7 +213,7 @@ describe('positive fight flow', function (): void {
         $p->username = 'FlowHallStart';
         $p = placeInCity($p, City::KEY_ELDWOOD);
 
-        $update = cityCallback($p->tg_id, 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID);
+        $update = cityPhotoCallback($p->tg_id, 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID);
         app(CityHandler::class)->handleCallback(
             $update,
             new TelegramResponder(app(TelegramClient::class), $update),
@@ -229,7 +229,7 @@ describe('positive fight flow', function (): void {
             ->and($fight->tg_reply_kind)->toBe('stance_potions');
 
         Http::assertSent(function (Request $request): bool {
-            return str_contains($request->url(), '/sendPhoto')
+            return str_contains($request->url(), '/editMessageMedia')
                 && str_contains($request->body(), 'fight:stance:ATTACK')
                 && str_contains($request->body(), 'Раунд');
         });
@@ -295,8 +295,8 @@ describe('negative fight flow', function (): void {
         expect(fights()->exists($p->tg_id))->toBeFalse();
 
         Http::assertSent(function (Request $request): bool {
-            return str_contains($request->url(), '/sendMessage')
-                && str_contains((string) $request['text'], mb_trim(__('errors.no_hp')));
+            return str_contains($request->url(), '/editMessageText')
+                && str_contains((string) $request['text'], mb_trim(__('telegram.location.error.no_hp')));
         });
     });
 
@@ -315,8 +315,8 @@ describe('negative fight flow', function (): void {
         expect(fights()->exists($p->tg_id))->toBeFalse();
 
         Http::assertSent(function (Request $request): bool {
-            return str_contains($request->url(), '/sendMessage')
-                && str_contains((string) $request['text'], mb_trim(__('errors.enemy_not_found')));
+            return str_contains($request->url(), '/editMessageText')
+                && str_contains((string) $request['text'], mb_trim(__('telegram.location.error.enemy_not_found')));
         });
     });
 
@@ -485,8 +485,8 @@ describe('negative fight flow', function (): void {
         expect(fights()->exists($p->tg_id))->toBeFalse();
 
         Http::assertSent(function (Request $request): bool {
-            return str_contains($request->url(), '/sendMessage')
-                && str_contains((string) $request['text'], mb_trim(__('errors.no_hp')));
+            return str_contains($request->url(), '/editMessageText')
+                && str_contains((string) $request['text'], mb_trim(__('telegram.location.error.no_hp')));
         });
     });
 });

@@ -46,6 +46,17 @@ final class FightEndService
         return $this->trainingWin($player, $fight, $text);
     }
 
+    public function finishFlee(Character $player, Fight $fight): FightEndResult
+    {
+        $text = $this->fightStatus->format($fight, $player);
+
+        if ($fight->hall) {
+            return $this->hallFlee($player, $fight, $text);
+        }
+
+        return $this->trainingFlee($player, $fight, $text);
+    }
+
     public function finishLose(Character $player, Fight $fight): FightEndResult
     {
         $text = $this->fightStatus->format($fight, $player);
@@ -120,6 +131,26 @@ final class FightEndService
         );
     }
 
+    private function hallFlee(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text . __('combat.flee'),
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+        );
+    }
+
     private function hallLose(Character $player, string $text): FightEndResult
     {
         $player->current_hp = 0;
@@ -132,6 +163,29 @@ final class FightEndService
         return new FightEndResult(
             $player,
             $text . __('combat.lose'),
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+        );
+    }
+
+    private function trainingFlee(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $broken = $this->fightWear->handleAfterLose($player, $fight->pierce_count);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $brokeSuffix = $this->brokenGearSuffix($broken);
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text . __('combat.flee') . $brokeSuffix,
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,

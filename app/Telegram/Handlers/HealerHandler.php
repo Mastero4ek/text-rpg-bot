@@ -6,7 +6,9 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\City\CityHealerBuyPotionAction;
 use App\Actions\City\CityHealerHealAction;
+use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\ProfileEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -19,6 +21,7 @@ use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
+use App\Telegram\Keyboards\PaginatedListKeyboard;
 use RuntimeException;
 use Throwable;
 
@@ -37,6 +40,28 @@ final class HealerHandler
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
+        $potionsState = PaginatedListKeyboard::listState($data, 'city:healer:potions');
+
+        if ($potionsState !== null || $data === 'city:healer:potions') {
+            $player = $this->gate->requireCityPlayer($update, $responder);
+
+            if ($player === false) {
+                $responder->answerCallback();
+
+                return;
+            }
+
+            if ($potionsState !== null) {
+                $this->healerPotions($responder, $player, $potionsState['filter'], $potionsState['page']);
+
+                return;
+            }
+
+            $this->healerPotions($responder, $player, 'all', 1);
+
+            return;
+        }
+
         $responder->answerCallback();
         $player = $this->gate->requireCityPlayer($update, $responder);
 
@@ -52,12 +77,6 @@ final class HealerHandler
 
         if ($data === 'city:healer:heal') {
             $this->heal($responder, $player);
-
-            return;
-        }
-
-        if ($data === 'city:healer:potions') {
-            $this->healerPotions($responder, $player);
 
             return;
         }
@@ -150,7 +169,7 @@ final class HealerHandler
             __('telegram.npc.healer.bought_potion', [
                 'name' => TelegramHtml::escape($res->potion->name),
             ]),
-            CityKeyboard::healerPotions($this->healerPotionRows($res->character)),
+            CityKeyboard::healerPotions($this->healerPotionRows($res->character, 'all'), 'all', 1),
         );
     }
 
@@ -175,28 +194,30 @@ final class HealerHandler
             return CityKeyboard::backToTavern();
         }
 
-        $potions = $this->healerPotionRows($player);
+        $potions = $this->healerPotionRows($player, 'all');
 
-        if (empty($potions)) {
-            return CityKeyboard::backToHealer();
-        }
-
-        return CityKeyboard::healerPotions($potions);
+        return CityKeyboard::healerPotions($potions, 'all', 1);
     }
 
     /**
      * @return list<array{text: string, catalog_id: string}>
      */
-    private function healerPotionRows(Character $player): array
+    private function healerPotionRows(Character $player, string $filter): array
     {
         if ($player->city_id === null) {
             return [];
         }
 
+        $profile = $this->potionProfile($filter);
         $rows = [];
 
         foreach ($this->cityQuery->bagPotionShopCatalogIds($player->city_id) as $catalogId) {
             $potion = $this->bagCatalog->findPotion($catalogId);
+
+            if ($profile instanceof ProfileEnum && $potion->profile !== $profile) {
+                continue;
+            }
+
             $rows[] = [
                 'text' => __('telegram.npc.healer.potion_row', [
                     'name' => $potion->name,
@@ -210,11 +231,12 @@ final class HealerHandler
         return $rows;
     }
 
-    private function healerPotions(TelegramResponder $responder, Character $player): void
+    private function healerPotions(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_healer) {
+            $responder->answerCallback();
             $this->editHealerPanel(
                 $responder,
                 __('telegram.npc.healer.error.no_healer'),
@@ -224,23 +246,55 @@ final class HealerHandler
             return;
         }
 
-        $potions = $this->healerPotionRows($player);
+        $filter = $this->potionFilter($filter);
+        $potions = $this->healerPotionRows($player, $filter);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($potions));
+        $markup = CityKeyboard::healerPotions($potions, $filter, $page);
 
-        if (empty($potions)) {
-            $this->editHealerPanel(
+        $responder->answerCallback();
+
+        if ($edge && ! empty($potions)) {
+            app(FlashListPageEdgeAction::class)->handle(
                 $responder,
                 __('telegram.npc.healer.potions_empty'),
-                CityKeyboard::backToHealer(),
+                __('telegram.npc.healer.potions'),
+                $markup,
             );
 
             return;
         }
 
-        $this->editHealerPanel(
-            $responder,
-            __('telegram.npc.healer.potions'),
-            CityKeyboard::healerPotions($potions),
-        );
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+
+        if (empty($potions)) {
+            $text = __('telegram.npc.healer.potions_empty');
+        } else {
+            $text = __('telegram.npc.healer.potions');
+        }
+
+        $this->editHealerPanel($responder, $text, $markup);
+    }
+
+    private function potionFilter(string $filter): string
+    {
+        if (in_array($filter, ['all', 'heal', 'stam'], true)) {
+            return $filter;
+        }
+
+        return 'all';
+    }
+
+    private function potionProfile(string $filter): ?ProfileEnum
+    {
+        if ($filter === 'heal') {
+            return ProfileEnum::HEAL;
+        }
+
+        if ($filter === 'stam') {
+            return ProfileEnum::STAMINA;
+        }
+
+        return null;
     }
 
     private function healerScreen(TelegramResponder $responder, Character $player): void

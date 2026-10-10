@@ -17,6 +17,15 @@ final class TelegramClient
         ]);
     }
 
+    public function answerCallbackQueryToast(string $callbackQueryId, string $text): void
+    {
+        $this->post('answerCallbackQuery', [
+            'callback_query_id' => $callbackQueryId,
+            'text' => $text,
+            'show_alert' => false,
+        ]);
+    }
+
     public function deleteMessage(int|string $chatId, int $messageId): void
     {
         try {

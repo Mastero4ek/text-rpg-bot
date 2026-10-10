@@ -262,6 +262,7 @@ final class SmithHandler
         $buttons[] = [[
             'text' => __('menu.back'),
             'callback_data' => 'menu:home',
+            'style' => 'danger',
         ]];
 
         if ($rows->isEmpty()) {

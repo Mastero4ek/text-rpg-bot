@@ -7,7 +7,9 @@ namespace App\Telegram\Handlers;
 use App\Actions\Backpack\BackpackRepairAction;
 use App\Actions\Backpack\BackpackRepairAllAction;
 use App\Actions\City\CityBlacksmithBuyAction;
+use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
+use App\Enums\Equipment\TypeEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\City;
@@ -20,6 +22,7 @@ use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
+use App\Telegram\Keyboards\PaginatedListKeyboard;
 use Throwable;
 
 final class BlacksmithHandler
@@ -38,6 +41,46 @@ final class BlacksmithHandler
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
+        $gearState = PaginatedListKeyboard::listState($data, 'city:blacksmith:gear');
+        $repairState = PaginatedListKeyboard::listState($data, 'city:blacksmith:repair');
+
+        if (
+            $gearState !== null
+            || $repairState !== null
+            || $data === 'city:blacksmith:gear'
+            || $data === 'city:blacksmith:repair'
+        ) {
+            $player = $this->gate->requireCityPlayer($update, $responder);
+
+            if ($player === false) {
+                $responder->answerCallback();
+
+                return;
+            }
+
+            if ($gearState !== null) {
+                $this->blacksmithGear($responder, $player, $gearState['filter'], $gearState['page']);
+
+                return;
+            }
+
+            if ($data === 'city:blacksmith:gear') {
+                $this->blacksmithGear($responder, $player, 'wpn', 1);
+
+                return;
+            }
+
+            if ($repairState !== null) {
+                $this->blacksmithRepair($responder, $player, $repairState['filter'], $repairState['page']);
+
+                return;
+            }
+
+            $this->blacksmithRepair($responder, $player, $this->firstDamagedRepairFilter($player), 1);
+
+            return;
+        }
+
         $responder->answerCallback();
         $player = $this->gate->requireCityPlayer($update, $responder);
 
@@ -47,12 +90,6 @@ final class BlacksmithHandler
 
         if ($data === 'city:blacksmith') {
             $this->blacksmithScreen($responder, $player);
-
-            return;
-        }
-
-        if ($data === 'city:blacksmith:gear') {
-            $this->blacksmithGear($responder, $player);
 
             return;
         }
@@ -71,12 +108,6 @@ final class BlacksmithHandler
 
         if (preg_match('/^city:blacksmith:repair:(\d+)$/', $data, $m) === 1) {
             $this->blacksmithRepairItem($responder, $player, (int) $m[1]);
-
-            return;
-        }
-
-        if ($data === 'city:blacksmith:repair') {
-            $this->blacksmithRepair($responder, $player);
         }
     }
 
@@ -130,7 +161,7 @@ final class BlacksmithHandler
             __('telegram.npc.blacksmith.bought', [
                 'name' => TelegramHtml::escape($this->shopCatalog->findItem($catalogId)->itemName),
             ]),
-            CityKeyboard::blacksmithGear($this->blacksmithGearRows($res->character)),
+            CityKeyboard::blacksmithGear($this->blacksmithGearRows($res->character, 'wpn'), 'wpn', 1),
         );
     }
 
@@ -171,11 +202,12 @@ final class BlacksmithHandler
         return TelegramResponder::errorMessage($error);
     }
 
-    private function blacksmithGear(TelegramResponder $responder, Character $player): void
+    private function blacksmithGear(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_blacksmith) {
+            $responder->answerCallback();
             $this->editBlacksmithPanel(
                 $responder,
                 __('telegram.npc.blacksmith.error.no_blacksmith'),
@@ -185,23 +217,33 @@ final class BlacksmithHandler
             return;
         }
 
-        $items = $this->blacksmithGearRows($player);
+        $filter = $this->gearFilter($filter);
+        $items = $this->blacksmithGearRows($player, $filter);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
+        $markup = CityKeyboard::blacksmithGear($items, $filter, $page);
 
-        if (empty($items)) {
-            $this->editBlacksmithPanel(
+        $responder->answerCallback();
+
+        if ($edge && ! empty($items)) {
+            app(FlashListPageEdgeAction::class)->handle(
                 $responder,
                 __('telegram.npc.blacksmith.gear_empty'),
-                CityKeyboard::backToBlacksmith(),
+                __('telegram.npc.blacksmith.gear'),
+                $markup,
             );
 
             return;
         }
 
-        $this->editBlacksmithPanel(
-            $responder,
-            __('telegram.npc.blacksmith.gear'),
-            CityKeyboard::blacksmithGear($items),
-        );
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+
+        if (empty($items)) {
+            $text = __('telegram.npc.blacksmith.gear_empty');
+        } else {
+            $text = __('telegram.npc.blacksmith.gear');
+        }
+
+        $this->editBlacksmithPanel($responder, $text, $markup);
     }
 
     /**
@@ -213,80 +255,84 @@ final class BlacksmithHandler
             return CityKeyboard::backToTavern();
         }
 
-        $items = $this->blacksmithGearRows($player);
+        $items = $this->blacksmithGearRows($player, 'wpn');
 
-        if (empty($items)) {
-            return CityKeyboard::backToBlacksmith();
-        }
-
-        return CityKeyboard::blacksmithGear($items);
+        return CityKeyboard::blacksmithGear($items, 'wpn', 1);
     }
 
     /**
      * @return list<array{text: string, catalog_id: string}>
      */
-    private function blacksmithGearRows(Character $player): array
+    private function blacksmithGearRows(Character $player, string $filter): array
     {
         if ($player->city_id === null) {
             return [];
         }
 
+        $type = CityKeyboard::gearTypeFromFilter($filter);
         $allowed = $this->cityQuery->backpackShopCatalogIds($player->city_id);
         $rows = [];
 
-        foreach ($this->shopCatalog->weaponsForMode('full') as $weapon) {
-            if (! in_array($weapon->itemId, $allowed, true)) {
-                continue;
-            }
+        if (! $type instanceof TypeEnum || $type === TypeEnum::WEAPON) {
+            foreach ($this->shopCatalog->weaponsForMode('full') as $weapon) {
+                if (! in_array($weapon->itemId, $allowed, true)) {
+                    continue;
+                }
 
-            $rows[] = [
-                'text' => __('telegram.npc.blacksmith.gear_row', [
-                    'name' => TelegramHtml::escape($weapon->itemName),
-                    'price' => $weapon->price,
-                    'mark' => $this->currencyMark($weapon->currency),
-                ]),
-                'catalog_id' => $weapon->itemId,
-            ];
+                $rows[] = [
+                    'text' => __('telegram.npc.blacksmith.gear_row', [
+                        'name' => TelegramHtml::escape($weapon->itemName),
+                        'price' => $weapon->price,
+                        'mark' => $this->currencyMark($weapon->currency),
+                    ]),
+                    'catalog_id' => $weapon->itemId,
+                ];
+            }
         }
 
-        foreach ($this->shopCatalog->shopGear() as $item) {
-            if (! in_array($item->itemId, $allowed, true)) {
-                continue;
-            }
+        if (! $type instanceof TypeEnum || $type === TypeEnum::ARMOR) {
+            foreach ($this->shopCatalog->shopGear() as $item) {
+                if (! in_array($item->itemId, $allowed, true)) {
+                    continue;
+                }
 
-            $rows[] = [
-                'text' => __('telegram.npc.blacksmith.gear_row', [
-                    'name' => TelegramHtml::escape($item->itemName),
-                    'price' => $item->price,
-                    'mark' => $this->currencyMark($item->currency),
-                ]),
-                'catalog_id' => $item->itemId,
-            ];
+                $rows[] = [
+                    'text' => __('telegram.npc.blacksmith.gear_row', [
+                        'name' => TelegramHtml::escape($item->itemName),
+                        'price' => $item->price,
+                        'mark' => $this->currencyMark($item->currency),
+                    ]),
+                    'catalog_id' => $item->itemId,
+                ];
+            }
         }
 
-        foreach ($this->shopCatalog->shopJewelry() as $jewelry) {
-            if (! in_array($jewelry->itemId, $allowed, true)) {
-                continue;
-            }
+        if (! $type instanceof TypeEnum || $type === TypeEnum::JEWELRY) {
+            foreach ($this->shopCatalog->shopJewelry() as $jewelry) {
+                if (! in_array($jewelry->itemId, $allowed, true)) {
+                    continue;
+                }
 
-            $rows[] = [
-                'text' => __('telegram.npc.blacksmith.gear_row', [
-                    'name' => TelegramHtml::escape($jewelry->itemName),
-                    'price' => $jewelry->price,
-                    'mark' => $this->currencyMark($jewelry->currency),
-                ]),
-                'catalog_id' => $jewelry->itemId,
-            ];
+                $rows[] = [
+                    'text' => __('telegram.npc.blacksmith.gear_row', [
+                        'name' => TelegramHtml::escape($jewelry->itemName),
+                        'price' => $jewelry->price,
+                        'mark' => $this->currencyMark($jewelry->currency),
+                    ]),
+                    'catalog_id' => $jewelry->itemId,
+                ];
+            }
         }
 
         return $rows;
     }
 
-    private function blacksmithRepair(TelegramResponder $responder, Character $player): void
+    private function blacksmithRepair(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_blacksmith) {
+            $responder->answerCallback();
             $this->editBlacksmithPanel(
                 $responder,
                 __('telegram.npc.blacksmith.error.no_blacksmith'),
@@ -296,28 +342,42 @@ final class BlacksmithHandler
             return;
         }
 
-        $items = $this->blacksmithRepairRows($player);
+        $filter = $this->gearFilter($filter);
+        $items = $this->blacksmithRepairRows($player, $filter);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
 
         if (empty($items)) {
-            $this->editBlacksmithPanel(
+            $repairAllBtn = null;
+        } else {
+            $repairAllBtn = __('telegram.npc.blacksmith.repair_all_btn', [
+                'price' => $this->repairs->repairAllGoldCost($player),
+            ]);
+        }
+
+        $markup = CityKeyboard::blacksmithRepair($items, $filter, $page, $repairAllBtn);
+
+        $responder->answerCallback();
+
+        if ($edge && ! empty($items)) {
+            app(FlashListPageEdgeAction::class)->handle(
                 $responder,
                 __('telegram.npc.blacksmith.repair_empty'),
-                CityKeyboard::backToBlacksmith(),
+                __('telegram.npc.blacksmith.repair'),
+                $markup,
             );
 
             return;
         }
 
-        $this->editBlacksmithPanel(
-            $responder,
-            __('telegram.npc.blacksmith.repair'),
-            CityKeyboard::blacksmithRepair(
-                $items,
-                __('telegram.npc.blacksmith.repair_all_btn', [
-                    'price' => $this->repairs->repairAllGoldCost($player),
-                ]),
-            ),
-        );
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+
+        if (empty($items)) {
+            $text = __('telegram.npc.blacksmith.repair_empty');
+        } else {
+            $text = __('telegram.npc.blacksmith.repair');
+        }
+
+        $this->editBlacksmithPanel($responder, $text, $markup);
     }
 
     private function blacksmithRepairAll(TelegramResponder $responder, Character $player): void
@@ -362,7 +422,8 @@ final class BlacksmithHandler
             return CityKeyboard::backToTavern();
         }
 
-        $items = $this->blacksmithRepairRows($player);
+        $filter = $this->firstDamagedRepairFilter($player);
+        $items = $this->blacksmithRepairRows($player, $filter);
 
         if (empty($items)) {
             return CityKeyboard::backToBlacksmith();
@@ -370,6 +431,8 @@ final class BlacksmithHandler
 
         return CityKeyboard::blacksmithRepair(
             $items,
+            $filter,
+            1,
             __('telegram.npc.blacksmith.repair_all_btn', [
                 'price' => $this->repairs->repairAllGoldCost($player),
             ]),
@@ -402,7 +465,8 @@ final class BlacksmithHandler
             return;
         }
 
-        $items = $this->blacksmithRepairRows($res->character);
+        $filter = $this->firstDamagedRepairFilter($res->character);
+        $items = $this->blacksmithRepairRows($res->character, $filter);
 
         if (empty($items)) {
             $this->editBlacksmithPanel(
@@ -419,6 +483,8 @@ final class BlacksmithHandler
             __('telegram.npc.blacksmith.repaired'),
             CityKeyboard::blacksmithRepair(
                 $items,
+                $filter,
+                1,
                 __('telegram.npc.blacksmith.repair_all_btn', [
                     'price' => $this->repairs->repairAllGoldCost($res->character),
                 ]),
@@ -429,11 +495,16 @@ final class BlacksmithHandler
     /**
      * @return list<array{text: string, row_id: int}>
      */
-    private function blacksmithRepairRows(Character $player): array
+    private function blacksmithRepairRows(Character $player, string $filter): array
     {
+        $type = CityKeyboard::gearTypeFromFilter($filter);
         $rows = [];
 
         foreach ($this->repairs->damagedList($player->tg_id) as $row) {
+            if ($type instanceof TypeEnum && $row->item_type !== $type) {
+                continue;
+            }
+
             $rows[] = [
                 'text' => __('telegram.npc.blacksmith.repair_row', [
                     'name' => TelegramHtml::escape($row->item_name),
@@ -446,6 +517,26 @@ final class BlacksmithHandler
         }
 
         return $rows;
+    }
+
+    private function firstDamagedRepairFilter(Character $player): string
+    {
+        foreach (CityKeyboard::gearTypeFilters() as $row) {
+            if (! empty($this->blacksmithRepairRows($player, $row['id']))) {
+                return $row['id'];
+            }
+        }
+
+        return 'wpn';
+    }
+
+    private function gearFilter(string $filter): string
+    {
+        if (CityKeyboard::gearTypeFromFilter($filter) instanceof TypeEnum) {
+            return $filter;
+        }
+
+        return 'wpn';
     }
 
     private function blacksmithScreen(TelegramResponder $responder, Character $player): void

@@ -206,6 +206,7 @@ final class InventoryHandler
         $buttons[] = [[
             'text' => __('menu.back'),
             'callback_data' => 'menu:home',
+            'style' => 'danger',
         ]];
 
         if ($type instanceof TypeEnum) {
@@ -288,6 +289,7 @@ final class InventoryHandler
         $buttons[] = [[
             'text' => __('menu.back'),
             'callback_data' => 'menu:home',
+            'style' => 'danger',
         ]];
 
         $count = $this->bag->bagRowCount($player);
@@ -378,6 +380,7 @@ final class InventoryHandler
         $buttons[] = [[
             'text' => __('menu.back'),
             'callback_data' => 'menu:home',
+            'style' => 'danger',
         ]];
 
         if ($hasCandidate) {
@@ -424,6 +427,7 @@ final class InventoryHandler
         $buttons[] = [[
             'text' => __('menu.back'),
             'callback_data' => 'menu:home',
+            'style' => 'danger',
         ]];
 
         if ($player->username === null) {
@@ -526,6 +530,7 @@ final class InventoryHandler
             $buttons[] = [[
                 'text' => __('menu.back_to_slot', ['slot' => $pickSlot->getLabel()]),
                 'callback_data' => 'gear:pick:' . $pickSlot->value,
+                'style' => 'danger',
             ]];
         } else {
             $buttons[] = [[

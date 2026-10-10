@@ -30,16 +30,7 @@ final class FightPanelService
         $caption = $this->fightStatus->panelCaption($fight, $player);
         $markup = TelegramKeyboards::fightInlineForStep($fight);
         $replyKind = TelegramKeyboards::fightMarkupKind($fight);
-
-        if ($imagePath !== null) {
-            try {
-                $statusId = $this->replyPhotoWithRetry($responder, $imagePath, $caption, $markup);
-            } catch (RuntimeException) {
-                $statusId = $this->replyTextWithRetry($responder, $caption, $markup);
-            }
-        } else {
-            $statusId = $this->replyTextWithRetry($responder, $caption, $markup);
-        }
+        $statusId = $this->openPanel($responder, $imagePath, $caption, $markup);
 
         return $this->fights->rememberTelegramPanel(
             $fight,
@@ -186,6 +177,39 @@ final class FightPanelService
         }
 
         return $this->sendPanelWithRetry($telegram, $chatId, $fight, $caption, $markup);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $markup
+     */
+    private function openPanel(
+        TelegramResponder $responder,
+        ?string $imagePath,
+        string $caption,
+        ?array $markup,
+    ): int {
+        if ($responder->callbackHasPhoto()) {
+            try {
+                if ($imagePath !== null) {
+                    $responder->editPhoto($imagePath, $caption, $markup);
+                } else {
+                    $responder->edit($caption, $markup);
+                }
+
+                return $responder->messageId();
+            } catch (RuntimeException) {
+            }
+        }
+
+        if ($imagePath !== null) {
+            try {
+                return $this->replyPhotoWithRetry($responder, $imagePath, $caption, $markup);
+            } catch (RuntimeException) {
+                return $this->replyTextWithRetry($responder, $caption, $markup);
+            }
+        }
+
+        return $this->replyTextWithRetry($responder, $caption, $markup);
     }
 
     /**

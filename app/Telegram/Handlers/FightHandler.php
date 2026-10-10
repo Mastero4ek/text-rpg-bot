@@ -23,6 +23,7 @@ use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Keyboards\CityKeyboard;
 
 final class FightHandler
 {
@@ -45,7 +46,10 @@ final class FightHandler
         $responder->answerCallback();
 
         if (
-            preg_match('/^fight:(stance|atk|def):/', $data) === 1
+            (
+                preg_match('/^fight:(stance|atk|def):/', $data) === 1
+                || $data === 'fight:flee'
+            )
             && $this->handleTimedOutTurn($update, $responder)
         ) {
             return;
@@ -65,6 +69,12 @@ final class FightHandler
 
         if (preg_match('/^fight:def:(HEAD|CHEST|BELLY|LEGS)$/', $data, $m) === 1) {
             $this->defend($update, $responder, ZoneEnum::from($m[1]));
+
+            return;
+        }
+
+        if ($data === 'fight:flee') {
+            $this->flee($update, $responder);
 
             return;
         }
@@ -109,6 +119,75 @@ final class FightHandler
         $this->panel->refresh($this->telegram, $outcome->fight, $outcome->character);
 
         return true;
+    }
+
+    private function flee(TelegramUpdate $update, TelegramResponder $responder): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || ! $this->fights->exists($player->tg_id)) {
+            return;
+        }
+
+        $outcome = $this->rounds->attemptFlee($player);
+
+        if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
+            return;
+        }
+
+        if ($outcome->kind === 'flee') {
+            $this->applyEnd($this->ends->finishFlee($outcome->character, $outcome->fight), $outcome->fight, $responder);
+
+            return;
+        }
+
+        if ($outcome->kind === 'win') {
+            $this->applyEnd(
+                $this->withFleeFailNote($this->ends->finishWin($outcome->character, $outcome->fight)),
+                $outcome->fight,
+                $responder,
+            );
+
+            return;
+        }
+
+        if ($outcome->kind === 'lose') {
+            $this->applyEnd(
+                $this->withFleeFailNote($this->ends->finishLose($outcome->character, $outcome->fight)),
+                $outcome->fight,
+                $responder,
+            );
+
+            return;
+        }
+
+        $this->panel->showError(
+            $this->telegram,
+            $outcome->fight,
+            $outcome->character,
+            __('combat.flee_fail'),
+        );
+    }
+
+    private function withFleeFailNote(FightEndResult $result): FightEndResult
+    {
+        $note = "\n\n" . __('combat.flee_fail');
+        $editText = $result->editText;
+        $lose = __('combat.lose');
+
+        if (str_contains($editText, $lose)) {
+            $editText = str_replace($lose, $note . $lose, $editText);
+        } else {
+            $editText .= $note;
+        }
+
+        return new FightEndResult(
+            $result->character,
+            $editText,
+            $result->editUi,
+            $result->replyText,
+            $result->replyUi,
+        );
     }
 
     private function stance(TelegramUpdate $update, StanceEnum $stance): void
@@ -222,13 +301,13 @@ final class FightHandler
         }
 
         if ($player->current_hp <= 0) {
-            $responder->reply(__('errors.no_hp'), null);
+            $responder->edit(__('telegram.location.error.no_hp'), CityKeyboard::backToGates());
 
             return;
         }
 
         if ($player->city_id === null) {
-            $responder->reply(__('errors.no_forest'), null);
+            $responder->edit(__('telegram.location.error.no_forest'), CityKeyboard::backToGates());
 
             return;
         }
@@ -236,7 +315,7 @@ final class FightHandler
         $city = City::query()->find($player->city_id);
 
         if (! $city instanceof City || ! $city->has_forest) {
-            $responder->reply(__('errors.no_forest'), null);
+            $responder->edit(__('telegram.location.error.no_forest'), CityKeyboard::backToGates());
 
             return;
         }
@@ -250,7 +329,7 @@ final class FightHandler
         }
 
         if (! $catalog instanceof EnemyCatalog) {
-            $responder->reply(__('errors.enemy_not_found'), null);
+            $responder->edit(__('telegram.location.error.enemy_not_found'), CityKeyboard::backToGates());
 
             return;
         }

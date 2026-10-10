@@ -34,6 +34,50 @@ final class FightRoundService
         private readonly LoadoutService $loadout,
     ) {}
 
+    public function attemptFlee(Character $player): FightRoundOutcome
+    {
+        return DB::transaction(function () use ($player): FightRoundOutcome {
+            $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
+
+            if ($fresh === null) {
+                return FightRoundOutcome::missing();
+            }
+
+            if (! $this->fights->exists($fresh->tg_id)) {
+                return FightRoundOutcome::missing();
+            }
+
+            $fight = Fight::query()->lockForUpdate()->find($fresh->tg_id);
+
+            if ($fight === null) {
+                return FightRoundOutcome::missing();
+            }
+
+            if ($fight->tutorial || $fight->step !== FightStepEnum::STANCE) {
+                return FightRoundOutcome::missing();
+            }
+
+            $loadout = $this->loadoutAfterDrop($fresh);
+            $fight->player_stance = StanceEnum::DEFEND;
+            $playerFighter = $this->playerFighterWithStance(
+                $fresh,
+                $fight,
+                $loadout,
+                0,
+                $loadout->mfForMainHandAttack(),
+            );
+            $fight->player_stance = null;
+
+            $enemy = $this->fights->enemy($fight)->withStance(StanceEnum::ATTACK);
+
+            if ($this->combat->rollFlee($playerFighter, $enemy->toFighter())) {
+                return FightRoundOutcome::flee($fresh, $fight);
+            }
+
+            return $this->applyRound($fresh, $fight, true, __('combat.flee_fail'));
+        });
+    }
+
     public function runRound(Character $player): FightRoundOutcome
     {
         return DB::transaction(function () use ($player): FightRoundOutcome {
@@ -53,7 +97,7 @@ final class FightRoundService
                 return FightRoundOutcome::missing();
             }
 
-            return $this->applyRound($fresh, $fight, false);
+            return $this->applyRound($fresh, $fight, false, '');
         });
     }
 
@@ -80,11 +124,11 @@ final class FightRoundService
                 return FightRoundOutcome::continueFight($fresh, $fight);
             }
 
-            return $this->applyRound($fresh, $fight, true);
+            return $this->applyRound($fresh, $fight, true, __('combat.turn_timeout'));
         });
     }
 
-    private function applyRound(Character $fresh, Fight $fight, bool $skip): FightRoundOutcome
+    private function applyRound(Character $fresh, Fight $fight, bool $skip, string $skipLog): FightRoundOutcome
     {
         $enemy = $this->fights->enemy($fight);
         $enemy = $enemy->withStance($this->combat->randomStance());
@@ -120,7 +164,7 @@ final class FightRoundService
         $logs = [];
 
         if ($skip) {
-            $logs[] = __('combat.turn_timeout');
+            $logs[] = $skipLog;
             $fight->player_stance = null;
             $fight->player_attack = null;
             $fight->player_attack_second = null;

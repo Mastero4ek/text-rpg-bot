@@ -262,6 +262,35 @@ function assertCityEditMarkupHas(string $needle): void
     });
 }
 
+function assertCityCallbackToast(): void
+{
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/answerCallbackQuery')) {
+            return false;
+        }
+
+        $text = $request['text'] ?? null;
+
+        return is_string($text) && $text !== '';
+    });
+}
+
+function assertCityNoMessageEdit(): void
+{
+    Http::assertNotSent(function (Request $request): bool {
+        return str_contains($request->url(), '/editMessageMedia')
+            || str_contains($request->url(), '/editMessageText')
+            || str_contains($request->url(), '/editMessageCaption');
+    });
+}
+
+function telegramHttpFake(): void
+{
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
+    ]);
+}
+
 function assertCitySendMarkupHas(string $needle): void
 {
     Http::assertSent(function (Request $request) use ($needle): bool {
@@ -340,6 +369,26 @@ function cityCallback(int $tgId, string $data): TelegramUpdate
     ]);
 }
 
+function cityPhotoCallback(int $tgId, string $data): TelegramUpdate
+{
+    return new TelegramUpdate([
+        'update_id' => $tgId,
+        'callback_query' => [
+            'id' => 'cb-' . $tgId . '-' . $data,
+            'data' => $data,
+            'from' => ['id' => $tgId, 'is_bot' => false, 'first_name' => 'A'],
+            'message' => [
+                'message_id' => 9,
+                'chat' => ['id' => $tgId, 'type' => 'private'],
+                'photo' => [
+                    ['file_id' => 'city-pick', 'width' => 512, 'height' => 384],
+                ],
+                'caption' => 'city',
+            ],
+        ],
+    ]);
+}
+
 function fightInlineCallback(int $tgId, string $data): TelegramUpdate
 {
     return new TelegramUpdate([
@@ -368,7 +417,10 @@ function fightPanelCallback(int $tgId, string $data): TelegramUpdate
             'message' => [
                 'message_id' => 9,
                 'chat' => ['id' => $tgId, 'type' => 'private'],
-                'text' => 'fight',
+                'photo' => [
+                    ['file_id' => 'forest-pick', 'width' => 512, 'height' => 384],
+                ],
+                'caption' => 'fight',
             ],
         ],
     ]);

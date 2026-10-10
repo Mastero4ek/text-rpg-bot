@@ -6,6 +6,7 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Bag\BagGemBuyAction;
 use App\Actions\City\CityBuyerSellAction;
+use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Models\Backpack\BackpackItem;
@@ -23,6 +24,7 @@ use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
+use App\Telegram\Keyboards\PaginatedListKeyboard;
 use Throwable;
 
 final class BuyerHandler
@@ -46,6 +48,41 @@ final class BuyerHandler
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
+        $chestState = PaginatedListKeyboard::listState($data, 'city:buyer:chest');
+        $sellState = PaginatedListKeyboard::listState($data, 'city:buyer:sell');
+
+        if ($chestState !== null || $sellState !== null || $data === 'city:buyer:chest' || $data === 'city:buyer:sell') {
+            $player = $this->gate->requireCityPlayer($update, $responder);
+
+            if ($player === false) {
+                $responder->answerCallback();
+
+                return;
+            }
+
+            if ($chestState !== null) {
+                $this->buyerChest($responder, $player, $chestState['filter'], $chestState['page']);
+
+                return;
+            }
+
+            if ($data === 'city:buyer:chest') {
+                $this->buyerChest($responder, $player, 'all', 1);
+
+                return;
+            }
+
+            if ($sellState !== null) {
+                $this->sellListScreen($responder, $player, $sellState['filter'], $sellState['page']);
+
+                return;
+            }
+
+            $this->sellListScreen($responder, $player, 'all', 1);
+
+            return;
+        }
+
         $responder->answerCallback();
         $player = $this->gate->requireCityPlayer($update, $responder);
 
@@ -59,20 +96,8 @@ final class BuyerHandler
             return;
         }
 
-        if ($data === 'city:buyer:chest') {
-            $this->buyerChest($responder, $player);
-
-            return;
-        }
-
         if (preg_match('/^city:buyer:buy:(.+)$/', $data, $m) === 1) {
             $this->buyerBuy($responder, $player, $m[1]);
-
-            return;
-        }
-
-        if ($data === 'city:buyer:sell') {
-            $this->sellListScreen($responder, $player);
 
             return;
         }
@@ -138,15 +163,16 @@ final class BuyerHandler
             __('telegram.npc.buyer.bought', [
                 'name' => TelegramHtml::escape($this->bagCatalog->findGem($catalogId)->name),
             ]),
-            CityKeyboard::buyerChest($this->buyerRows($res->character)),
+            CityKeyboard::buyerChest($this->buyerRows($res->character, 'all'), 'all', 1),
         );
     }
 
-    private function buyerChest(TelegramResponder $responder, Character $player): void
+    private function buyerChest(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_buyer) {
+            $responder->answerCallback();
             $this->editBuyerPanel(
                 $responder,
                 __('telegram.npc.buyer.error.no_buyer'),
@@ -156,23 +182,33 @@ final class BuyerHandler
             return;
         }
 
-        $items = $this->buyerRows($player);
+        $filter = $this->chestFilter($filter);
+        $items = $this->buyerRows($player, $filter);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
+        $markup = CityKeyboard::buyerChest($items, $filter, $page);
 
-        if (empty($items)) {
-            $this->editBuyerPanel(
+        $responder->answerCallback();
+
+        if ($edge && ! empty($items)) {
+            app(FlashListPageEdgeAction::class)->handle(
                 $responder,
                 __('telegram.npc.buyer.empty'),
-                CityKeyboard::backToBuyer(),
+                __('telegram.npc.buyer.chest'),
+                $markup,
             );
 
             return;
         }
 
-        $this->editBuyerPanel(
-            $responder,
-            __('telegram.npc.buyer.chest'),
-            CityKeyboard::buyerChest($items),
-        );
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+
+        if (empty($items)) {
+            $text = __('telegram.npc.buyer.empty');
+        } else {
+            $text = __('telegram.npc.buyer.chest');
+        }
+
+        $this->editBuyerPanel($responder, $text, $markup);
     }
 
     /**
@@ -184,13 +220,9 @@ final class BuyerHandler
             return CityKeyboard::backToTavern();
         }
 
-        $items = $this->buyerRows($player);
+        $items = $this->buyerRows($player, 'all');
 
-        if (empty($items)) {
-            return CityKeyboard::backToBuyer();
-        }
-
-        return CityKeyboard::buyerChest($items);
+        return CityKeyboard::buyerChest($items, 'all', 1);
     }
 
     private function buyerErrorText(?string $error): string
@@ -221,9 +253,13 @@ final class BuyerHandler
     /**
      * @return list<array{text: string, catalog_id: string}>
      */
-    private function buyerRows(Character $player): array
+    private function buyerRows(Character $player, string $filter): array
     {
         if ($player->city_id === null) {
+            return [];
+        }
+
+        if ($filter === 'charms') {
             return [];
         }
 
@@ -272,6 +308,15 @@ final class BuyerHandler
             __('telegram.npc.buyer.offer'),
             CityKeyboard::buyerOffer(),
         );
+    }
+
+    private function chestFilter(string $filter): string
+    {
+        if (in_array($filter, ['all', 'gems', 'charms'], true)) {
+            return $filter;
+        }
+
+        return 'all';
     }
 
     private function currencyMark(CurrencyEnum $currency): string
@@ -330,7 +375,7 @@ final class BuyerHandler
         }
 
         $player = $res->character;
-        $items = $this->sellableTradeRows($player);
+        $items = $this->sellableTradeRows($player, 'all');
 
         $this->editBuyerPanel(
             $responder,
@@ -339,7 +384,7 @@ final class BuyerHandler
                 'price' => $preview['payout'],
                 'mark' => $preview['mark'],
             ]),
-            CityKeyboard::buyerSell($items),
+            CityKeyboard::buyerSell($items, 'all', 1),
         );
     }
 
@@ -389,11 +434,21 @@ final class BuyerHandler
         $this->editBuyerPanel($responder, $text, CityKeyboard::buyerSellConfirm($source, $rowId));
     }
 
-    private function sellListScreen(TelegramResponder $responder, Character $player): void
+    private function sellFilter(string $filter): string
+    {
+        if (in_array($filter, ['all', 'bag', 'bp'], true)) {
+            return $filter;
+        }
+
+        return 'all';
+    }
+
+    private function sellListScreen(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_buyer) {
+            $responder->answerCallback();
             $this->editBuyerPanel(
                 $responder,
                 __('telegram.npc.buyer.error.no_buyer'),
@@ -403,7 +458,25 @@ final class BuyerHandler
             return;
         }
 
-        $items = $this->sellableTradeRows($player);
+        $filter = $this->sellFilter($filter);
+        $items = $this->sellableTradeRows($player, $filter);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
+        $markup = CityKeyboard::buyerSell($items, $filter, $page);
+
+        $responder->answerCallback();
+
+        if ($edge && ! empty($items)) {
+            app(FlashListPageEdgeAction::class)->handle(
+                $responder,
+                __('telegram.npc.buyer.sell_empty'),
+                __('telegram.npc.buyer.sell'),
+                $markup,
+            );
+
+            return;
+        }
+
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
 
         if (empty($items)) {
             $text = __('telegram.npc.buyer.sell_empty');
@@ -411,90 +484,94 @@ final class BuyerHandler
             $text = __('telegram.npc.buyer.sell');
         }
 
-        $this->editBuyerPanel($responder, $text, CityKeyboard::buyerSell($items));
+        $this->editBuyerPanel($responder, $text, $markup);
     }
 
     /**
      * @return list<array{text: string, source: string, row_id: int}>
      */
-    private function sellableTradeRows(Character $player): array
+    private function sellableTradeRows(Character $player, string $filter): array
     {
         $items = [];
 
-        foreach ($this->backpack->sellableList($player->tg_id) as $row) {
-            if (! $this->shop->hasItem($row->catalog_id)) {
-                continue;
-            }
-
-            $def = $this->shop->findItem($row->catalog_id);
-            $payout = $this->backpack->sellPayout($row);
-            $mark = $this->currencyMark($def->currency);
-
-            if ($row->max_durability !== null && $row->durability !== null) {
-                $label = __('telegram.npc.buyer.sell_row_dur', [
-                    'name' => $this->backpack->rowLabel($row),
-                    'price' => $payout,
-                    'mark' => $mark,
-                    'current' => $row->durability,
-                    'max' => $row->max_durability,
-                ]);
-            } else {
-                $label = __('telegram.npc.buyer.sell_row', [
-                    'name' => $this->backpack->rowLabel($row),
-                    'price' => $payout,
-                    'mark' => $mark,
-                ]);
-            }
-
-            $items[] = [
-                'text' => $label,
-                'source' => self::SELL_SOURCE_BACKPACK,
-                'row_id' => $row->id,
-            ];
-        }
-
-        foreach ($this->bag->sellableLooseList($player->tg_id) as $row) {
-            if ($row->kind === BagKindEnum::POTION) {
-                if (! $this->bagCatalog->hasPotion($row->catalog_id)) {
+        if ($filter === 'all' || $filter === 'bp') {
+            foreach ($this->backpack->sellableList($player->tg_id) as $row) {
+                if (! $this->shop->hasItem($row->catalog_id)) {
                     continue;
                 }
-            } elseif (! $this->bagCatalog->hasGem($row->catalog_id)) {
-                continue;
+
+                $def = $this->shop->findItem($row->catalog_id);
+                $payout = $this->backpack->sellPayout($row);
+                $mark = $this->currencyMark($def->currency);
+
+                if ($row->max_durability !== null && $row->durability !== null) {
+                    $label = __('telegram.npc.buyer.sell_row_dur', [
+                        'name' => $this->backpack->rowLabel($row),
+                        'price' => $payout,
+                        'mark' => $mark,
+                        'current' => $row->durability,
+                        'max' => $row->max_durability,
+                    ]);
+                } else {
+                    $label = __('telegram.npc.buyer.sell_row', [
+                        'name' => $this->backpack->rowLabel($row),
+                        'price' => $payout,
+                        'mark' => $mark,
+                    ]);
+                }
+
+                $items[] = [
+                    'text' => $label,
+                    'source' => self::SELL_SOURCE_BACKPACK,
+                    'row_id' => $row->id,
+                ];
             }
+        }
 
-            $payout = $this->bag->sellPayout($row);
-            $mark = $this->currencyMark($this->bag->sellCurrency($row));
-            $name = $this->bag->sellLabel($row);
+        if ($filter === 'all' || $filter === 'bag') {
+            foreach ($this->bag->sellableLooseList($player->tg_id) as $row) {
+                if ($row->kind === BagKindEnum::POTION) {
+                    if (! $this->bagCatalog->hasPotion($row->catalog_id)) {
+                        continue;
+                    }
+                } elseif (! $this->bagCatalog->hasGem($row->catalog_id)) {
+                    continue;
+                }
 
-            if ($row->kind === BagKindEnum::POTION && $row->quantity > 1) {
-                $label = __('telegram.npc.buyer.sell_row_qty', [
-                    'name' => $name,
-                    'price' => $payout,
-                    'mark' => $mark,
-                    'qty' => $row->quantity,
-                ]);
-            } elseif ($row->kind === BagKindEnum::GEM && $row->durability !== null) {
-                $gem = $this->bagCatalog->findGem($row->catalog_id);
-                $label = __('telegram.npc.buyer.sell_row_dur', [
-                    'name' => $name,
-                    'price' => $payout,
-                    'mark' => $mark,
-                    'current' => $row->durability,
-                    'max' => $gem->maxDurability,
-                ]);
-            } else {
-                $label = __('telegram.npc.buyer.sell_row', [
-                    'name' => $name,
-                    'price' => $payout,
-                    'mark' => $mark,
-                ]);
+                $payout = $this->bag->sellPayout($row);
+                $mark = $this->currencyMark($this->bag->sellCurrency($row));
+                $name = $this->bag->sellLabel($row);
+
+                if ($row->kind === BagKindEnum::POTION && $row->quantity > 1) {
+                    $label = __('telegram.npc.buyer.sell_row_qty', [
+                        'name' => $name,
+                        'price' => $payout,
+                        'mark' => $mark,
+                        'qty' => $row->quantity,
+                    ]);
+                } elseif ($row->kind === BagKindEnum::GEM && $row->durability !== null) {
+                    $gem = $this->bagCatalog->findGem($row->catalog_id);
+                    $label = __('telegram.npc.buyer.sell_row_dur', [
+                        'name' => $name,
+                        'price' => $payout,
+                        'mark' => $mark,
+                        'current' => $row->durability,
+                        'max' => $gem->maxDurability,
+                    ]);
+                } else {
+                    $label = __('telegram.npc.buyer.sell_row', [
+                        'name' => $name,
+                        'price' => $payout,
+                        'mark' => $mark,
+                    ]);
+                }
+
+                $items[] = [
+                    'text' => $label,
+                    'source' => self::SELL_SOURCE_BAG,
+                    'row_id' => $row->id,
+                ];
             }
-
-            $items[] = [
-                'text' => $label,
-                'source' => self::SELL_SOURCE_BAG,
-                'row_id' => $row->id,
-            ];
         }
 
         return $items;

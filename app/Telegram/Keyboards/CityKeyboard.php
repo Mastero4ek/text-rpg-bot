@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telegram\Keyboards;
 
+use App\Enums\Enemy\EnemyKindEnum;
+use App\Enums\Equipment\TypeEnum;
 use App\Models\Character;
 use App\Models\City;
 
@@ -26,7 +28,7 @@ final class CityKeyboard
             $rows[] = [self::cb(__('telegram.btn.fights'), 'city:fights')];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
     }
@@ -37,8 +39,54 @@ final class CityKeyboard
     public static function backToArena(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:arena')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:arena')],
         ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function boardList(array $items, string $filter, int $page): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            self::boardFilters(),
+            $filter,
+            $page,
+            'city:board',
+            'city:home',
+            null,
+        );
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function boardFilters(): array
+    {
+        return [
+            ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+            ['id' => 'orders', 'label' => __('telegram.btn.filter_board_orders')],
+            ['id' => 'asks', 'label' => __('telegram.btn.filter_board_asks')],
+        ];
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function fightsList(array $items, int $page): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            'all',
+            $page,
+            'city:fights',
+            'city:arena',
+            null,
+        );
     }
 
     /**
@@ -47,7 +95,7 @@ final class CityKeyboard
     public static function backToCity(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'menu:home')],
+            [self::cbDanger(__('telegram.btn.back'), 'menu:home')],
         ]);
     }
 
@@ -57,7 +105,7 @@ final class CityKeyboard
     public static function backToGates(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:gates')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:gates')],
         ]);
     }
 
@@ -67,7 +115,7 @@ final class CityKeyboard
     public static function backToBlacksmith(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:blacksmith')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:blacksmith')],
         ]);
     }
 
@@ -77,7 +125,7 @@ final class CityKeyboard
     public static function backToBuyer(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:buyer')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:buyer')],
         ]);
     }
 
@@ -87,7 +135,7 @@ final class CityKeyboard
     public static function backToHealer(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:healer')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:healer')],
         ]);
     }
 
@@ -97,7 +145,7 @@ final class CityKeyboard
     public static function backToTavern(): array
     {
         return self::inline([
-            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
@@ -105,17 +153,26 @@ final class CityKeyboard
      * @param  list<array{text: string, catalog_id: string}>  $enemies
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function trainingPick(array $enemies): array
+    public static function trainingPick(array $enemies, string $filter, int $page): array
     {
-        $rows = [];
+        $items = [];
 
         foreach ($enemies as $enemy) {
-            $rows[] = [self::cb($enemy['text'], 'city:training:start:' . $enemy['catalog_id'])];
+            $items[] = [
+                'text' => $enemy['text'],
+                'callback_data' => 'city:training:start:' . $enemy['catalog_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:arena')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            $filter,
+            $page,
+            'city:training',
+            'city:arena',
+            null,
+        );
     }
 
     /**
@@ -126,7 +183,7 @@ final class CityKeyboard
         return self::inline([
             [self::cb(__('telegram.btn.gear'), 'city:blacksmith:gear')],
             [self::cb(__('telegram.btn.repair'), 'city:blacksmith:repair')],
-            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
@@ -134,38 +191,62 @@ final class CityKeyboard
      * @param  list<array{text: string, catalog_id: string}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function blacksmithGear(array $items): array
+    public static function blacksmithGear(array $items, string $filter, int $page): array
     {
         $rows = [];
 
         foreach ($items as $item) {
-            $rows[] = [self::cb($item['text'], 'city:blacksmith:buy:' . $item['catalog_id'])];
+            $rows[] = [
+                'text' => $item['text'],
+                'callback_data' => 'city:blacksmith:buy:' . $item['catalog_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::gearTypeFilters(),
+            $filter,
+            $page,
+            'city:blacksmith:gear',
+            'city:blacksmith',
+            null,
+        );
     }
 
     /**
      * @param  list<array{text: string, row_id: int}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function blacksmithRepair(array $items, ?string $repairAllBtn): array
+    public static function blacksmithRepair(array $items, string $filter, int $page, ?string $repairAllBtn): array
     {
         $rows = [];
 
         foreach ($items as $item) {
-            $rows[] = [self::cb($item['text'], 'city:blacksmith:repair:' . $item['row_id'])];
+            $rows[] = [
+                'text' => $item['text'],
+                'callback_data' => 'city:blacksmith:repair:' . $item['row_id'],
+            ];
         }
+
+        $extra = null;
 
         if ($repairAllBtn !== null) {
-            $rows[] = [self::cbSuccess($repairAllBtn, 'city:blacksmith:repair_all')];
+            $extra = [
+                'text' => $repairAllBtn,
+                'callback_data' => 'city:blacksmith:repair_all',
+                'style' => 'success',
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:blacksmith')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::gearTypeFilters(),
+            $filter,
+            $page,
+            'city:blacksmith:repair',
+            'city:blacksmith',
+            $extra,
+        );
     }
 
     /**
@@ -176,7 +257,7 @@ final class CityKeyboard
         return self::inline([
             [self::cbSuccess(__('telegram.btn.heal'), 'city:healer:heal')],
             [self::cb(__('telegram.btn.potions'), 'city:healer:potions')],
-            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
@@ -188,7 +269,7 @@ final class CityKeyboard
         return self::inline([
             [self::cb(__('telegram.btn.chest'), 'city:buyer:chest')],
             [self::cb(__('telegram.btn.sell'), 'city:buyer:sell')],
-            [self::cb(__('telegram.btn.back'), 'city:tavern')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
         ]);
     }
 
@@ -196,34 +277,52 @@ final class CityKeyboard
      * @param  list<array{text: string, catalog_id: string}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function buyerChest(array $items): array
+    public static function buyerChest(array $items, string $filter, int $page): array
     {
         $rows = [];
 
         foreach ($items as $item) {
-            $rows[] = [self::cb($item['text'], 'city:buyer:buy:' . $item['catalog_id'])];
+            $rows[] = [
+                'text' => $item['text'],
+                'callback_data' => 'city:buyer:buy:' . $item['catalog_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:buyer')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::buyerChestFilters(),
+            $filter,
+            $page,
+            'city:buyer:chest',
+            'city:buyer',
+            null,
+        );
     }
 
     /**
      * @param  list<array{text: string, source: string, row_id: int}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function buyerSell(array $items): array
+    public static function buyerSell(array $items, string $filter, int $page): array
     {
         $rows = [];
 
         foreach ($items as $item) {
-            $rows[] = [self::cb($item['text'], 'city:buyer:sell:' . $item['source'] . ':' . $item['row_id'])];
+            $rows[] = [
+                'text' => $item['text'],
+                'callback_data' => 'city:buyer:sell:' . $item['source'] . ':' . $item['row_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:buyer')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::bagBackpackFilters(),
+            $filter,
+            $page,
+            'city:buyer:sell',
+            'city:buyer',
+            null,
+        );
     }
 
     /**
@@ -243,17 +342,26 @@ final class CityKeyboard
      * @param  list<array{text: string, catalog_id: string}>  $potions
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function healerPotions(array $potions): array
+    public static function healerPotions(array $potions, string $filter, int $page): array
     {
         $rows = [];
 
         foreach ($potions as $potion) {
-            $rows[] = [self::cb($potion['text'], 'city:healer:potion:' . $potion['catalog_id'])];
+            $rows[] = [
+                'text' => $potion['text'],
+                'callback_data' => 'city:healer:potion:' . $potion['catalog_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:healer')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::potionFilters(),
+            $filter,
+            $page,
+            'city:healer:potions',
+            'city:healer',
+            null,
+        );
     }
 
     /**
@@ -284,7 +392,7 @@ final class CityKeyboard
             $rows[] = [self::cb(__('telegram.btn.forest'), 'city:forest')];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
     }
@@ -306,20 +414,127 @@ final class CityKeyboard
      * @param  iterable<int, City>  $targets
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function portalTargets(iterable $targets): array
+    public static function portalTargets(iterable $targets, string $filter, int $page): array
     {
         $rows = [];
 
         foreach ($targets as $target) {
-            $rows[] = [self::cb(__('telegram.location.portal_row', [
-                'name' => $target->name,
-                'cost' => $target->portal_cost_silver,
-            ]), 'portal:' . $target->id)];
+            if ($target->portal_cost_silver <= 0) {
+                $label = __('telegram.location.portal_row_free', [
+                    'name' => $target->name,
+                ]);
+            } else {
+                $label = __('telegram.location.portal_row', [
+                    'name' => $target->name,
+                    'cost' => $target->portal_cost_silver,
+                ]);
+            }
+
+            $rows[] = [
+                'text' => $label,
+                'callback_data' => 'portal:' . $target->id,
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
+        return PaginatedListKeyboard::markup(
+            $rows,
+            self::portalFilters(),
+            $filter,
+            $page,
+            'portal',
+            'city:gates',
+            null,
+        );
+    }
 
-        return self::inline($rows);
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function bagBackpackFilters(): array
+    {
+        return [
+            ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+            ['id' => 'bag', 'label' => __('telegram.btn.filter_bag')],
+            ['id' => 'bp', 'label' => __('telegram.btn.filter_backpack')],
+        ];
+    }
+
+    public static function enemyKindFromFilter(string $filter): ?EnemyKindEnum
+    {
+        if ($filter === 'fixed') {
+            return EnemyKindEnum::FIXED;
+        }
+
+        if ($filter === 'mirror') {
+            return EnemyKindEnum::MIRROR;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function gearTypeFilters(): array
+    {
+        return [
+            ['id' => 'wpn', 'label' => __('telegram.btn.filter_weapon')],
+            ['id' => 'arm', 'label' => __('telegram.btn.filter_armor')],
+            ['id' => 'jwl', 'label' => __('telegram.btn.filter_jewelry')],
+        ];
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function buyerChestFilters(): array
+    {
+        return [
+            ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+            ['id' => 'gems', 'label' => __('telegram.btn.filter_chest_gems')],
+            ['id' => 'charms', 'label' => __('telegram.btn.filter_chest_charms')],
+        ];
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function portalFilters(): array
+    {
+        return [
+            ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+            ['id' => 'free', 'label' => __('telegram.btn.filter_portal_free')],
+            ['id' => 'paid', 'label' => __('telegram.btn.filter_portal_paid')],
+        ];
+    }
+
+    /**
+     * @return list<array{id: string, label: string}>
+     */
+    public static function potionFilters(): array
+    {
+        return [
+            ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+            ['id' => 'heal', 'label' => __('telegram.btn.filter_potion_heal')],
+            ['id' => 'stam', 'label' => __('telegram.btn.filter_potion_stamina')],
+        ];
+    }
+
+    public static function gearTypeFromFilter(string $filter): ?TypeEnum
+    {
+        if ($filter === 'wpn') {
+            return TypeEnum::WEAPON;
+        }
+
+        if ($filter === 'arm') {
+            return TypeEnum::ARMOR;
+        }
+
+        if ($filter === 'jwl') {
+            return TypeEnum::JEWELRY;
+        }
+
+        return null;
     }
 
     /**
@@ -364,7 +579,7 @@ final class CityKeyboard
             $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:home')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
     }

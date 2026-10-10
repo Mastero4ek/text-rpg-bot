@@ -45,13 +45,13 @@ it('starts forest fight with single photo panel and inline keyboard', function (
         ->and($p->fight_return)->toBe(FightReturnEnum::Forest);
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendPhoto')) {
+        if (! str_contains($request->url(), '/editMessageMedia')) {
             return false;
         }
 
         $body = $request->body();
-        $attackJson = mb_substr(json_encode(__('combat.btn_attack'), JSON_THROW_ON_ERROR), 1, -1);
-        $potionJson = mb_substr(json_encode(__('combat.btn_potion_short'), JSON_THROW_ON_ERROR), 1, -1);
+        $attackJson = mb_substr(json_encode(__('combat.btn_attack'), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 1, -1);
+        $potionJson = mb_substr(json_encode(__('combat.btn_potion_short'), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 1, -1);
 
         return str_contains($body, '[4]')
             && str_contains($body, 'Раунд')
@@ -79,8 +79,8 @@ it('rejects forest start without hp', function (): void {
     expect(fights()->exists($p->tg_id))->toBeFalse();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.no_hp')));
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], mb_trim(__('telegram.location.error.no_hp')));
     });
 });
 
@@ -98,7 +98,7 @@ it('rejects unknown forest enemy', function (): void {
     expect(fights()->exists($p->tg_id))->toBeFalse();
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.enemy_not_found')));
+        return str_contains($request->url(), '/editMessageCaption')
+            && str_contains((string) $request['caption'], mb_trim(__('telegram.location.error.enemy_not_found')));
     });
 });

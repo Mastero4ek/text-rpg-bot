@@ -99,13 +99,27 @@ final class CityMenuService
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public function portalMarkup(Character $character): array
+    public function portalMarkup(Character $character, string $filter, int $page): array
     {
         if ($character->city_id === null) {
             return CityKeyboard::backToGates();
         }
 
-        return CityKeyboard::portalTargets($this->cities->portalTargets($character->city_id));
+        $targets = [];
+
+        foreach ($this->cities->portalTargets($character->city_id) as $target) {
+            if ($filter === 'free' && $target->portal_cost_silver > 0) {
+                continue;
+            }
+
+            if ($filter === 'paid' && $target->portal_cost_silver <= 0) {
+                continue;
+            }
+
+            $targets[] = $target;
+        }
+
+        return CityKeyboard::portalTargets($targets, $filter, $page);
     }
 
     public function tavernHasNpc(Character $character): bool
