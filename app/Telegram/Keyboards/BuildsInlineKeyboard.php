@@ -50,6 +50,18 @@ trait BuildsInlineKeyboard
     /**
      * @return array{text: string, callback_data: string, style: string}
      */
+    private static function cbPrimary(string $text, string $data): array
+    {
+        return [
+            'text' => $text,
+            'callback_data' => $data,
+            'style' => 'primary',
+        ];
+    }
+
+    /**
+     * @return array{text: string, callback_data: string, style: string}
+     */
     private static function cbSuccess(string $text, string $data): array
     {
         return [

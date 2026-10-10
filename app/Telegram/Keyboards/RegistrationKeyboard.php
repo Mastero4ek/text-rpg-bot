@@ -31,7 +31,7 @@ final class RegistrationKeyboard
     public static function nickBack(): array
     {
         return self::inline([
-            [self::cb(__('telegram.registration.btn_back'), 'ob:back')],
+            [self::cbDanger(__('telegram.registration.btn_back'), 'ob:back')],
         ]);
     }
 

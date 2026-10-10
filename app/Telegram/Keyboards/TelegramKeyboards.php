@@ -75,17 +75,26 @@ final class TelegramKeyboards
      * @param  list<array{text: string, catalog_id: string}>  $enemies
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function fightPick(array $enemies): array
+    public static function fightPick(array $enemies, string $filter, int $page): array
     {
-        $rows = [];
+        $items = [];
 
         foreach ($enemies as $enemy) {
-            $rows[] = [self::cb($enemy['text'], 'fight:start:' . $enemy['catalog_id'])];
+            $items[] = [
+                'text' => $enemy['text'],
+                'callback_data' => 'fight:start:' . $enemy['catalog_id'],
+            ];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.back'), 'city:gates')];
-
-        return self::inline($rows);
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            $filter,
+            $page,
+            'city:forest',
+            'city:gates',
+            null,
+        );
     }
 
     /**
@@ -107,7 +116,7 @@ final class TelegramKeyboards
             [self::cb(__('menu.backpack'), 'menu:inv')],
             [self::cb(__('menu.bag'), 'menu:bag')],
             [self::cb(__('menu.gear'), 'menu:gear')],
-            [self::cb(__('menu.back'), 'menu:home')],
+            [self::cbDanger(__('menu.back'), 'menu:home')],
         ]);
     }
 
@@ -172,7 +181,7 @@ final class TelegramKeyboards
     {
         return self::inline([
             [self::cb(__('menu.smith'), 'menu:smith')],
-            [self::cb(__('menu.back'), 'menu:home')],
+            [self::cbDanger(__('menu.back'), 'menu:home')],
         ]);
     }
 
@@ -340,6 +349,9 @@ final class TelegramKeyboards
                 self::cb(__('combat.btn_potion_short'), 'fight:atk:POTION'),
                 self::cb(__('combat.btn_stamina_potion_short'), 'fight:atk:STAMINA_POTION'),
             ],
+            [
+                self::cbDanger(__('combat.btn_flee'), 'fight:flee'),
+            ],
         ]);
     }
 
@@ -373,7 +385,7 @@ final class TelegramKeyboards
     {
         return self::inline([
             [self::cb(__('profile.btn_reset_confirm'), 'stat:reset_yes')],
-            [self::cb(__('menu.back'), 'menu:stats')],
+            [self::cbDanger(__('menu.back'), 'menu:stats')],
         ]);
     }
 
@@ -396,7 +408,7 @@ final class TelegramKeyboards
         }
 
         $rows[] = [self::cb(__('profile.btn_reset', ['gold' => $resetGoldCost]), 'stat:reset')];
-        $rows[] = [self::cb(__('menu.back'), 'menu:home')];
+        $rows[] = [self::cbDanger(__('menu.back'), 'menu:home')];
 
         return self::inline($rows);
     }
@@ -415,7 +427,7 @@ final class TelegramKeyboards
                 self::cb(__('profile.btn_inst'), 'stat:' . StatKeyEnum::INSTINCT->value),
                 self::cb(__('profile.btn_vit'), 'stat:' . StatKeyEnum::VITALITY->value),
             ],
-            [self::cb(__('menu.back'), 'menu:home')],
+            [self::cbDanger(__('menu.back'), 'menu:home')],
         ]);
     }
 

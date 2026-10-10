@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Telegram;
 
+use App\Actions\Telegram\FlashListPageEdgeAction;
+
 final class TelegramResponder
 {
     public function __construct(
@@ -41,9 +43,28 @@ final class TelegramResponder
         $this->client->answerCallbackQuery($this->update->callbackQueryId());
     }
 
+    public function answerCallbackToast(string $text): void
+    {
+        if (! $this->update->isCallback()) {
+            return;
+        }
+
+        $this->client->answerCallbackQueryToast($this->update->callbackQueryId(), $text);
+    }
+
+    public function callbackHasPhoto(): bool
+    {
+        return $this->update->callbackHasPhoto();
+    }
+
     public function chatId(): int|string
     {
         return $this->update->chatId();
+    }
+
+    public function messageId(): int
+    {
+        return $this->update->messageId();
     }
 
     public function deleteUpdateMessage(): void
@@ -72,7 +93,7 @@ final class TelegramResponder
     public function edit(string $text, ?array $replyMarkup): void
     {
         if ($this->update->callbackHasPhoto()) {
-            $this->client->editMessageCaption(
+            $this->editCaptionAt(
                 $this->update->chatId(),
                 $this->update->messageId(),
                 $text,
@@ -95,6 +116,7 @@ final class TelegramResponder
      */
     public function editAt(int|string $chatId, int $messageId, string $text, ?array $replyMarkup): void
     {
+        $this->cancelPendingListRestore($chatId, $messageId);
         $this->client->editMessageText(
             $chatId,
             $messageId,
@@ -112,6 +134,7 @@ final class TelegramResponder
         string $caption,
         ?array $replyMarkup,
     ): void {
+        $this->cancelPendingListRestore($chatId, $messageId);
         $this->client->editMessageCaption(
             $chatId,
             $messageId,
@@ -125,7 +148,7 @@ final class TelegramResponder
      */
     public function editPhoto(string $photoPath, string $caption, ?array $replyMarkup): void
     {
-        $this->client->editMessageMedia(
+        $this->editPhotoAt(
             $this->update->chatId(),
             $this->update->messageId(),
             $photoPath,
@@ -144,6 +167,7 @@ final class TelegramResponder
         string $caption,
         ?array $replyMarkup,
     ): void {
+        $this->cancelPendingListRestore($chatId, $messageId);
         $this->client->editMessageMedia(
             $chatId,
             $messageId,
@@ -172,5 +196,10 @@ final class TelegramResponder
             $caption,
             $replyMarkup,
         );
+    }
+
+    private function cancelPendingListRestore(int|string $chatId, int $messageId): void
+    {
+        app(FlashListPageEdgeAction::class)->touch($chatId, $messageId);
     }
 }

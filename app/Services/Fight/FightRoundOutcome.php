@@ -34,4 +34,9 @@ final readonly class FightRoundOutcome
     {
         return new self('continue', $character, $fight);
     }
+
+    public static function flee(Character $character, Fight $fight): self
+    {
+        return new self('flee', $character, $fight);
+    }
 }

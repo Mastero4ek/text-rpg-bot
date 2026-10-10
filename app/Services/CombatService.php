@@ -322,6 +322,52 @@ final class CombatService
         return $this->fighterFromPlayer($character, $loadout, $name);
     }
 
+    public function fleeChance(Mf $playerMf, Mf $enemyMf): float
+    {
+        $dodge = $this->dodgeConfig();
+
+        return $this->clampFloat(
+            (float) $dodge['chanceMin'],
+            (float) $dodge['chanceMax'],
+            $dodge['chanceBase'] + ($playerMf->dodge - $enemyMf->antiDodge) * $dodge['chanceScale'],
+        );
+    }
+
+    public function rollFlee(Fighter $player, Fighter $enemy): bool
+    {
+        $playerMf = $this->scaleMfByStamina(
+            $this->applyStanceToMf(
+                $this->baseMf($player)->merge($player->weaponMf),
+                $player->stance,
+            ),
+            $player->stamina,
+            $player->maxStamina,
+        );
+        $enemyMf = $this->scaleMfByStamina(
+            $this->applyStanceToMf(
+                $this->baseMf($enemy)->merge($enemy->weaponMf),
+                $enemy->stance,
+            ),
+            $enemy->stamina,
+            $enemy->maxStamina,
+        );
+
+        return $this->random->float() * 100 < $this->fleeChance(
+            new Mf(
+                $playerMf['dodge'],
+                $playerMf['antiDodge'],
+                $playerMf['crit'],
+                $playerMf['antiCrit'],
+            ),
+            new Mf(
+                $enemyMf['dodge'],
+                $enemyMf['antiDodge'],
+                $enemyMf['crit'],
+                $enemyMf['antiCrit'],
+            ),
+        );
+    }
+
     private function baseMf(Fighter $fighter): Mf
     {
         $k = $this->intField($this->config->combat(), 'mfPerStat');

@@ -203,6 +203,14 @@ it('shows board stub from root', function (): void {
     cityFlowCallback($player->tg_id, 9, 'city:board');
 
     assertCityEditHas(mb_trim(__('telegram.location.board_empty')));
+    assertCityEditMarkupHas('city:board:list:all:1');
+    assertCityEditMarkupHas('city:board:list:orders:1');
+    assertCityEditMarkupHas('city:board:list:asks:1');
+    assertCityEditMarkupHas('city:board:list:all:0');
+    assertCityEditMarkupHas('city:board:list:all:2');
+    assertCityEditMarkupHas('city:home');
+    assertCityEditMarkupHas('"style":"danger"');
+    assertCityEditMarkupHas('"style":"primary"');
 });
 
 it('shows fights stub without creating a fight', function (): void {
@@ -212,6 +220,10 @@ it('shows fights stub without creating a fight', function (): void {
 
     expect(fights()->exists($player->tg_id))->toBeFalse();
     assertCityEditHas(mb_trim(__('telegram.location.fights_empty')));
+    assertCityEditMarkupHas('city:fights:list:all:0');
+    assertCityEditMarkupHas('city:fights:list:all:2');
+    assertCityEditMarkupHas('city:arena');
+    assertCityEditMarkupHas('"style":"danger"');
 });
 
 it('blocks city callbacks during mid onboarding', function (): void {
@@ -243,10 +255,7 @@ it('rejects forest in city without forest flag', function (): void {
 
     cityFlowCallback($player->tg_id, 9, 'city:forest');
 
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.no_forest')));
-    });
+    assertCityEditHas(mb_trim(__('telegram.location.error.no_forest')));
 });
 
 it('rejects forest when player has no hp', function (): void {
@@ -257,10 +266,7 @@ it('rejects forest when player has no hp', function (): void {
 
     cityFlowCallback($player->tg_id, 9, 'city:forest');
 
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('errors.no_hp')));
-    });
+    assertCityEditHas(mb_trim(__('telegram.location.error.no_hp')));
 });
 
 it('shows gates empty when city has neither portal nor forest', function (): void {
