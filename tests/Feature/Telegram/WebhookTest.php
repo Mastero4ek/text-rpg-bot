@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Models\Character;
+use App\Quests\OverseerQuest;
 use App\Support\Telegram\TelegramClient;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
@@ -94,20 +96,18 @@ it('set nick via text update', function (): void {
     });
 });
 
-it('starts tutorial fight from intro callback', function (): void {
+it('starts overseer train fight from ready callback', function (): void {
     Bus::fake();
 
-    $player = registration()->ensurePlayer(4244);
-    $player = registration()->setNick($player, 'IntroFighter')->character;
-    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
-    $player->progress_step = ProgressStepEnum::INTRO;
+    $player = cityArrived(4244, 'IntroFighter');
+    $player->overseer_train_step = OverseerTrainStepEnum::Intro;
     $player->save();
 
     $payload = [
         'update_id' => 12,
         'callback_query' => [
             'id' => 'cb-intro-1',
-            'data' => 'ob:intro_fight',
+            'data' => 'quest:overseer:ready',
             'from' => ['id' => 4244, 'is_bot' => false, 'first_name' => 'A'],
             'message' => [
                 'message_id' => 3,
@@ -123,11 +123,11 @@ it('starts tutorial fight from intro callback', function (): void {
 
     $player->refresh();
 
-    expect($player->progress_step)->toBe(ProgressStepEnum::TUTORIAL_FIGHT)
+    expect($player->overseer_train_step)->toBe(OverseerTrainStepEnum::Fight)
         ->and(fights()->exists(4244))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendPhoto')) {
+        if (! str_contains($request->url(), '/sendPhoto') && ! str_contains($request->url(), '/editMessageMedia')) {
             return false;
         }
 
@@ -143,13 +143,17 @@ it('starts tutorial fight from intro callback', function (): void {
     });
 });
 
-it('resumes tutorial fight panel on /start', function (): void {
+it('resumes overseer train fight panel on /start', function (): void {
     Bus::fake();
 
-    $player = registration()->ensurePlayer(4245);
-    $player = registration()->setNick($player, 'ResumeAtk')->character;
-    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
-    $fight = onboarding()->startTutorialFight($player);
+    $player = cityArrived(4245, 'ResumeAtk');
+    $player->overseer_train_step = OverseerTrainStepEnum::Intro;
+    $player->save();
+
+    $res = app(OverseerQuest::class)->startFight($player);
+    expect($res->ok)->toBeTrue();
+
+    $fight = fights()->findByTgId(4245);
     $fight->step = FightStepEnum::ATTACK;
     $fight->player_stance = StanceEnum::ATTACK;
     $fight->player_attack = null;
@@ -169,11 +173,11 @@ it('resumes tutorial fight panel on /start', function (): void {
 
     $player->refresh();
 
-    expect($player->progress_step)->toBe(ProgressStepEnum::TUTORIAL_FIGHT)
+    expect($player->overseer_train_step)->toBe(OverseerTrainStepEnum::Fight)
         ->and(fights()->exists(4245))->toBeTrue();
 
     Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendPhoto')) {
+        if (! str_contains($request->url(), '/sendPhoto') && ! str_contains($request->url(), '/editMessageMedia')) {
             return false;
         }
 
@@ -190,11 +194,9 @@ it('resumes tutorial fight panel on /start', function (): void {
     });
 });
 
-it('falls back to intro when tutorial fight row is missing', function (): void {
-    $player = registration()->ensurePlayer(4248);
-    $player = registration()->setNick($player, 'NoFight')->character;
-    $player = registration()->setLocation($player, registration()->cities()[0]->key)->character;
-    $player->progress_step = ProgressStepEnum::TUTORIAL_FIGHT;
+it('falls back to overseer intro when train fight row is missing', function (): void {
+    $player = cityArrived(4248, 'NoFight');
+    $player->overseer_train_step = OverseerTrainStepEnum::Fight;
     $player->save();
 
     expect(fights()->exists(4248))->toBeFalse();
@@ -213,11 +215,16 @@ it('falls back to intro when tutorial fight row is missing', function (): void {
 
     $player->refresh();
 
-    expect($player->progress_step)->toBe(ProgressStepEnum::INTRO);
+    expect($player->overseer_train_step)->toBe(OverseerTrainStepEnum::Intro);
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], mb_trim(__('onboarding.intro')));
+        $body = $request->body();
+
+        return (str_contains($request->url(), '/sendMessage')
+                || str_contains($request->url(), '/sendPhoto')
+                || str_contains($request->url(), '/editMessageCaption')
+                || str_contains($request->url(), '/editMessageMedia'))
+            && str_contains($body, 'quest:overseer:ready');
     });
 });
 

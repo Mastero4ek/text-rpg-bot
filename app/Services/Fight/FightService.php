@@ -20,19 +20,55 @@ final class FightService
         private readonly CharacterService $characters,
     ) {}
 
+    public function createBlacksmithQuest(Character $character, Enemy $enemy): Fight
+    {
+        return $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::QUEST_BLACKSMITH,
+            false,
+            false,
+            FightReturnEnum::Forest,
+        );
+    }
+
+    public function createBruiserQuest(Character $character, Enemy $enemy): Fight
+    {
+        return $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::QUEST_BRUISER,
+            false,
+            false,
+            null,
+        );
+    }
+
+    public function createHealerQuest(Character $character, Enemy $enemy): Fight
+    {
+        return $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::QUEST_HEALER,
+            false,
+            false,
+            null,
+        );
+    }
+
     public function createHall(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, false, true, FightReturnEnum::Training);
+        return $this->createFight($character, $enemy, FightKindEnum::PVE, false, true, FightReturnEnum::Training);
     }
 
     public function createTraining(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, false, false, FightReturnEnum::Forest);
+        return $this->createFight($character, $enemy, FightKindEnum::PVE, false, false, FightReturnEnum::Forest);
     }
 
     public function createTutorial(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, true, false, null);
+        return $this->createFight($character, $enemy, FightKindEnum::QUEST_OVERSEER, true, false, null);
     }
 
     public function findByTgId(int $tgId): Fight
@@ -111,11 +147,12 @@ final class FightService
     private function createFight(
         Character $character,
         Enemy $enemy,
+        FightKindEnum $kind,
         bool $tutorial,
         bool $hall,
         ?FightReturnEnum $returnTo,
     ): Fight {
-        $fight = DB::transaction(function () use ($character, $enemy, $tutorial, $hall, $returnTo): Fight {
+        $fight = DB::transaction(function () use ($character, $enemy, $kind, $tutorial, $hall, $returnTo): Fight {
             Fight::query()->whereKey($character->tg_id)->delete();
 
             $character = $this->characters->applyRegen($character);
@@ -125,7 +162,7 @@ final class FightService
 
             $fight = new Fight;
             $fight->tg_id = $character->tg_id;
-            $fight->kind = $tutorial ? FightKindEnum::TUTORIAL : FightKindEnum::PVE;
+            $fight->kind = $kind;
             $fight->tutorial = $tutorial;
             $fight->hall = $hall;
             $fight->return_to = $returnTo;

@@ -167,7 +167,7 @@ it('keeps fight alive on flee fail and shows flee_fail then stance', function ()
 
 it('rejects flee in tutorial fight', function (): void {
     $p = characters()->createDraft(9803);
-    $p->progress_step = ProgressStepEnum::TUTORIAL_FIGHT;
+    $p->progress_step = ProgressStepEnum::ARRIVED;
     $p->username = 'FleeTut';
     $p->save();
 

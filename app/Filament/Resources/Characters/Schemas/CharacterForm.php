@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\Schemas;
 
 use App\Actions\Character\CharacterResetStatsAction;
+use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\OverseerTrainStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
 use App\Services\CharacterService;
 use App\Support\LangVariant;
@@ -15,13 +18,19 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Wizard;
+use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Alignment;
+use Filament\Support\Enums\FontWeight;
+use Filament\Support\Enums\TextSize;
 use Filament\Support\Icons\Heroicon;
 
 final class CharacterForm
@@ -206,6 +215,104 @@ final class CharacterForm
                                 ->alignment(Alignment::Start),
                         ]),
                     ]),
+                Section::make(__('admin.sections.character_progress'))
+                    ->icon(Heroicon::OutlinedMap)
+                    ->columns(1)
+                    ->columnSpanFull()
+                    ->collapsed()
+                    ->collapsible()
+                    ->extraAttributes(['class' => 'fi-character-quest-progress'])
+                    ->schema([
+                        Text::make(__('admin.quest_wizard.chapter'))
+                            ->size(TextSize::Medium)
+                            ->weight(FontWeight::SemiBold)
+                            ->color(null)
+                            ->columnSpanFull(),
+                        Wizard::make([
+                            Step::make(__('admin.quest_wizard.registration.label'))
+                                ->description(__('admin.quest_wizard.registration.description'))
+                                ->icon(Heroicon::OutlinedIdentification)
+                                ->columns(5)
+                                ->schema([
+                                    Select::make('quest_phase')
+                                        ->label(__('admin.labels.quest_phase'))
+                                        ->options(QuestPhaseEnum::class)
+                                        ->native(false)
+                                        ->required()
+                                        ->columnSpan(1),
+                                    Select::make('progress_step')
+                                        ->label(__('admin.labels.progress_step'))
+                                        ->options(ProgressStepEnum::class)
+                                        ->native(false)
+                                        ->required()
+                                        ->columnSpan(1),
+                                ]),
+                            Step::make(__('admin.quest_wizard.overseer.label'))
+                                ->description(__('admin.quest_wizard.overseer.description'))
+                                ->icon(Heroicon::OutlinedShieldCheck)
+                                ->columns(5)
+                                ->schema([
+                                    Select::make('overseer_train_step')
+                                        ->label(__('admin.labels.overseer_train_step'))
+                                        ->options(OverseerTrainStepEnum::class)
+                                        ->native(false)
+                                        ->nullable()
+                                        ->columnSpan(1),
+                                    Group::make([
+                                        Toggle::make('overseer_trained')->label(__('admin.labels.overseer_trained')),
+                                        Toggle::make('overseer_at_tavern')->label(__('admin.labels.overseer_at_tavern')),
+                                        Toggle::make('unlock_portal')->label(__('admin.labels.unlock_portal')),
+                                    ])->columns(5)->columnSpanFull(),
+                                ]),
+                            Step::make(__('admin.quest_wizard.healer.label'))
+                                ->description(__('admin.quest_wizard.healer.description'))
+                                ->icon(Heroicon::OutlinedHeart)
+                                ->columns(5)
+                                ->schema([
+                                    Toggle::make('healer_meet_open')->label(__('admin.labels.healer_meet_open')),
+                                    Toggle::make('healer_at_tavern')->label(__('admin.labels.healer_at_tavern')),
+                                    Toggle::make('unlock_forest')->label(__('admin.labels.unlock_forest')),
+                                ]),
+                            Step::make(__('admin.quest_wizard.blacksmith.label'))
+                                ->description(__('admin.quest_wizard.blacksmith.description'))
+                                ->icon(Heroicon::OutlinedWrenchScrewdriver)
+                                ->columns(5)
+                                ->schema([
+                                    Toggle::make('blacksmith_at_tavern')->label(__('admin.labels.blacksmith_at_tavern')),
+                                    Toggle::make('unlock_board')->label(__('admin.labels.unlock_board')),
+                                ]),
+                            Step::make(__('admin.quest_wizard.buyer.label'))
+                                ->description(__('admin.quest_wizard.buyer.description'))
+                                ->icon(Heroicon::OutlinedShoppingBag)
+                                ->columns(5)
+                                ->schema([
+                                    Toggle::make('buyer_at_tavern')->label(__('admin.labels.buyer_at_tavern')),
+                                    Toggle::make('unlock_arena')->label(__('admin.labels.unlock_arena')),
+                                ]),
+                            Step::make(__('admin.quest_wizard.bruiser.label'))
+                                ->description(__('admin.quest_wizard.bruiser.description'))
+                                ->icon(Heroicon::OutlinedFire)
+                                ->columns(5)
+                                ->schema([
+                                    Toggle::make('bruiser_contract_active')->label(__('admin.labels.bruiser_contract_active')),
+                                    Toggle::make('bruiser_knuckle_pending')->label(__('admin.labels.bruiser_knuckle_pending')),
+                                    Toggle::make('healer_debt_open')->label(__('admin.labels.healer_debt_open')),
+                                    Toggle::make('healer_rat_loot_pending')->label(__('admin.labels.healer_rat_loot_pending')),
+                                ]),
+                            Step::make(__('admin.quest_wizard.done.label'))
+                                ->description(__('admin.quest_wizard.done.description'))
+                                ->icon(Heroicon::OutlinedCheckBadge)
+                                ->columns(5)
+                                ->schema([
+                                    Toggle::make('city_unlocked_full')->label(__('admin.labels.city_unlocked_full')),
+                                ]),
+                        ])
+                            ->skippable()
+                            ->contained()
+                            ->columnSpanFull()
+                            ->extraAttributes(['class' => 'fi-character-quest-wizard'])
+                            ->startOnStep(fn (?Character $record): int => self::questWizardStartStep($record)),
+                    ]),
                 Section::make(__('admin.sections.character_economy'))
                     ->icon(Heroicon::OutlinedBanknotes)
                     ->columns(1)
@@ -257,6 +364,26 @@ final class CharacterForm
             }
 
             return Heroicon::OutlinedQuestionMarkCircle;
+        };
+    }
+
+    private static function questWizardStartStep(?Character $record): int
+    {
+        if (! $record instanceof Character) {
+            return 1;
+        }
+
+        if (! $record->progress_step->canPlayCity()) {
+            return 1;
+        }
+
+        return match ($record->quest_phase) {
+            QuestPhaseEnum::Overseer => 2,
+            QuestPhaseEnum::Healer => 3,
+            QuestPhaseEnum::Blacksmith => 4,
+            QuestPhaseEnum::Buyer => 5,
+            QuestPhaseEnum::Bruiser => 6,
+            QuestPhaseEnum::Done => 7,
         };
     }
 }

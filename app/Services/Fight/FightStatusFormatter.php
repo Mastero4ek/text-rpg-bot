@@ -54,19 +54,7 @@ final class FightStatusFormatter
             && $fight->player_attack instanceof PlayerAttackEnum
             && $fight->player_attack->isPotion()
         ) {
-            $log = $fight->log;
-
-            if ($log === []) {
-                $prompt = mb_ltrim(__('combat.potion_then_defend'));
-            } else {
-                $drinkLine = $log[array_key_last($log)];
-
-                if ($drinkLine === '') {
-                    $prompt = mb_ltrim(__('combat.potion_then_defend'));
-                } else {
-                    $prompt = $drinkLine . "\n\n" . $prompt;
-                }
-            }
+            $prompt = mb_ltrim(__('combat.potion_then_defend'));
         }
 
         $prefix = '';

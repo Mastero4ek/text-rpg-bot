@@ -11,7 +11,7 @@ it('hides shop and forest items without pivot rows', function (): void {
     $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
     $knife = BackpackCatalog::query()->findOrFail('knife_0');
     $knife->cities()->sync([]);
-    $wanderer = EnemyCatalog::query()->findOrFail('chance_wanderer');
+    $wanderer = EnemyCatalog::query()->findOrFail('forest_bandit');
     $wanderer->cities()->sync([]);
 
     $p = placeInCity(characters()->createDraft(9110), City::KEY_ANKRAT);
@@ -20,7 +20,7 @@ it('hides shop and forest items without pivot rows', function (): void {
 
     expect(blacksmithService()->buyWeapon($p->tg_id, 'knife_0')->ok)->toBeFalse()
         ->and(app(CityQuery::class)->forestCatalogs($yasen->id)->pluck('catalog_id')->all())
-        ->not->toContain('chance_wanderer');
+        ->not->toContain('forest_bandit');
 });
 
 it('shows catalog only in attached cities', function (): void {

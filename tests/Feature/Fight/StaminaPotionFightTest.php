@@ -56,7 +56,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     expect($outcome->kind)->toBe('continue')
         ->and($fight->player_stamina)->toBe(10 + $heal - $drain)
         ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(0)
-        ->and(implode("\n", $fight->log))->toContain((string) $heal);
+        ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
 });
 
 it('drinks heal potion instead of attacking', function (): void {
@@ -94,7 +94,7 @@ it('drinks heal potion instead of attacking', function (): void {
     expect($fight->player_hp)->toBeGreaterThan(20)
         ->and($fight->player_hp)->toBeLessThanOrEqual(20 + $heal)
         ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
-        ->and(implode("\n", $fight->log))->toContain((string) $heal);
+        ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
 });
 
 it('win persists hp at least one even if session hp is zero', function (): void {

@@ -61,6 +61,10 @@ final class FightPanelService
             $telegram->deleteMessage($chatId, $fightBeforeClear->tg_log_message_id);
         }
 
+        if ($this->publishQuestFollowUp($telegram, $chatId, $statusMessageId, $result)) {
+            return;
+        }
+
         if ($statusMessageId !== null) {
             $this->publishEndStatus(
                 $telegram,
@@ -76,11 +80,9 @@ final class FightPanelService
             return;
         }
 
-        $telegram->sendMessage(
-            $chatId,
-            $result->replyText,
-            TelegramKeyboards::fightEndMarkup($result->replyUi, $result->character),
-        );
+        $markup = TelegramKeyboards::fightEndMarkup($result->replyUi);
+        $messageId = $telegram->sendMessage($chatId, $result->replyText, $markup);
+        $this->registration->rememberTelegramMessage($result->character, $chatId, $messageId);
     }
 
     public function refresh(TelegramClient $telegram, Fight $fight, Character $player): void
@@ -122,6 +124,17 @@ final class FightPanelService
     private function enemyImagePath(Fight $fight): ?string
     {
         $enemy = $this->fights->enemy($fight);
+
+        if ($enemy->catalogId === 'bruiser') {
+            $path = config('bot.bruiser_image');
+
+            if (is_string($path) && $path !== '' && is_file($path)) {
+                return $path;
+            }
+
+            return null;
+        }
+
         $catalog = EnemyCatalog::query()->where('catalog_id', $enemy->catalogId)->first();
 
         if (! $catalog instanceof EnemyCatalog) {
@@ -129,6 +142,126 @@ final class FightPanelService
         }
 
         return $catalog->localImagePath();
+    }
+
+    private function isQuestFollowUp(FightEndResult $result): bool
+    {
+        if ($result->replyText === null) {
+            return false;
+        }
+
+        return in_array($result->replyUi, [
+            FightEndUiEnum::OverseerStats,
+            FightEndUiEnum::Intro,
+            FightEndUiEnum::BlacksmithMeet,
+            FightEndUiEnum::BlacksmithComplete,
+            FightEndUiEnum::BruiserArrive,
+            FightEndUiEnum::BruiserTalk,
+            FightEndUiEnum::BruiserComplete,
+            FightEndUiEnum::BruiserKnucklePending,
+            FightEndUiEnum::BruiserKnockout,
+            FightEndUiEnum::HealerDebt,
+            FightEndUiEnum::HealerRatLoot,
+            FightEndUiEnum::HealerDebtClosed,
+        ], true);
+    }
+
+    private function questFollowUpImagePath(FightEndResult $result): ?string
+    {
+        if ($result->replyUi === FightEndUiEnum::BlacksmithMeet
+            || $result->replyUi === FightEndUiEnum::BlacksmithComplete) {
+            $path = config('bot.blacksmith_image');
+        } elseif (
+            in_array($result->replyUi, [
+                FightEndUiEnum::BruiserArrive,
+                FightEndUiEnum::BruiserTalk,
+                FightEndUiEnum::BruiserComplete,
+                FightEndUiEnum::BruiserKnucklePending,
+                FightEndUiEnum::BruiserKnockout,
+            ], true)
+        ) {
+            $path = config('bot.bruiser_image');
+        } elseif (
+            $result->replyUi === FightEndUiEnum::HealerDebt
+            || $result->replyUi === FightEndUiEnum::HealerDebtClosed
+        ) {
+            $path = config('bot.healer_tavern_image');
+        } elseif ($result->replyUi === FightEndUiEnum::HealerRatLoot) {
+            return null;
+        } elseif ($result->character->overseer_at_tavern) {
+            $path = config('bot.overseer_tavern_image');
+        } else {
+            $path = config('bot.overseer_image');
+        }
+
+        if (! is_string($path) || $path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    private function publishQuestFollowUp(
+        TelegramClient $telegram,
+        int|string $chatId,
+        ?int $statusMessageId,
+        FightEndResult $result,
+    ): bool {
+        if (! $this->isQuestFollowUp($result) || $result->replyText === null) {
+            return false;
+        }
+
+        $markup = TelegramKeyboards::fightEndMarkup($result->replyUi);
+        $imagePath = $this->questFollowUpImagePath($result);
+
+        if ($statusMessageId !== null && $imagePath !== null) {
+            try {
+                $telegram->editMessageMedia(
+                    $chatId,
+                    $statusMessageId,
+                    $imagePath,
+                    $result->replyText,
+                    $markup,
+                );
+                $this->registration->rememberTelegramMessage(
+                    $result->character,
+                    $chatId,
+                    $statusMessageId,
+                );
+
+                return true;
+            } catch (RuntimeException) {
+            }
+        }
+
+        if ($statusMessageId !== null) {
+            try {
+                $telegram->editMessageCaption(
+                    $chatId,
+                    $statusMessageId,
+                    $result->replyText,
+                    $markup,
+                );
+                $this->registration->rememberTelegramMessage(
+                    $result->character,
+                    $chatId,
+                    $statusMessageId,
+                );
+
+                return true;
+            } catch (RuntimeException) {
+            }
+        }
+
+        if ($imagePath !== null) {
+            $messageId = $telegram->sendPhoto($chatId, $imagePath, $result->replyText, $markup);
+        } else {
+            $messageId = $telegram->sendMessage($chatId, $result->replyText, $markup);
+        }
+
+        $this->registration->rememberTelegramMessage($result->character, $chatId, $messageId);
+
+        return true;
     }
 
     /**

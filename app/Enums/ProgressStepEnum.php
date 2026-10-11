@@ -15,16 +15,6 @@ enum ProgressStepEnum: string implements HasColor, HasLabel
     case SET_CITY = 'SET_CITY';
     case ARRIVED = 'ARRIVED';
     case DONE = 'DONE';
-    case INTRO = 'INTRO';
-    case QUEST_EQUIP = 'QUEST_EQUIP';
-    case QUEST_SHOP = 'QUEST_SHOP';
-    case QUEST_STATS = 'QUEST_STATS';
-    case TUTORIAL_FIGHT = 'TUTORIAL_FIGHT';
-
-    public function awaitsHall(): bool
-    {
-        return $this === self::ARRIVED;
-    }
 
     public function canPlayCity(): bool
     {
@@ -42,11 +32,6 @@ enum ProgressStepEnum: string implements HasColor, HasLabel
             self::SET_CITY => Color::Slate,
             self::ARRIVED => Color::Teal,
             self::DONE => Color::Green,
-            self::INTRO => Color::Sky,
-            self::QUEST_EQUIP => Color::Violet,
-            self::QUEST_SHOP => Color::Orange,
-            self::QUEST_STATS => Color::Indigo,
-            self::TUTORIAL_FIGHT => Color::Amber,
         };
     }
 

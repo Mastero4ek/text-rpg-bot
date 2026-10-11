@@ -159,6 +159,13 @@ final class InventoryHandler
             return;
         }
 
+        if (preg_match('/^bag:quest:(\d+)$/', $data) === 1) {
+            [$text, $markup] = $this->bagPanel($player);
+            $responder->edit($text, $markup);
+
+            return;
+        }
+
         if (preg_match('/^bag:discard:(\d+)$/', $data, $m) === 1) {
             $this->bagDiscardConfirmScreen($responder, $player, (int) $m[1]);
 
@@ -242,7 +249,20 @@ final class InventoryHandler
     {
         $potions = $this->bag->loosePotions($player);
         $gems = $this->bag->looseGems($player);
+        $questItems = $this->bag->looseQuestItems($player);
         $buttons = [];
+
+        foreach ($questItems as $row) {
+            if (! $this->bagCatalog->hasQuestItem($row->catalog_id)) {
+                continue;
+            }
+
+            $def = $this->bagCatalog->findQuestItem($row->catalog_id);
+            $buttons[] = [[
+                'text' => $def->name . ($row->quantity > 1 ? ' ×' . $row->quantity : ''),
+                'callback_data' => 'bag:quest:' . $row->id,
+            ]];
+        }
 
         foreach ($potions as $row) {
             if (! $this->bagCatalog->hasPotion($row->catalog_id)) {

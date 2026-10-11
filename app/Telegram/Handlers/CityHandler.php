@@ -8,15 +8,21 @@ use App\Actions\City\CityPortalAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Enums\Fight\FightReturnEnum;
-use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\LocationEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Queries\City\CityQuery;
+use App\Quests\BlacksmithQuest;
+use App\Quests\BruiserQuest;
+use App\Quests\BuyerQuest;
+use App\Quests\HealerQuest;
 use App\Services\CityMenuService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
+use App\Services\Quest\QuestUnlockService;
 use App\Services\Registration\RegistrationService;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -37,6 +43,11 @@ final class CityHandler
         private readonly EnemyService $enemies,
         private readonly FightService $fights,
         private readonly FightPanelService $fightPanel,
+        private readonly BlacksmithQuest $blacksmithQuest,
+        private readonly BruiserQuest $bruiserQuest,
+        private readonly BuyerQuest $buyerQuest,
+        private readonly HealerQuest $healerQuest,
+        private readonly QuestUnlockService $questUnlocks,
         private readonly RegistrationService $registrationService,
         private readonly TelegramPlayerGate $gate,
     ) {}
@@ -70,44 +81,61 @@ final class CityHandler
                 return;
             }
 
-            if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-                $responder->answerCallback();
-                $this->home($responder, $player);
-
-                return;
-            }
-
             if ($boardState !== null) {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Board)) {
+                    return;
+                }
+
                 $this->board($responder, $player, $boardState['filter'], $boardState['page']);
 
                 return;
             }
 
             if ($data === 'city:board') {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Board)) {
+                    return;
+                }
+
                 $this->board($responder, $player, 'all', 1);
 
                 return;
             }
 
             if ($forestState !== null) {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Forest)) {
+                    return;
+                }
+
                 $this->forest($responder, $player, $forestState['filter'], $forestState['page']);
 
                 return;
             }
 
             if ($data === 'city:forest') {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Forest)) {
+                    return;
+                }
+
                 $this->forest($responder, $player, 'all', 1);
 
                 return;
             }
 
             if ($fightsState !== null) {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Arena)) {
+                    return;
+                }
+
                 $this->fightsList($responder, $player, $fightsState['page']);
 
                 return;
             }
 
             if ($data === 'city:fights') {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Arena)) {
+                    return;
+                }
+
                 $this->fightsList($responder, $player, 1);
 
                 return;
@@ -126,8 +154,16 @@ final class CityHandler
             }
 
             if ($portalState !== null) {
+                if ($this->showFogIfLocked($responder, $player, LocationEnum::Portal)) {
+                    return;
+                }
+
                 $this->portalScreen($responder, $player, $portalState['filter'], $portalState['page']);
 
+                return;
+            }
+
+            if ($this->showFogIfLocked($responder, $player, LocationEnum::Portal)) {
                 return;
             }
 
@@ -143,19 +179,45 @@ final class CityHandler
             return;
         }
 
-        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-            $this->home($responder, $player);
-
-            return;
-        }
-
         if ($data === 'city:home' || $data === 'menu:home') {
             $this->home($responder, $player);
 
             return;
         }
 
+        if ($data === 'city:lists') {
+            if ($this->showFogIfLocked($responder, $player, LocationEnum::Lists)) {
+                return;
+            }
+
+            $this->lists($responder, $player);
+
+            return;
+        }
+
         if ($data === 'city:arena') {
+            if ($this->showFogIfLocked($responder, $player, LocationEnum::Arena)) {
+                return;
+            }
+
+            if ($this->arenaFullyOpen($player)) {
+                $city = $this->cityMenu->currentCity($player);
+
+                if (! $city instanceof City || ! $city->has_fights_list) {
+                    $this->editArenaPanel(
+                        $responder,
+                        __('telegram.location.arena_empty'),
+                        CityKeyboard::backToArena(),
+                    );
+
+                    return;
+                }
+
+                $this->fightsList($responder, $player, 1);
+
+                return;
+            }
+
             $this->arena($responder, $player);
 
             return;
@@ -168,6 +230,10 @@ final class CityHandler
         }
 
         if (preg_match('/^portal:(\d+)$/', $data, $m) === 1) {
+            if ($this->showFogIfLocked($responder, $player, LocationEnum::Portal)) {
+                return;
+            }
+
             $this->travel($responder, $player, (int) $m[1]);
 
             return;
@@ -358,14 +424,6 @@ final class CityHandler
 
     private function homePanelImagePath(Character $player): ?string
     {
-        if ($player->progress_step === ProgressStepEnum::ARRIVED) {
-            $overseerImage = config('bot.overseer_image');
-
-            if (is_string($overseerImage) && $overseerImage !== '' && is_file($overseerImage)) {
-                return $overseerImage;
-            }
-        }
-
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City) {
@@ -415,24 +473,48 @@ final class CityHandler
     private function arena(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
-        $markup = $this->cityMenu->arenaMarkup($player);
 
-        if (! $city instanceof City || $markup === null) {
+        if (! $city instanceof City) {
             $this->editLocationGate(
                 $responder,
                 __('telegram.location.error.city_unavailable'),
-                CityKeyboard::backToCity(),
+                CityKeyboard::backToArena(),
             );
 
             return;
         }
 
-        if (! $city->has_training_room && ! $city->has_fights_list) {
-            $text = __('telegram.location.arena_empty');
-        } else {
-            $text = __('telegram.location.arena');
+        if (! $city->has_fights_list) {
+            $this->editArenaPanel(
+                $responder,
+                __('telegram.location.arena_empty'),
+                CityKeyboard::backToArena(),
+            );
+
+            return;
         }
 
+        $this->editArenaPanel(
+            $responder,
+            __('telegram.location.arena'),
+            CityKeyboard::backToArena(),
+        );
+    }
+
+    private function arenaFullyOpen(Character $player): bool
+    {
+        if ($player->city_unlocked_full) {
+            return true;
+        }
+
+        return $player->quest_phase === QuestPhaseEnum::Done;
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function editArenaPanel(TelegramResponder $responder, string $text, array $markup): void
+    {
         $arenaImage = config('bot.city_arena_image');
 
         if (is_string($arenaImage) && $arenaImage !== '' && is_file($arenaImage)) {
@@ -447,6 +529,37 @@ final class CityHandler
         $responder->edit($text, $markup);
     }
 
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function editBruiserQuestPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $image = $this->bruiserQuest->panelImagePath();
+
+        try {
+            $responder->editPhoto($image, $text, $markup);
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $responder->messageId(),
+            );
+
+            return;
+        } catch (Throwable) {
+        }
+
+        $responder->edit($text, $markup);
+        $this->registrationService->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+    }
+
     private function board(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
         $city = $this->cityMenu->currentCity($player);
@@ -457,6 +570,18 @@ final class CityHandler
                 $responder,
                 __('telegram.location.error.city_unavailable'),
                 CityKeyboard::backToCity(),
+            );
+
+            return;
+        }
+
+        if ($this->buyerQuest->awaitsContract($player)) {
+            $responder->answerCallback();
+            $this->editBuyerQuestPanel(
+                $responder,
+                $player,
+                $this->buyerQuest->meetSpeech($player),
+                TelegramKeyboards::buyerMeet(),
             );
 
             return;
@@ -517,21 +642,37 @@ final class CityHandler
             return;
         }
 
+        $arenaImage = config('bot.city_arena_image');
+
+        if (! is_string($arenaImage) || $arenaImage === '' || ! is_file($arenaImage)) {
+            $arenaImage = null;
+        }
+
         $responder->answerCallback();
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-        $responder->edit(
+        $this->replaceCityPanel(
+            $responder,
+            $player,
             __('telegram.location.fights_empty'),
             CityKeyboard::fightsList([], $page),
-        );
-        $this->registrationService->rememberTelegramMessage(
-            $player,
-            $responder->chatId(),
-            $responder->messageId(),
+            $arenaImage,
         );
     }
 
     private function forest(TelegramResponder $responder, Character $player, string $filter, int $page): void
     {
+        if ($this->blacksmithQuest->awaitsHelp($player)) {
+            $responder->answerCallback();
+            $this->editBlacksmithQuestPanel(
+                $responder,
+                $player,
+                $this->blacksmithQuest->meetSpeech($player),
+                TelegramKeyboards::blacksmithMeet(),
+            );
+
+            return;
+        }
+
         $panel = $this->forestPanel($player, $filter, $page);
 
         if ($panel === null) {
@@ -598,6 +739,18 @@ final class CityHandler
 
     private function sendForest(TelegramResponder $responder, Character $player): void
     {
+        if ($this->blacksmithQuest->awaitsHelp($player)) {
+            $this->sendCityPanel(
+                $responder,
+                $player,
+                $this->blacksmithQuest->meetSpeech($player),
+                TelegramKeyboards::blacksmithMeet(),
+                $this->blacksmithQuest->panelImagePath(),
+            );
+
+            return;
+        }
+
         $panel = $this->forestPanel($player, 'all', 1);
 
         if ($panel === null) {
@@ -679,6 +832,31 @@ final class CityHandler
                 __('telegram.location.error.no_portal'),
                 CityKeyboard::backToGates(),
             );
+
+            return;
+        }
+
+        if ($this->healerQuest->awaitsPotion($player)) {
+            $responder->answerCallback();
+            $opened = $this->healerQuest->openMeet($player);
+
+            if (! $opened->ok || ! $opened->character instanceof Character) {
+                return;
+            }
+
+            $this->editHealerQuestPanel(
+                $responder,
+                $opened->character,
+                $this->healerQuest->meetSpeech($opened->character),
+                TelegramKeyboards::healerMeet(),
+            );
+
+            return;
+        }
+
+        if (! $this->questUnlocks->canTravelByPortal($player)) {
+            $responder->answerCallback();
+            $this->editPortalLocked($responder, $player);
 
             return;
         }
@@ -798,7 +976,7 @@ final class CityHandler
     }
 
     /**
-     * @return array{text: string, markup: array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}, image: null, flash: bool}|null
+     * @return array{text: string, markup: array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}, image: string|null, flash: bool}|null
      */
     private function trainingPanel(Character $player, string $filter, int $page): ?array
     {
@@ -819,10 +997,16 @@ final class CityHandler
             $text = __('telegram.location.training');
         }
 
+        $arenaImage = config('bot.city_arena_image');
+
+        if (! is_string($arenaImage) || $arenaImage === '' || ! is_file($arenaImage)) {
+            $arenaImage = null;
+        }
+
         return [
             'text' => $text,
             'markup' => CityKeyboard::trainingPick($buttons, $filter, $page),
-            'image' => null,
+            'image' => $arenaImage,
             'flash' => $flash,
         ];
     }
@@ -843,18 +1027,12 @@ final class CityHandler
             return;
         }
 
-        $arenaImage = config('bot.city_arena_image');
-
-        if (! is_string($arenaImage) || $arenaImage === '' || ! is_file($arenaImage)) {
-            $arenaImage = null;
-        }
-
         $this->sendCityPanel(
             $responder,
             $player,
             $panel['text'],
             $panel['markup'],
-            $arenaImage,
+            $panel['image'],
         );
     }
 
@@ -1046,6 +1224,218 @@ final class CityHandler
         $responder->edit($text, $markup);
     }
 
+    private function lists(TelegramResponder $responder, Character $player): void
+    {
+        if ($this->bruiserQuest->awaitsChallenge($player)) {
+            $this->editBruiserQuestPanel(
+                $responder,
+                $player,
+                $this->bruiserQuest->meetSpeech($player),
+                TelegramKeyboards::bruiserArrive(),
+            );
+
+            return;
+        }
+
+        if ($this->bruiserQuest->hasKnucklePending($player)) {
+            $this->editBruiserQuestPanel(
+                $responder,
+                $player,
+                $this->bruiserQuest->knucklePendingSpeech($player),
+                TelegramKeyboards::bruiserKnucklePending(),
+            );
+
+            return;
+        }
+
+        $city = $this->cityMenu->currentCity($player);
+        $markup = $this->cityMenu->listsMarkup($player);
+
+        if (! $city instanceof City || $markup === null) {
+            $this->editLocationGate(
+                $responder,
+                __('telegram.location.error.city_unavailable'),
+                CityKeyboard::backToCity(),
+            );
+
+            return;
+        }
+
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+
+        if (! $city->has_training_room) {
+            $text = __('telegram.location.lists_empty');
+        } else {
+            $text = __('telegram.location.lists');
+        }
+
+        $listsImage = config('bot.city_lists_image');
+
+        if (is_string($listsImage) && $listsImage !== '' && is_file($listsImage)) {
+            try {
+                $responder->editPhoto($listsImage, $text, $markup);
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $responder->edit($text, $markup);
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function editBlacksmithQuestPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $image = $this->blacksmithQuest->panelImagePath();
+
+        try {
+            $responder->editPhoto($image, $text, $markup);
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $responder->messageId(),
+            );
+
+            return;
+        } catch (Throwable) {
+        }
+
+        $responder->edit($text, $markup);
+        $this->registrationService->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function editBuyerQuestPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $image = $this->buyerQuest->panelImagePath();
+
+        try {
+            $responder->editPhoto($image, $text, $markup);
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $responder->messageId(),
+            );
+
+            return;
+        } catch (Throwable) {
+        }
+
+        $responder->edit($text, $markup);
+        $this->registrationService->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+    }
+
+    private function editHealerQuestPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $image = $this->healerQuest->panelImagePath();
+
+        try {
+            $responder->editPhoto($image, $text, $markup);
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $responder->messageId(),
+            );
+
+            return;
+        } catch (Throwable) {
+        }
+
+        $responder->edit($text, $markup);
+        $this->registrationService->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+    }
+
+    private function showFogIfLocked(
+        TelegramResponder $responder,
+        Character $player,
+        LocationEnum $location,
+    ): bool {
+        if ($this->questUnlocks->canOpen($player, $location)) {
+            return false;
+        }
+
+        $responder->answerCallback();
+        $this->editLocationGate(
+            $responder,
+            $this->questUnlocks->fogText($player),
+            $this->fogBackMarkup($location),
+        );
+
+        return true;
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    private function fogBackMarkup(LocationEnum $location): array
+    {
+        if ($location === LocationEnum::Portal || $location === LocationEnum::Forest) {
+            return CityKeyboard::backToGates();
+        }
+
+        if ($location === LocationEnum::Arena) {
+            return CityKeyboard::backToArena();
+        }
+
+        return CityKeyboard::backToCity();
+    }
+
+    private function editPortalLocked(TelegramResponder $responder, Character $player): void
+    {
+        $text = __('telegram.location.portal_locked');
+        $markup = CityKeyboard::backToGates();
+        $portalImage = config('bot.city_portal_image');
+
+        if (is_string($portalImage) && $portalImage !== '' && is_file($portalImage)) {
+            try {
+                $responder->editPhoto($portalImage, $text, $markup);
+                $this->registrationService->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $responder->edit($text, $markup);
+        $this->registrationService->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+    }
+
     private function portalTravelErrorText(?string $error): string
     {
         if ($error === __('errors.same_city')) {
@@ -1058,6 +1448,10 @@ final class CityHandler
 
         if ($error === __('errors.city_unavailable')) {
             return __('telegram.location.error.city_unavailable');
+        }
+
+        if ($error === __('telegram.location.error.portal_locked')) {
+            return __('telegram.location.error.portal_locked');
         }
 
         return TelegramResponder::errorMessage($error);

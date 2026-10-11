@@ -262,28 +262,32 @@ describe('positive fight flow', function (): void {
         );
 
         $fight->refresh();
+        $hpAfter = $hpBefore + $heal;
+
         expect($fight->step)->toBe(FightStepEnum::DEFEND)
             ->and($fight->use_potion)->toBeFalse()
             ->and($fight->player_attack)->toBe(PlayerAttackEnum::POTION)
             ->and($fight->player_stance)->toBe(StanceEnum::DEFEND)
-            ->and($fight->player_hp)->toBe($hpBefore + $heal)
+            ->and($fight->player_hp)->toBe($hpAfter)
             ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
             ->and($fight->tg_message_id)->toBe(1)
             ->and($fight->tg_reply_kind)->toBe('zones_def')
-            ->and(implode("\n", $fight->log))->toContain((string) $heal);
+            ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
 
-        Http::assertSent(function (Request $request) use ($heal): bool {
+        Http::assertSent(function (Request $request) use ($hpAfter): bool {
             if (! str_contains($request->url(), '/editMessageCaption')) {
                 return false;
             }
 
-            $caption = (string) $request['caption'];
+            parse_str($request->body(), $parsed);
+            $caption = (string) ($parsed['caption'] ?? '');
+            $markup = (string) ($parsed['reply_markup'] ?? '');
 
-            return (int) $request['message_id'] === 1
-                && str_contains((string) $request['reply_markup'], 'fight:def:HEAD')
-                && str_contains($caption, (string) $heal)
-                && str_contains($caption, 'Выбери блок')
-                && ! str_contains($caption, mb_trim(__('errors.potion_unavailable')));
+            return (int) ($parsed['message_id'] ?? 0) === 1
+                && str_contains($markup, 'fight:def:HEAD')
+                && str_contains($caption, (string) $hpAfter)
+                && str_contains($caption, mb_trim(__('combat.potion_then_defend')))
+                && ! str_contains($caption, mb_trim(strip_tags(__('errors.potion_unavailable'))));
         });
     });
 });

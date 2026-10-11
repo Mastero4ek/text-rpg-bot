@@ -9,12 +9,14 @@ use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character;
 use App\Models\City;
+use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\CityMenuService;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
+use App\Telegram\Keyboards\TelegramKeyboards;
 use Throwable;
 
 final class OverseerHandler
@@ -25,6 +27,7 @@ final class OverseerHandler
         private readonly CharacterSpendStatPointAction $spendStatPoint,
         private readonly CityHandler $city,
         private readonly CityMenuService $cityMenu,
+        private readonly OverseerQuest $overseerQuest,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -94,11 +97,15 @@ final class OverseerHandler
             return;
         }
 
-        if ($player->onboarding_skipped) {
+        if (
+            $player->overseer_at_tavern
+            && ! $player->overseer_trained
+            && $player->progress_step === ProgressStepEnum::ARRIVED
+        ) {
             $this->editOverseerPanel(
                 $responder,
-                __('telegram.npc.overseer.skip'),
-                CityKeyboard::overseerOffer(),
+                $this->overseerQuest->tavernSpeech($player),
+                TelegramKeyboards::overseerTrainOffer(),
             );
 
             return;
@@ -131,7 +138,7 @@ final class OverseerHandler
             return;
         }
 
-        if ($player->onboarding_skipped || $player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->overseer_trained || $player->progress_step !== ProgressStepEnum::DONE) {
             $this->overseerScreen($responder, $player);
 
             return;
@@ -171,7 +178,7 @@ final class OverseerHandler
             return;
         }
 
-        if ($player->onboarding_skipped || $player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->overseer_trained || $player->progress_step !== ProgressStepEnum::DONE) {
             $this->overseerScreen($responder, $player);
 
             return;
@@ -220,7 +227,7 @@ final class OverseerHandler
             return;
         }
 
-        if ($player->onboarding_skipped || $player->progress_step !== ProgressStepEnum::DONE) {
+        if (! $player->overseer_trained || $player->progress_step !== ProgressStepEnum::DONE) {
             $this->overseerScreen($responder, $player);
 
             return;

@@ -52,7 +52,9 @@ it('setLocation only from enabled list', function (): void {
     expect($res->ok)->toBeTrue()
         ->and($res->character->city_id)->toBe($city->id)
         ->and($res->character->birth_city_id)->toBe($city->id)
-        ->and($res->character->progress_step)->toBe(ProgressStepEnum::ARRIVED);
+        ->and($res->character->progress_step)->toBe(ProgressStepEnum::ARRIVED)
+        ->and($res->character->quest_phase)->toBe(App\Enums\Quest\QuestPhaseEnum::Overseer)
+        ->and($res->character->unlock_portal)->toBeFalse();
 });
 
 it('rise and backToSplash move between splash and nick', function (): void {

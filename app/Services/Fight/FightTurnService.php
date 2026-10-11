@@ -15,7 +15,6 @@ use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Support\PotionDef;
-use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 
 final class FightTurnService
@@ -191,35 +190,18 @@ final class FightTurnService
 
         $heal = $consumed->potion->effectValue;
 
-        if ($player->username === null) {
-            $drinkName = __('common.you');
-        } else {
-            $drinkName = TelegramHtml::escape($player->username);
-        }
-
-        $log = $fight->log;
-
         if ($profile === ProfileEnum::STAMINA) {
             $fight->player_stamina = $this->characters->clampStamina(
                 $fight->player_stamina + $heal,
                 $fight->player_max_stamina,
             );
-            $log[] = __('combat.drink_stamina_potion', [
-                'name' => $drinkName,
-                'heal' => $heal,
-            ]);
         } else {
             $fight->player_hp = $this->characters->clampHp(
                 $fight->player_hp + $heal,
                 $fight->player_max_hp,
             );
-            $log[] = __('combat.drink_potion', [
-                'name' => $drinkName,
-                'heal' => $heal,
-            ]);
         }
 
-        $fight->log = $log;
         $fight->use_potion = false;
         $fight->player_stance = StanceEnum::DEFEND;
         $fight->player_attack = $attack;

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Telegram;
 
 use App\Models\Character;
+use App\Quests\HealerQuest;
+use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Telegram\IdleSessionService;
@@ -18,8 +20,8 @@ use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\MenuHandler;
-use App\Telegram\Handlers\OnboardingHandler;
 use App\Telegram\Handlers\OverseerHandler;
+use App\Telegram\Handlers\QuestHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
 use Illuminate\Support\Facades\Cache;
@@ -34,7 +36,9 @@ final class UpdateProcessor
         private readonly IdleSessionService $idleSession,
         private readonly RegistrationHandler $registration,
         private readonly RegistrationFlow $registrationFlow,
-        private readonly OnboardingHandler $onboarding,
+        private readonly QuestHandler $quest,
+        private readonly OverseerQuest $overseerQuest,
+        private readonly HealerQuest $healerQuest,
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
         private readonly SmithHandler $smith,
@@ -131,6 +135,41 @@ final class UpdateProcessor
             return;
         }
 
+        if (str_starts_with($data, 'quest:')) {
+            $this->quest->handleCallback($update, $responder);
+
+            return;
+        }
+
+        $questPlayer = Character::query()->find($update->userId());
+
+        if ($questPlayer instanceof Character && $this->overseerQuest->isTrainLocked($questPlayer)) {
+            if (str_starts_with($data, 'fight:')) {
+                $this->fight->handleCallback($update, $responder);
+
+                return;
+            }
+
+            $responder->answerCallback();
+            $this->quest->resumeLocked($responder, $questPlayer);
+
+            return;
+        }
+
+        if ($questPlayer instanceof Character && $this->overseerQuest->awaitsMeet($questPlayer)) {
+            $responder->answerCallback();
+            $this->quest->showMeet($responder, $questPlayer);
+
+            return;
+        }
+
+        if ($questPlayer instanceof Character && $this->healerQuest->isPotionLocked($questPlayer)) {
+            $responder->answerCallback();
+            $this->quest->showHealerMeet($responder, $questPlayer);
+
+            return;
+        }
+
         if (str_starts_with($data, 'ob:')) {
             $player = Character::query()->find($update->userId());
 
@@ -140,7 +179,7 @@ final class UpdateProcessor
                 return;
             }
 
-            $this->onboarding->handleCallback($update, $responder);
+            $responder->answerCallback();
 
             return;
         }
@@ -221,21 +260,22 @@ final class UpdateProcessor
     private function routeStart(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $this->registration->handleStart($update, $responder);
-
-        $player = Character::query()->find($update->userId());
-
-        if (
-            $player instanceof Character
-            && ! $this->registrationFlow->isActive($player)
-            && ! $player->progress_step->canPlayCity()
-        ) {
-            $this->onboarding->handleStart($update, $responder);
-        }
     }
 
     private function routeText(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $character = Character::query()->find($update->userId());
+
+        if (
+            $character instanceof Character
+            && (
+                $this->overseerQuest->isTrainLocked($character)
+                || $this->overseerQuest->awaitsMeet($character)
+                || $this->healerQuest->isPotionLocked($character)
+            )
+        ) {
+            return;
+        }
 
         if ($character instanceof Character && $character->progress_step->canPlayCity()) {
             if ($update->botCommand() !== null) {
@@ -255,7 +295,7 @@ final class UpdateProcessor
             return;
         }
 
-        $this->onboarding->handleText($update, $responder);
+        $responder->reply(__('common.press_start'), null);
     }
 
     private function trackIdleSession(TelegramUpdate $update, TelegramResponder $responder): void

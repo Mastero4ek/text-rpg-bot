@@ -11,6 +11,7 @@ use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
+use App\Quests\BuyerQuest;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
@@ -26,6 +27,7 @@ final class BuyerService
         private readonly BackpackService $backpack,
         private readonly BagService $bag,
         private readonly BagCatalog $bagCatalog,
+        private readonly BuyerQuest $buyerQuest,
         private readonly ShopCatalog $catalog,
         private readonly CityQuery $cityQuery,
         private readonly CityLedger $ledger,
@@ -62,6 +64,13 @@ final class BuyerService
 
             if ($row->isEquipped()) {
                 return ActionResult::fail(__('errors.unequip_first'));
+            }
+
+            if (
+                $this->buyerQuest->isAmuletSellLocked($character)
+                && $row->catalog_id === $this->buyerQuest->amuletCatalogId()
+            ) {
+                return ActionResult::fail(__('errors.cannot_sell'));
             }
 
             if (! $this->catalog->hasItem($row->catalog_id)) {
@@ -111,6 +120,10 @@ final class BuyerService
 
             if ($row->backpack_item_id !== null) {
                 return ActionResult::fail(__('errors.gem_socketed'));
+            }
+
+            if ($row->kind === BagKindEnum::QUEST) {
+                return ActionResult::fail(__('errors.cannot_sell'));
             }
 
             if ($row->kind === BagKindEnum::POTION) {

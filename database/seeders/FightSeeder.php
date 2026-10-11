@@ -78,7 +78,7 @@ final class FightSeeder extends Seeder
         }
 
         if (str_starts_with($key, 'wanderer:')) {
-            $catalog = EnemyCatalog::query()->find('chance_wanderer');
+            $catalog = EnemyCatalog::query()->find('forest_bandit');
 
             if (! $catalog instanceof EnemyCatalog) {
                 throw new RuntimeException('Wanderer enemy catalog is missing.');

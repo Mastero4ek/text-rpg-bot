@@ -19,5 +19,5 @@ Always run `composer check-parallel` as the final validation step. Do not push o
 2. **Placement:** mirror the subject (`tests/Feature/Actions/...`, `tests/Unit/Services/Combat/...`). Basename must be unique under `tests/`.
 3. **Data:** factories and (later) `App\Testing\Scenario\*`.
 4. **Combat RNG:** inject a deterministic `RandomSource`; never rely on live `mt_rand` in tests.
-5. Cover happy path and key failures (insufficient gold, wrong onboarding step, etc.). No coverage percentage gate.
+5. Cover happy path and key failures (insufficient gold, wrong quest phase, etc.). No coverage percentage gate.
 6. **Telegram:** fake Update JSON + `Http::fake()` outbound. Never call the live Bot API in CI. Poll and webhook share one processor; do not run long polling in tests.

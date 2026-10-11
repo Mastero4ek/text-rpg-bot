@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\OverseerTrainStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use Carbon\CarbonInterface;
@@ -24,7 +26,23 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int|null $birth_city_id
  * @property int|null $city_id
  * @property ProgressStepEnum $progress_step
- * @property bool $onboarding_skipped
+ * @property QuestPhaseEnum $quest_phase
+ * @property bool $unlock_portal
+ * @property bool $unlock_forest
+ * @property bool $unlock_board
+ * @property bool $unlock_arena
+ * @property bool $city_unlocked_full
+ * @property bool $overseer_trained
+ * @property bool $overseer_at_tavern
+ * @property OverseerTrainStepEnum|null $overseer_train_step
+ * @property bool $healer_at_tavern
+ * @property bool $healer_meet_open
+ * @property bool $blacksmith_at_tavern
+ * @property bool $buyer_at_tavern
+ * @property bool $bruiser_contract_active
+ * @property bool $bruiser_knuckle_pending
+ * @property bool $healer_debt_open
+ * @property bool $healer_rat_loot_pending
  * @property int $level
  * @property int $exp
  * @property int $silver
@@ -65,7 +83,23 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'birth_city_id',
     'city_id',
     'progress_step',
-    'onboarding_skipped',
+    'quest_phase',
+    'unlock_portal',
+    'unlock_forest',
+    'unlock_board',
+    'unlock_arena',
+    'city_unlocked_full',
+    'overseer_trained',
+    'overseer_at_tavern',
+    'overseer_train_step',
+    'healer_at_tavern',
+    'healer_meet_open',
+    'blacksmith_at_tavern',
+    'buyer_at_tavern',
+    'bruiser_contract_active',
+    'bruiser_knuckle_pending',
+    'healer_debt_open',
+    'healer_rat_loot_pending',
     'level',
     'exp',
     'silver',
@@ -168,7 +202,23 @@ final class Character extends Model implements HasMedia
             'birth_city_id' => 'integer',
             'city_id' => 'integer',
             'progress_step' => ProgressStepEnum::class,
-            'onboarding_skipped' => 'boolean',
+            'quest_phase' => QuestPhaseEnum::class,
+            'unlock_portal' => 'boolean',
+            'unlock_forest' => 'boolean',
+            'unlock_board' => 'boolean',
+            'unlock_arena' => 'boolean',
+            'city_unlocked_full' => 'boolean',
+            'overseer_trained' => 'boolean',
+            'overseer_at_tavern' => 'boolean',
+            'overseer_train_step' => OverseerTrainStepEnum::class,
+            'healer_at_tavern' => 'boolean',
+            'healer_meet_open' => 'boolean',
+            'blacksmith_at_tavern' => 'boolean',
+            'buyer_at_tavern' => 'boolean',
+            'bruiser_contract_active' => 'boolean',
+            'bruiser_knuckle_pending' => 'boolean',
+            'healer_debt_open' => 'boolean',
+            'healer_rat_loot_pending' => 'boolean',
             'level' => 'integer',
             'exp' => 'integer',
             'silver' => 'integer',

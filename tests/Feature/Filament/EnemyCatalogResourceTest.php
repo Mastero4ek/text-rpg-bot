@@ -83,7 +83,7 @@ it('creates fixed and mirror via filament form', function (): void {
 });
 
 it('edits enemy name', function (): void {
-    $mob = EnemyCatalog::query()->findOrFail('chance_wanderer');
+    $mob = EnemyCatalog::query()->findOrFail('forest_bandit');
 
     livewire(EditEnemyCatalog::class, [
         'record' => $mob->getKey(),
@@ -94,7 +94,7 @@ it('edits enemy name', function (): void {
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect(EnemyCatalog::query()->findOrFail('chance_wanderer')->name)->toBe('Бродяга улиц');
+    expect(EnemyCatalog::query()->findOrFail('forest_bandit')->name)->toBe('Бродяга улиц');
 });
 
 it('archives restores and force deletes a regular mob', function (): void {
@@ -139,7 +139,7 @@ it('hides force delete for tutorial soldier', function (): void {
 });
 
 it('clones enemy into create form without primary key', function (): void {
-    $source = EnemyCatalog::query()->findOrFail('chance_wanderer');
+    $source = EnemyCatalog::query()->findOrFail('forest_bandit');
     $nextId = EnemyCatalog::nextCatalogIdForKind(EnemyKindEnum::MIRROR);
 
     livewire(ViewEnemyCatalog::class, [

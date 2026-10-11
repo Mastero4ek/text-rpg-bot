@@ -166,22 +166,25 @@ it('runs splash rise nick city happy path into intro', function (): void {
 
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED)
+        ->and($player->quest_phase->value)->toBe('Overseer')
         ->and($player->city_id)->toBe($city->id)
         ->and($player->birth_city_id)->toBe($city->id);
 
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/deleteMessage')
-            && (int) $request['message_id'] === 1;
+    Http::assertSent(function (Request $request) use ($city): bool {
+        $body = $request->body();
+
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($body, 'quest:overseer:accept')
+            && str_contains($body, 'quest:overseer:skip')
+            && str_contains($body, $city->name);
     });
 
-    Http::assertSent(function (Request $request): bool {
-        if (str_contains($request->url(), '/sendPhoto')) {
-            return str_contains($request->body(), 'Чужая улица, чужой воздух.')
-                && str_contains($request->body(), 'overseer.png');
+    Http::assertNotSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/sendPhoto')) {
+            return false;
         }
 
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) $request['text'], 'Чужая улица, чужой воздух.');
+        return str_contains($request->body(), 'quest:overseer:accept');
     });
 });
 

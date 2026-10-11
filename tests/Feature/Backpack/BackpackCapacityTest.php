@@ -3,12 +3,11 @@
 declare(strict_types=1);
 
 use App\Actions\Backpack\BackpackEquipToSlotAction;
+use App\Actions\Bruiser\BruiserCompleteAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\LoadoutSlot;
-use App\Quest\ShopQuest;
 
 it('seeds backpack_max_rows from settings on createDraft', function (): void {
     $p = characters()->createDraft(6301);
@@ -112,19 +111,19 @@ it('updates backpack_max_rows through action and rejects values below one', func
         ->toThrow(InvalidArgumentException::class);
 });
 
-it('blocks trainer club claim when backpack is full', function (): void {
-    $p = characters()->createDraft(6307);
-    $p->backpack_max_rows = 1;
-    $p->progress_step = ProgressStepEnum::QUEST_SHOP;
-    $p->save();
+it('sets knuckle pending when backpack is full on bruiser win', function (): void {
+    $player = cityBruiserPhase(6307, 'FullBp');
+    backpack()->addItem($player->tg_id, 'knife_0');
+    $player->backpack_max_rows = max(1, backpack()->rowCount($player->tg_id));
+    $player->save();
 
-    backpack()->addItem($p->tg_id, 'knife_0');
-    $trainerId = shopCatalog()->freeTrainerItemId();
+    $res = app(BruiserCompleteAction::class)->handle($player->fresh());
 
-    $finish = app(ShopQuest::class)->finishWithTrainerClub($p, $trainerId);
+    expect($res->ok)->toBeTrue();
 
-    expect($finish->ok)->toBeFalse()
-        ->and($finish->error)->toBe(__('errors.inventory_full'))
-        ->and($p->fresh()->progress_step)->toBe(ProgressStepEnum::QUEST_SHOP)
-        ->and(backpack()->owns($p->tg_id, $trainerId))->toBeFalse();
+    $player->refresh();
+
+    expect($player->bruiser_knuckle_pending)->toBeTrue()
+        ->and(backpack()->owns($player->tg_id, 'bruiser_knuckle'))->toBeFalse()
+        ->and(bag()->ownsQuestItem($player->tg_id, 'buyer_purse'))->toBeTrue();
 });

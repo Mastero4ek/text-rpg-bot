@@ -81,7 +81,7 @@ final class CityQuery
         foreach (
             BagCatalog::query()
                 ->where('enabled', true)
-                ->where('kind', '!=', BagKindEnum::POTION)
+                ->where('kind', BagKindEnum::GEM)
                 ->whereHas('cities', function (Builder $query) use ($cityId): void {
                     $query->whereKey($cityId);
                 })

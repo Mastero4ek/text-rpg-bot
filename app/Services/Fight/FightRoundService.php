@@ -21,7 +21,6 @@ use App\Support\Enemy;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Mf;
 use App\Support\PotionDef;
-use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 
 final class FightRoundService
@@ -191,30 +190,16 @@ final class FightRoundService
             } else {
                 $heal = $consumed->potion->effectValue;
 
-                if ($fresh->username === null) {
-                    $drinkName = __('common.you');
-                } else {
-                    $drinkName = TelegramHtml::escape($fresh->username);
-                }
-
                 if ($profile === ProfileEnum::STAMINA) {
                     $fight->player_stamina = $this->characters->clampStamina(
                         $fight->player_stamina + $heal,
                         $fight->player_max_stamina,
                     );
-                    $logs[] = __('combat.drink_stamina_potion', [
-                        'name' => $drinkName,
-                        'heal' => $heal,
-                    ]);
                 } else {
                     $fight->player_hp = $this->characters->clampHp(
                         $fight->player_hp + $heal,
                         $fight->player_max_hp,
                     );
-                    $logs[] = __('combat.drink_potion', [
-                        'name' => $drinkName,
-                        'heal' => $heal,
-                    ]);
                 }
             }
         } elseif (

@@ -4,8 +4,7 @@
 
 | Файл | Что |
 |------|-----|
-| `settings.json` | глобальный баланс (ниже) |
-| `onboarding.json` | награды квестов онбординга (`rewards.*`: `exp` / `silver`) |
+| `settings.json` | глобальный баланс + награды квестов (ниже) |
 
 Каталоги предметов/мобов — таблицы БД + сидеры, не JSON. Канон домена: корневой `docs/`.
 
@@ -193,3 +192,15 @@
 | `exp` | накопленный exp, при котором срабатывает |
 | `kind` | `start` — якорь; `up` — промежуточный; `level` — смена уровня |
 | `silverGain` | серебро при срабатывании порога |
+
+### `quest`
+
+Награды NPC-квестов. Читает `GameConfig::quest()` → `settings.quest`.
+
+| Ключ | Смысл |
+|------|--------|
+| `rewards.OverseerQuest` | exp / silver за complete Смотрителя |
+| `rewards.HealerQuest` | exp / зелья / debt |
+| `rewards.BlacksmithQuest` | exp / silver / mail / amulet / enemy |
+| `rewards.BuyerQuest.contract` / `turnIn` | контракт и сдача кошеля |
+| `rewards.BruiserQuest` | exp / purse / knuckle / enemy |

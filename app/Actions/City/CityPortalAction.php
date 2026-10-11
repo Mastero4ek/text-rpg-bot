@@ -6,17 +6,26 @@ namespace App\Actions\City;
 
 use App\Models\Character;
 use App\Models\City;
+use App\Services\Quest\QuestUnlockService;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 final class CityPortalAction
 {
+    public function __construct(
+        private readonly QuestUnlockService $questUnlocks,
+    ) {}
+
     public function handle(Character $character, int $targetCityId): ActionResult
     {
         return DB::transaction(function () use ($character, $targetCityId): ActionResult {
             if ($character->city_id === null) {
                 return ActionResult::fail(__('errors.city_unavailable'));
+            }
+
+            if (! $this->questUnlocks->canTravelByPortal($character)) {
+                return ActionResult::fail(__('telegram.location.error.portal_locked'));
             }
 
             if ($character->city_id === $targetCityId) {

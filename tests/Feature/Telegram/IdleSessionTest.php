@@ -55,7 +55,7 @@ function idlePortalEditSent(string $cityName): bool
 
         $body = $request->body();
 
-        if (! str_contains($body, 'portal_session.png')) {
+        if (! str_contains($body, 'portal_city.png')) {
             return false;
         }
 
@@ -67,8 +67,18 @@ function idlePortalEditSent(string $cityName): bool
             return false;
         }
 
+        if (preg_match('/\{"type":"photo".*?"parse_mode":"HTML"\}/s', $body, $matches) !== 1) {
+            return false;
+        }
+
+        $media = json_decode($matches[0], true);
+
+        if (! is_array($media) || ! is_string($media['caption'] ?? null)) {
+            return false;
+        }
+
         foreach ($variants as $variant) {
-            if (str_contains($body, $variant) || str_contains($body, str_replace("\n", '\\n', $variant))) {
+            if ($media['caption'] === $variant) {
                 $matched = true;
 
                 return true;
@@ -204,7 +214,7 @@ it('idle job no-ops when action token is stale after a newer touch', function ()
 
     Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageMedia')
-            && str_contains($request->body(), 'portal_session.png');
+            && str_contains($request->body(), 'portal_city.png');
     });
 });
 
@@ -249,7 +259,7 @@ it('idle job no-ops during registration', function (): void {
 
     Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageMedia')
-            && str_contains($request->body(), 'portal_session.png');
+            && str_contains($request->body(), 'portal_city.png');
     });
 });
 
@@ -265,7 +275,7 @@ it('idle job no-ops for banned character', function (): void {
 
     Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageMedia')
-            && str_contains($request->body(), 'portal_session.png');
+            && str_contains($request->body(), 'portal_city.png');
     });
 });
 
@@ -303,7 +313,7 @@ it('idle job no-ops when deadline has not passed yet', function (): void {
 
     Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageMedia')
-            && str_contains($request->body(), 'portal_session.png');
+            && str_contains($request->body(), 'portal_city.png');
     });
 });
 

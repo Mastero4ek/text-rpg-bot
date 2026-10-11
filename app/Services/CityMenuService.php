@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\LocationEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
+use App\Services\Quest\QuestNpcPlacement;
+use App\Services\Quest\QuestUnlockService;
 use App\Telegram\Keyboards\CityKeyboard;
 
 final class CityMenuService
 {
     public function __construct(
         private readonly CityQuery $cities,
+        private readonly QuestNpcPlacement $npcPlacement,
+        private readonly QuestUnlockService $questUnlocks,
     ) {}
 
     /**
@@ -56,7 +61,11 @@ final class CityMenuService
             return null;
         }
 
-        return CityKeyboard::gates($city);
+        return CityKeyboard::gates(
+            $city,
+            $this->locationButtonLabel($character, LocationEnum::Portal, __('telegram.btn.portal')),
+            $this->locationButtonLabel($character, LocationEnum::Forest, __('telegram.btn.forest')),
+        );
     }
 
     /**
@@ -70,11 +79,11 @@ final class CityMenuService
             return null;
         }
 
-        if ($character->progress_step === ProgressStepEnum::ARRIVED) {
-            return CityKeyboard::firstHome();
-        }
-
-        return CityKeyboard::services($city);
+        return CityKeyboard::services(
+            $city,
+            $this->locationButtonLabel($character, LocationEnum::Board, __('telegram.btn.board')),
+            $this->locationButtonLabel($character, LocationEnum::Lists, __('telegram.btn.lists')),
+        );
     }
 
     public function homeText(Character $character): string
@@ -85,15 +94,28 @@ final class CityMenuService
             return __('errors.city_unavailable');
         }
 
-        if ($character->progress_step === ProgressStepEnum::ARRIVED) {
-            return __('telegram.npc.overseer.first_home');
-        }
-
         if ($city->description !== null && $city->description !== '') {
             return str_replace('\\n', "\n", $city->description);
         }
 
         return __('telegram.city.you_are_in');
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
+     */
+    public function listsMarkup(Character $character): ?array
+    {
+        $city = $this->currentCity($character);
+
+        if (! $city instanceof City) {
+            return null;
+        }
+
+        return CityKeyboard::lists(
+            $city,
+            $this->locationButtonLabel($character, LocationEnum::Arena, __('telegram.btn.arena')),
+        );
     }
 
     /**
@@ -130,10 +152,17 @@ final class CityMenuService
             return false;
         }
 
-        return $city->has_healer
-            || $city->has_blacksmith
-            || $city->has_buyer
-            || $city->has_overseer;
+        if ($this->cityFullyOpen($character)) {
+            return $city->has_healer
+                || $city->has_blacksmith
+                || $city->has_buyer
+                || $city->has_overseer;
+        }
+
+        return $this->npcPlacement->isOverseerAtTavern($character)
+            || $this->npcPlacement->isHealerAtTavern($character)
+            || $this->npcPlacement->isBlacksmithAtTavern($character)
+            || $this->npcPlacement->isBuyerAtTavern($character);
     }
 
     /**
@@ -147,6 +176,49 @@ final class CityMenuService
             return null;
         }
 
-        return CityKeyboard::tavern($city);
+        if ($this->cityFullyOpen($character)) {
+            return CityKeyboard::tavern($city);
+        }
+
+        $npcKeys = [];
+
+        if ($this->npcPlacement->isHealerAtTavern($character)) {
+            $npcKeys[] = 'healer';
+        }
+
+        if ($this->npcPlacement->isBlacksmithAtTavern($character)) {
+            $npcKeys[] = 'blacksmith';
+        }
+
+        if ($this->npcPlacement->isBuyerAtTavern($character)) {
+            $npcKeys[] = 'buyer';
+        }
+
+        if ($this->npcPlacement->isOverseerAtTavern($character)) {
+            $npcKeys[] = 'overseer';
+        }
+
+        return CityKeyboard::tavernQuest($city, $npcKeys);
+    }
+
+    private function cityFullyOpen(Character $character): bool
+    {
+        if ($character->city_unlocked_full) {
+            return true;
+        }
+
+        return $character->quest_phase === QuestPhaseEnum::Done;
+    }
+
+    private function locationButtonLabel(
+        Character $character,
+        LocationEnum $location,
+        string $label,
+    ): string {
+        if ($this->questUnlocks->canOpen($character, $location)) {
+            return $label;
+        }
+
+        return '🔒 ' . $label;
     }
 }

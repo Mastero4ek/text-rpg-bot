@@ -34,7 +34,7 @@ it('mirrors player loadout at 100 percent with full hp', function (): void {
     $p->save();
     $p = equipItemToSlot($p, 'mobile_0', SlotEnum::HELMET);
     $loadout = loadout()->forCharacter($p);
-    $catalog = EnemyCatalog::query()->findOrFail('chance_wanderer');
+    $catalog = EnemyCatalog::query()->findOrFail('forest_bandit');
     $e = enemies()->makeFromCatalog($catalog, $p);
 
     expect($e->level)->toBe($p->level)

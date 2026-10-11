@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,23 @@ return new class extends Migration
             $table->foreignId('birth_city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->foreignId('city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->string('progress_step')->default(ProgressStepEnum::SPLASH->value);
-            $table->boolean('onboarding_skipped')->default(false);
+            $table->string('quest_phase')->default(QuestPhaseEnum::Overseer->value);
+            $table->boolean('unlock_portal')->default(false);
+            $table->boolean('unlock_forest')->default(false);
+            $table->boolean('unlock_board')->default(false);
+            $table->boolean('unlock_arena')->default(false);
+            $table->boolean('city_unlocked_full')->default(false);
+            $table->boolean('overseer_trained')->default(false);
+            $table->boolean('overseer_at_tavern')->default(false);
+            $table->string('overseer_train_step')->nullable();
+            $table->boolean('healer_at_tavern')->default(false);
+            $table->boolean('healer_meet_open')->default(false);
+            $table->boolean('blacksmith_at_tavern')->default(false);
+            $table->boolean('buyer_at_tavern')->default(false);
+            $table->boolean('bruiser_contract_active')->default(false);
+            $table->boolean('bruiser_knuckle_pending')->default(false);
+            $table->boolean('healer_debt_open')->default(false);
+            $table->boolean('healer_rat_loot_pending')->default(false);
             $table->unsignedInteger('level')->default(0);
             $table->unsignedInteger('exp')->default(0);
             $table->unsignedInteger('silver')->default(20);

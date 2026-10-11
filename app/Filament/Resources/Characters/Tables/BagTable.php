@@ -360,6 +360,8 @@ final class BagTable
     {
         if ($kind === BagKindEnum::POTION) {
             $group = 'admin.actions.discard_potion.';
+        } elseif ($kind === BagKindEnum::QUEST) {
+            $group = 'admin.actions.discard_gem.';
         } else {
             $group = 'admin.actions.discard_gem.';
         }

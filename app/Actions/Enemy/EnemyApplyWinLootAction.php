@@ -68,6 +68,10 @@ final class EnemyApplyWinLootAction
                 continue;
             }
 
+            if ($item->kind === BagKindEnum::QUEST) {
+                continue;
+            }
+
             if (! $this->bag->canAcceptBagRows($character, 1)) {
                 continue;
             }

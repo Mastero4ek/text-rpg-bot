@@ -76,15 +76,13 @@ it('spends strength through telegram and refreshes offer', function (): void {
     ])));
 });
 
-it('shows skip offer when onboarding was skipped', function (): void {
-    $player = citySkipped(9804, 'OverseerSkip');
+it('shows train offer when overseer waits in tavern after skip', function (): void {
+    $player = cityArrivedSkipped(9804, 'OverseerSkip');
 
     cityFlowCallback($player->tg_id, 9, 'city:overseer');
 
-    assertCityEditHas(mb_trim(__('telegram.npc.overseer.skip')));
     assertCityEditHas('overseer_tavern.png');
-    assertCityEditMarkupHas('ob:not_now');
-    assertCityEditMarkupHas('ob:hall');
+    assertCityEditMarkupHas('quest:overseer:train');
 });
 
 it('opens reset confirm with yes and no', function (): void {
@@ -155,17 +153,17 @@ it('shows no overseer error with back to tavern when flag is off', function (): 
     assertCityEditMarkupHas('city:tavern');
 });
 
-it('returns to tavern when arrived player opens overseer without skip', function (): void {
+it('redisplays meet when arrived player opens city overseer before accept', function (): void {
     $player = cityArrived(9809, 'OverseerArrived');
 
     cityFlowCallback($player->tg_id, 9, 'city:overseer');
 
     $player->refresh();
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED)
-        ->and($player->onboarding_skipped)->toBeFalse();
+        ->and($player->overseer_at_tavern)->toBeFalse();
 
-    assertCityEditHas(mb_trim(__('telegram.location.tavern')));
-    assertCityEditMarkupHas('city:overseer');
+    assertCityEditMarkupHas('quest:overseer:accept');
+    assertCityEditMarkupHas('quest:overseer:skip');
 });
 
 it('shows dry no points error when spending with empty pool', function (): void {

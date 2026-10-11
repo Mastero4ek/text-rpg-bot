@@ -122,6 +122,9 @@ it('shows unavailable narrative when gem is not in city pivot', function (): voi
 
 it('shows no buyer error with back to tavern when flag is off', function (): void {
     $player = cityDone(9908, 'BuyerGone', City::KEY_ELDWOOD);
+    $city = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+    $city->has_buyer = false;
+    $city->save();
 
     cityFlowCallback($player->tg_id, 9, 'city:buyer');
 

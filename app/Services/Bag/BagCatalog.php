@@ -10,6 +10,7 @@ use App\Models\Bag\BagCatalog as BagCatalogModel;
 use App\Services\GameConfig;
 use App\Support\Gem\GemDef;
 use App\Support\PotionDef;
+use App\Support\QuestItemDef;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
@@ -111,11 +112,36 @@ final class BagCatalog
         return $model->toPotionDef();
     }
 
+    public function findQuestItem(string $catalogId): QuestItemDef
+    {
+        $model = $this->findModel($catalogId);
+
+        if (! $model instanceof BagCatalogModel || $model->kind !== BagKindEnum::QUEST) {
+            throw new RuntimeException("Unknown quest bag item {$catalogId}");
+        }
+
+        return new QuestItemDef(
+            $model->catalog_id,
+            $model->name,
+            $model->description,
+            $model->price,
+            $model->currency,
+            $model->enabled,
+        );
+    }
+
     public function hasPotion(string $catalogId): bool
     {
         $model = $this->findModel($catalogId);
 
         return $model instanceof BagCatalogModel && $model->kind === BagKindEnum::POTION;
+    }
+
+    public function hasQuestItem(string $catalogId): bool
+    {
+        $model = $this->findModel($catalogId);
+
+        return $model instanceof BagCatalogModel && $model->kind === BagKindEnum::QUEST;
     }
 
     public function shopPotionId(): string

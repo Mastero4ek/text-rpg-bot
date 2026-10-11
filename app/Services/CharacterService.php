@@ -118,7 +118,7 @@ final class CharacterService
     public function createDraft(int $tgId): Character
     {
         return DB::transaction(function () use ($tgId): Character {
-            $start = $this->onboardingStartConfig();
+            $start = $this->characterStartConfig();
             $hp = $this->baseMaxHp($start['vitality']);
             $stamina = $this->maxStaminaFromStrength($start['strength']);
 
@@ -425,7 +425,7 @@ final class CharacterService
     public function resetStats(Character $character): Character
     {
         return DB::transaction(function () use ($character): Character {
-            $start = $this->onboardingStartConfig();
+            $start = $this->characterStartConfig();
             $character->strength = $start['strength'];
             $character->agility = $start['agility'];
             $character->instinct = $start['instinct'];
@@ -461,7 +461,7 @@ final class CharacterService
 
     public function totalEarnedStatPoints(Character $character): int
     {
-        $start = $this->onboardingStartConfig();
+        $start = $this->characterStartConfig();
         $levelCfg = $this->characterLevelConfig();
         $total = $start['statPoints'];
 
@@ -790,7 +790,7 @@ final class CharacterService
      *     exp: int
      * }
      */
-    private function onboardingStartConfig(): array
+    private function characterStartConfig(): array
     {
         $character = $this->config->character();
 

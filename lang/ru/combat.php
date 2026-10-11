@@ -9,7 +9,10 @@ return [
     ],
     'kinds' => [
         'PVE' => 'PvE',
-        'TUTORIAL' => 'Обучение',
+        'QUEST_OVERSEER' => 'Квест Смотрителя',
+        'QUEST_BLACKSMITH' => 'Квест Кузнеца',
+        'QUEST_BRUISER' => 'Квест Громилы',
+        'QUEST_HEALER' => 'Квест Лекаря',
     ],
     'stances' => [
         'ATTACK' => 'Атака',
@@ -35,7 +38,7 @@ return [
         'LEGS' => 'Ноги',
     ],
     'enemy_soldier' => 'Деревянный солдат',
-    'enemy_wanderer' => 'Случайный бродяга [ур. :level]',
+    'enemy_wanderer' => 'Лесной разбойник [ур. :level]',
     'pierce' => ':attacker пробивает блок в :zone на :dmg',
     'block' => ':defender блокирует удар в :zone',
     'dodge' => ':defender уворачивается от удара в :zone',
@@ -85,6 +88,6 @@ return [
     'btn_stamina_potion_short' => '💚',
     'btn_flee' => '« Сбежать',
     'btn_soldier' => 'Деревянный солдат [0]',
-    'btn_wanderer' => 'Случайный бродяга [:level]',
+    'btn_wanderer' => 'Лесной разбойник [:level]',
     'pick_enemy' => 'Выбери противника:',
 ];

@@ -58,6 +58,7 @@ final class BagCatalogTable
                         return match ($record->kind) {
                             BagKindEnum::GEM => $record->type,
                             BagKindEnum::POTION => $record->profile,
+                            BagKindEnum::QUEST => null,
                         };
                     }),
                 IconColumn::make('enabled')

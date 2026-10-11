@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\Tables;
 
 use App\Actions\Character\CharacterDeleteAction;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Models\Character;
 use App\Services\CharacterService;
@@ -55,6 +56,11 @@ final class CharactersTable
                     ->numeric()
                     ->alignCenter()
                     ->sortable(),
+                TextColumn::make('quest_phase')
+                    ->label(__('admin.labels.quest_phase'))
+                    ->badge()
+                    ->alignCenter()
+                    ->sortable(),
                 IconColumn::make('banned')
                     ->label(__('admin.labels.banned'))
                     ->alignCenter()
@@ -96,6 +102,10 @@ final class CharactersTable
                 SelectFilter::make('level')
                     ->label(__('admin.labels.level'))
                     ->options(self::levelOptions())
+                    ->native(false),
+                SelectFilter::make('quest_phase')
+                    ->label(__('admin.labels.quest_phase'))
+                    ->options(QuestPhaseEnum::class)
                     ->native(false),
                 TernaryFilter::make('banned')
                     ->label(__('admin.labels.banned'))

@@ -51,6 +51,9 @@ describe('full heal', function (): void {
 
     it('rejects when city has no healer', function (): void {
         $p = placeInCity(characters()->createDraft(9204), City::KEY_ELDWOOD);
+        $city = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+        $city->has_healer = false;
+        $city->save();
         $p->gold = 1;
         $p->current_hp = 1;
         $p->save();
@@ -158,6 +161,9 @@ describe('healer potions', function (): void {
 
     it('rejects when city has no healer', function (): void {
         $p = placeInCity(characters()->createDraft(9215), City::KEY_ELDWOOD);
+        $city = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+        $city->has_healer = false;
+        $city->save();
         $p->silver = 999;
         $p->save();
 

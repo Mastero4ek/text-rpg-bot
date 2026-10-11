@@ -101,3 +101,8 @@
 .fi-equip-stat-delta-down {
     color: rgb(239 68 68);
 }
+
+.fi-character-quest-progress .fi-sc-wizard-footer,
+.fi-character-quest-wizard .fi-sc-wizard-footer {
+    display: none !important;
+}

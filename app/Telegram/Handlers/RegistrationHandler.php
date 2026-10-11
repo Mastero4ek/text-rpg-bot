@@ -8,6 +8,8 @@ use App\Actions\Registration\SetLocationAction;
 use App\Actions\Registration\SetNickAction;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character;
+use App\Quests\HealerQuest;
+use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Registration\RegistrationService;
@@ -23,6 +25,9 @@ final class RegistrationHandler
         private readonly SetNickAction $setNick,
         private readonly SetLocationAction $setLocation,
         private readonly CityHandler $city,
+        private readonly QuestHandler $quest,
+        private readonly OverseerQuest $overseerQuest,
+        private readonly HealerQuest $healerQuest,
     ) {}
 
     public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
@@ -35,6 +40,27 @@ final class RegistrationHandler
             || $player->progress_step === ProgressStepEnum::ARRIVED
         ) {
             $player = $this->characters->applyRegen($player);
+
+            if ($this->overseerQuest->awaitsMeet($player)) {
+                $meetMessageId = $this->quest->showMeet($responder, $player);
+                $this->registration->rememberTelegramMessage($player, $responder->chatId(), $meetMessageId);
+
+                return;
+            }
+
+            if ($this->overseerQuest->isTrainLocked($player)) {
+                $this->quest->resumeLocked($responder, $player);
+
+                return;
+            }
+
+            if ($this->healerQuest->isPotionLocked($player)) {
+                $meetMessageId = $this->quest->showHealerMeet($responder, $player);
+                $this->registration->rememberTelegramMessage($player, $responder->chatId(), $meetMessageId);
+
+                return;
+            }
+
             $homeMessageId = $this->city->resumeHomePanel($responder, $player);
             $this->registration->rememberTelegramMessage($player, $responder->chatId(), $homeMessageId);
 
@@ -156,7 +182,6 @@ final class RegistrationHandler
             return;
         }
 
-        $photoMessageId = $update->messageId();
         $res = $this->setLocation->handle($player, $cityKey);
 
         if (! $res->ok || ! $res->character instanceof Character) {
@@ -176,10 +201,7 @@ final class RegistrationHandler
         }
 
         $chosen = $res->character;
-
-        $responder->deleteMessage($photoMessageId);
-
-        $homeMessageId = $this->city->sendHomePanel($responder, $chosen);
-        $this->registration->rememberTelegramMessage($chosen, $responder->chatId(), $homeMessageId);
+        $meetMessageId = $this->quest->showMeet($responder, $chosen);
+        $this->registration->rememberTelegramMessage($chosen, $responder->chatId(), $meetMessageId);
     }
 }
