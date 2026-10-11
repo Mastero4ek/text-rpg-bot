@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Registration;
 
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -171,6 +172,22 @@ final class RegistrationService
             $locked->birth_city_id = $city->id;
             $locked->city_id = $city->id;
             $locked->progress_step = ProgressStepEnum::ARRIVED;
+            $locked->quest_phase = QuestPhaseEnum::Overseer;
+            $locked->unlock_portal = false;
+            $locked->unlock_forest = false;
+            $locked->unlock_board = false;
+            $locked->unlock_arena = false;
+            $locked->city_unlocked_full = false;
+            $locked->overseer_trained = false;
+            $locked->overseer_at_tavern = false;
+            $locked->healer_at_tavern = false;
+            $locked->healer_meet_open = false;
+            $locked->blacksmith_at_tavern = false;
+            $locked->buyer_at_tavern = false;
+            $locked->bruiser_contract_active = false;
+            $locked->bruiser_knuckle_pending = false;
+            $locked->healer_debt_open = false;
+            $locked->healer_rat_loot_pending = false;
             $locked->save();
 
             return ActionResult::ok($locked);

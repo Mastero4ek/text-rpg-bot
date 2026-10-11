@@ -21,7 +21,6 @@ use App\Support\Enemy;
 use App\Support\Equipment\EquippedLoadout;
 use App\Support\Mf;
 use App\Support\PotionDef;
-use App\Support\Telegram\TelegramHtml;
 use Illuminate\Support\Facades\DB;
 
 final class FightRoundService
@@ -36,7 +35,7 @@ final class FightRoundService
 
     public function attemptFlee(Character $player): FightRoundOutcome
     {
-        return DB::transaction(function () use ($player): FightRoundOutcome {
+        $outcome = DB::transaction(function () use ($player): FightRoundOutcome {
             $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
 
             if ($fresh === null) {
@@ -53,7 +52,7 @@ final class FightRoundService
                 return FightRoundOutcome::missing();
             }
 
-            if ($fight->tutorial || $fight->step !== FightStepEnum::STANCE) {
+            if ($fight->tutorial) {
                 return FightRoundOutcome::missing();
             }
 
@@ -76,11 +75,13 @@ final class FightRoundService
 
             return $this->applyRound($fresh, $fight, true, __('combat.flee_fail'));
         });
+
+        return $this->scheduleContinueTurn($outcome);
     }
 
     public function runRound(Character $player): FightRoundOutcome
     {
-        return DB::transaction(function () use ($player): FightRoundOutcome {
+        $outcome = DB::transaction(function () use ($player): FightRoundOutcome {
             $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
 
             if ($fresh === null) {
@@ -99,11 +100,13 @@ final class FightRoundService
 
             return $this->applyRound($fresh, $fight, false, '');
         });
+
+        return $this->scheduleContinueTurn($outcome);
     }
 
     public function runSkipRound(Character $player): FightRoundOutcome
     {
-        return DB::transaction(function () use ($player): FightRoundOutcome {
+        $outcome = DB::transaction(function () use ($player): FightRoundOutcome {
             $fresh = Character::query()->lockForUpdate()->find($player->tg_id);
 
             if ($fresh === null) {
@@ -120,12 +123,10 @@ final class FightRoundService
                 return FightRoundOutcome::missing();
             }
 
-            if (! $this->fights->turnTimedOut($fight)) {
-                return FightRoundOutcome::continueFight($fresh, $fight);
-            }
-
             return $this->applyRound($fresh, $fight, true, __('combat.turn_timeout'));
         });
+
+        return $this->scheduleContinueTurn($outcome);
     }
 
     private function applyRound(Character $fresh, Fight $fight, bool $skip, string $skipLog): FightRoundOutcome
@@ -154,6 +155,7 @@ final class FightRoundService
 
         $playerHpBefore = $fight->player_hp;
         $enemyHpBefore = $enemy->currentHp;
+        $roundPlayerStance = $fight->player_stance;
         $roundPlayerAttack = $fight->player_attack;
         $roundPlayerAttackSecond = $fight->player_attack_second;
         $roundPlayerDefend = $fight->player_defend;
@@ -188,30 +190,16 @@ final class FightRoundService
             } else {
                 $heal = $consumed->potion->effectValue;
 
-                if ($fresh->username === null) {
-                    $drinkName = __('common.you');
-                } else {
-                    $drinkName = TelegramHtml::escape($fresh->username);
-                }
-
                 if ($profile === ProfileEnum::STAMINA) {
                     $fight->player_stamina = $this->characters->clampStamina(
                         $fight->player_stamina + $heal,
                         $fight->player_max_stamina,
                     );
-                    $logs[] = __('combat.drink_stamina_potion', [
-                        'name' => $drinkName,
-                        'heal' => $heal,
-                    ]);
                 } else {
                     $fight->player_hp = $this->characters->clampHp(
                         $fight->player_hp + $heal,
                         $fight->player_max_hp,
                     );
-                    $logs[] = __('combat.drink_potion', [
-                        'name' => $drinkName,
-                        'heal' => $heal,
-                    ]);
                 }
             }
         } elseif (
@@ -372,10 +360,12 @@ final class FightRoundService
             $fight->player_hp,
             $enemyHpBefore,
             $enemy->currentHp,
+            $roundPlayerStance,
             $roundPlayerAttack,
             $roundPlayerAttackSecond,
             $roundPlayerDefend,
             $roundPlayerDefendSecond,
+            $enemy->stance,
             $enemyAtk,
             $enemy->attackSlots >= 2 ? $enemyAtkSecond : null,
             $enemyDef,
@@ -403,9 +393,22 @@ final class FightRoundService
             return FightRoundOutcome::lose($fresh, $fight);
         }
 
-        $fight = $this->fights->scheduleTurn($fight);
-
         return FightRoundOutcome::continueFight($fresh, $fight);
+    }
+
+    private function scheduleContinueTurn(FightRoundOutcome $outcome): FightRoundOutcome
+    {
+        if ($outcome->kind !== 'continue') {
+            return $outcome;
+        }
+
+        if (! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
+            return $outcome;
+        }
+
+        $fight = $this->fights->scheduleTurn($outcome->fight);
+
+        return FightRoundOutcome::continueFight($outcome->character, $fight);
     }
 
     /**
@@ -413,10 +416,12 @@ final class FightRoundService
      *     skipped: bool,
      *     player_hp_delta: int,
      *     enemy_hp_delta: int,
+     *     player_stance: string|null,
      *     player_attack: string|null,
      *     player_attack_second: string|null,
      *     player_defend: string|null,
      *     player_defend_second: string|null,
+     *     enemy_stance: string,
      *     enemy_attack: string,
      *     enemy_attack_second: string|null,
      *     enemy_defend: string,
@@ -430,26 +435,31 @@ final class FightRoundService
         int $playerHpAfter,
         int $enemyHpBefore,
         int $enemyHpAfter,
+        ?StanceEnum $playerStance,
         ?PlayerAttackEnum $playerAttack,
         ?PlayerAttackEnum $playerAttackSecond,
         ?ZoneEnum $playerDefend,
         ?ZoneEnum $playerDefendSecond,
+        StanceEnum $enemyStance,
         ZoneEnum $enemyAtk,
         ?ZoneEnum $enemyAtkSecond,
         ZoneEnum $enemyDef,
         ?ZoneEnum $enemyDefSecond,
     ): array {
         if ($skip) {
+            $playerStanceValue = null;
             $playerAttackValue = null;
             $playerAttackSecondValue = null;
             $playerDefendValue = null;
             $playerDefendSecondValue = null;
         } elseif ($usedPotion && $playerAttack instanceof PlayerAttackEnum) {
+            $playerStanceValue = $playerStance?->value;
             $playerAttackValue = $playerAttack->value;
             $playerAttackSecondValue = null;
             $playerDefendValue = $playerDefend?->value;
             $playerDefendSecondValue = $playerDefendSecond?->value;
         } else {
+            $playerStanceValue = $playerStance?->value;
             $playerAttackValue = $playerAttack?->value;
             $playerAttackSecondValue = $playerAttackSecond?->value;
             $playerDefendValue = $playerDefend?->value;
@@ -460,10 +470,12 @@ final class FightRoundService
             'skipped' => $skip,
             'player_hp_delta' => $playerHpAfter - $playerHpBefore,
             'enemy_hp_delta' => $enemyHpAfter - $enemyHpBefore,
+            'player_stance' => $playerStanceValue,
             'player_attack' => $playerAttackValue,
             'player_attack_second' => $playerAttackSecondValue,
             'player_defend' => $playerDefendValue,
             'player_defend_second' => $playerDefendSecondValue,
+            'enemy_stance' => $enemyStance->value,
             'enemy_attack' => $enemyAtk->value,
             'enemy_attack_second' => $enemyAtkSecond?->value,
             'enemy_defend' => $enemyDef->value,

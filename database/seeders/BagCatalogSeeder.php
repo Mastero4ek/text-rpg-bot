@@ -119,6 +119,28 @@ final class BagCatalogSeeder extends Seeder
                 'price' => 12,
                 'currency' => CurrencyEnum::SILVER,
             ],
+            [
+                'catalog_id' => 'buyer_purse',
+                'kind' => BagKindEnum::QUEST,
+                'name' => 'Кошель Скупщика',
+                'description' => 'Тяжёлый кожаный мешочек с долей Скупщика. Сдать ему в Таверне.',
+                'profile' => null,
+                'effect_value' => null,
+                'enabled' => true,
+                'price' => 0,
+                'currency' => CurrencyEnum::SILVER,
+            ],
+            [
+                'catalog_id' => 'rat_tail',
+                'kind' => BagKindEnum::QUEST,
+                'name' => 'Крысиный хвост',
+                'description' => 'Хвост болотной крысы из подвала Таверны. Нужен Лекарю.',
+                'profile' => null,
+                'effect_value' => null,
+                'enabled' => true,
+                'price' => 0,
+                'currency' => CurrencyEnum::SILVER,
+            ],
         ];
     }
 }

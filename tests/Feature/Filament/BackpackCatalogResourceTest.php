@@ -118,7 +118,7 @@ it('validates non-negative price and mf', function (): void {
 });
 
 it('edits equipment name and exposes it in catalog', function (): void {
-    $item = BackpackCatalog::query()->findOrFail('heavy_0');
+    $item = BackpackCatalog::query()->findOrFail('worn_mail');
 
     livewire(EditBackpackCatalog::class, [
         'record' => $item->getKey(),
@@ -176,7 +176,7 @@ it('hides force delete when equipment is owned', function (): void {
 
 it('filters equipment table by type', function (): void {
     $weapon = BackpackCatalog::query()->findOrFail('knife_0');
-    $armor = BackpackCatalog::query()->findOrFail('heavy_0');
+    $armor = BackpackCatalog::query()->findOrFail('worn_mail');
 
     livewire(ListBackpackCatalog::class)
         ->filterTable('item_type', TypeEnum::WEAPON->value)
@@ -186,7 +186,7 @@ it('filters equipment table by type', function (): void {
 
 it('filters equipment table by profile', function (): void {
     $weapon = BackpackCatalog::query()->findOrFail('knife_0');
-    $armor = BackpackCatalog::query()->findOrFail('heavy_0');
+    $armor = BackpackCatalog::query()->findOrFail('worn_mail');
 
     livewire(ListBackpackCatalog::class)
         ->filterTable('profile', ProfileEnum::HEAVY->value)

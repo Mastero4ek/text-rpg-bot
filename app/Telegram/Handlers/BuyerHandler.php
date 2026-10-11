@@ -14,6 +14,7 @@ use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
+use App\Quests\BuyerQuest;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
@@ -25,6 +26,7 @@ use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
+use App\Telegram\Keyboards\TelegramKeyboards;
 use Throwable;
 
 final class BuyerHandler
@@ -38,6 +40,7 @@ final class BuyerHandler
         private readonly BagGemBuyAction $buyGem,
         private readonly BagService $bag,
         private readonly BackpackService $backpack,
+        private readonly BuyerQuest $buyerQuest,
         private readonly CityBuyerSellAction $sellItem,
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
@@ -303,6 +306,16 @@ final class BuyerHandler
             return;
         }
 
+        if ($this->buyerQuest->awaitsTurnIn($player)) {
+            $this->editBuyerPanel(
+                $responder,
+                $this->buyerQuest->turnInSpeech($player),
+                TelegramKeyboards::buyerTurnIn(),
+            );
+
+            return;
+        }
+
         $this->editBuyerPanel(
             $responder,
             __('telegram.npc.buyer.offer'),
@@ -497,6 +510,13 @@ final class BuyerHandler
         if ($filter === 'all' || $filter === 'bp') {
             foreach ($this->backpack->sellableList($player->tg_id) as $row) {
                 if (! $this->shop->hasItem($row->catalog_id)) {
+                    continue;
+                }
+
+                if (
+                    $this->buyerQuest->isAmuletSellLocked($player)
+                    && $row->catalog_id === $this->buyerQuest->amuletCatalogId()
+                ) {
                     continue;
                 }
 

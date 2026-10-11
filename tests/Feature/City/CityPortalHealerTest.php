@@ -9,6 +9,8 @@ it('moves only city_id when portal silver is enough', function (): void {
     $yasen = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
     $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
     $p = placeInCity(characters()->createDraft(9101), City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
     $birth = $p->birth_city_id;
     $p->silver = $liman->portal_cost_silver;
     $p->save();
@@ -25,6 +27,8 @@ it('moves only city_id when portal silver is enough', function (): void {
 it('rejects portal when silver is short', function (): void {
     $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
     $p = placeInCity(characters()->createDraft(9102), City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
     $p->silver = 0;
     $p->save();
 
@@ -37,6 +41,8 @@ it('rejects portal when silver is short', function (): void {
 
 it('rejects portal into the same city', function (): void {
     $p = placeInCity(characters()->createDraft(9103), City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
 
     $res = app(CityPortalAction::class)->handle($p, $p->city_id);
 
@@ -49,6 +55,8 @@ it('allows free portal without silver', function (): void {
     $liman->portal_cost_silver = 0;
     $liman->save();
     $p = placeInCity(characters()->createDraft(9104), City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
     $p->silver = 0;
     $p->save();
 
@@ -57,4 +65,17 @@ it('allows free portal without silver', function (): void {
     expect($res->ok)->toBeTrue()
         ->and($res->character->city_id)->toBe($liman->id)
         ->and($res->character->silver)->toBe(0);
+});
+
+it('rejects portal travel before quest chain finale', function (): void {
+    $liman = City::query()->where('key', City::KEY_THORNBREAK)->firstOrFail();
+    $liman->portal_cost_silver = 0;
+    $liman->save();
+    $p = cityBuyerPhase(9105, 'PortalLocked');
+
+    $res = app(CityPortalAction::class)->handle($p, $liman->id);
+
+    expect($res->ok)->toBeFalse()
+        ->and($res->error)->toBe(__('telegram.location.error.portal_locked'))
+        ->and($p->fresh()->city_id)->toBe($p->city_id);
 });

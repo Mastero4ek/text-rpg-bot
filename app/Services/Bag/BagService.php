@@ -567,6 +567,120 @@ final class BagService
         return BagItem::query()
             ->where('tg_id', $tgId)
             ->loose()
+            ->where('kind', '!=', BagKindEnum::QUEST->value)
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function addQuestItem(int $tgId, string $catalogId): BagItem
+    {
+        return DB::transaction(function () use ($tgId, $catalogId): BagItem {
+            $character = Character::query()->find($tgId);
+
+            if ($character === null) {
+                throw new RuntimeException('Character not found.');
+            }
+
+            $def = $this->catalog->findQuestItem($catalogId);
+
+            $stack = BagItem::query()
+                ->where('tg_id', $tgId)
+                ->where('kind', BagKindEnum::QUEST->value)
+                ->whereNull('backpack_item_id')
+                ->where('catalog_id', $def->catalogId)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($stack instanceof BagItem) {
+                $stack->quantity += 1;
+                $stack->save();
+
+                return $stack;
+            }
+
+            if ($this->isBagFull($character)) {
+                throw new RuntimeException('Bag is full.');
+            }
+
+            $row = new BagItem;
+            $row->tg_id = $tgId;
+            $row->kind = BagKindEnum::QUEST;
+            $row->catalog_id = $def->catalogId;
+            $row->quantity = 1;
+            $row->durability = null;
+            $row->backpack_item_id = null;
+            $row->created_at = now();
+            $row->save();
+
+            return $row;
+        });
+    }
+
+    public function canAcceptQuestItem(Character $character, string $catalogId): bool
+    {
+        $this->catalog->findQuestItem($catalogId);
+
+        $hasStack = BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('kind', BagKindEnum::QUEST->value)
+            ->whereNull('backpack_item_id')
+            ->where('catalog_id', $catalogId)
+            ->exists();
+
+        if ($hasStack) {
+            return true;
+        }
+
+        return ! $this->isBagFull($character);
+    }
+
+    public function ownsQuestItem(int $tgId, string $catalogId): bool
+    {
+        return BagItem::query()
+            ->where('tg_id', $tgId)
+            ->where('kind', BagKindEnum::QUEST->value)
+            ->whereNull('backpack_item_id')
+            ->where('catalog_id', $catalogId)
+            ->where('quantity', '>', 0)
+            ->exists();
+    }
+
+    public function removeQuestItem(int $tgId, string $catalogId): void
+    {
+        DB::transaction(function () use ($tgId, $catalogId): void {
+            $row = BagItem::query()
+                ->where('tg_id', $tgId)
+                ->where('kind', BagKindEnum::QUEST->value)
+                ->whereNull('backpack_item_id')
+                ->where('catalog_id', $catalogId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $row instanceof BagItem) {
+                return;
+            }
+
+            if ($row->quantity > 1) {
+                $row->quantity -= 1;
+                $row->save();
+
+                return;
+            }
+
+            $row->delete();
+        });
+    }
+
+    /**
+     * @return Collection<int, BagItem>
+     */
+    public function looseQuestItems(Character $character): Collection
+    {
+        return BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('kind', BagKindEnum::QUEST->value)
+            ->whereNull('backpack_item_id')
             ->orderBy('id')
             ->get();
     }

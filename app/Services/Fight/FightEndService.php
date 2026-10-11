@@ -9,24 +9,30 @@ use App\Actions\Bag\BagGemBreakOnLoseAction;
 use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Fight\FightEndUiEnum;
+use App\Enums\Fight\FightKindEnum;
 use App\Models\Character;
 use App\Models\Fight;
+use App\Quests\BlacksmithQuest;
+use App\Quests\BruiserQuest;
+use App\Quests\HealerQuest;
+use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
-use App\Services\Onboarding\OnboardingService;
 use App\Support\Telegram\TelegramHtml;
-use RuntimeException;
 
 final class FightEndService
 {
     public function __construct(
+        private readonly BlacksmithQuest $blacksmithQuest,
+        private readonly BruiserQuest $bruiserQuest,
         private readonly CharacterService $characters,
         private readonly FightService $fights,
         private readonly FightClearAction $clearFight,
         private readonly BackpackApplyFightWearAction $fightWear,
         private readonly BagGemBreakOnLoseAction $breakGems,
         private readonly EnemyApplyWinLootAction $winLoot,
-        private readonly OnboardingService $onboarding,
+        private readonly HealerQuest $healerQuest,
+        private readonly OverseerQuest $overseerQuest,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
     ) {}
@@ -35,8 +41,20 @@ final class FightEndService
     {
         $text = $this->fightStatus->format($fight, $player);
 
-        if ($fight->tutorial) {
-            return $this->tutorialWin($player, $text);
+        if ($fight->kind === FightKindEnum::QUEST_OVERSEER) {
+            return $this->overseerWin($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_BLACKSMITH) {
+            return $this->blacksmithWin($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_BRUISER) {
+            return $this->bruiserWin($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_HEALER) {
+            return $this->healerRatWin($player, $text);
         }
 
         if ($fight->hall) {
@@ -50,6 +68,18 @@ final class FightEndService
     {
         $text = $this->fightStatus->format($fight, $player);
 
+        if ($fight->kind === FightKindEnum::QUEST_BLACKSMITH) {
+            return $this->blacksmithFlee($player, $fight, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_BRUISER) {
+            return $this->bruiserFlee($player, $fight, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_HEALER) {
+            return $this->healerRatFlee($player, $fight, $text);
+        }
+
         if ($fight->hall) {
             return $this->hallFlee($player, $fight, $text);
         }
@@ -61,8 +91,20 @@ final class FightEndService
     {
         $text = $this->fightStatus->format($fight, $player);
 
-        if ($fight->tutorial) {
-            return $this->tutorialLose($player, $text);
+        if ($fight->kind === FightKindEnum::QUEST_OVERSEER) {
+            return $this->overseerLose($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_BLACKSMITH) {
+            return $this->blacksmithLose($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_BRUISER) {
+            return $this->bruiserLose($player, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_HEALER) {
+            return $this->healerRatLose($player, $text);
         }
 
         if ($fight->hall) {
@@ -72,35 +114,296 @@ final class FightEndService
         return $this->trainingLose($player, $fight, $text);
     }
 
-    private function tutorialWin(Character $player, string $text): FightEndResult
+    private function bruiserFlee(Character $player, Fight $fight, string $text): FightEndResult
     {
-        $player = $this->onboarding->onTutorialWin($player);
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
         $this->clearFight->handle($player->tg_id);
-        $reward = $this->tutorialReward();
 
         return new FightEndResult(
             $player,
-            $text . __('onboarding.tutorial_win', [
-                'exp' => $reward['exp'],
-                'silver' => $reward['silver'],
-            ]),
+            $text,
             FightEndUiEnum::None,
-            $this->onboarding->statsQuestText($player),
-            FightEndUiEnum::StatsQuest,
+            __('combat.flee') . "\n\n" . $this->bruiserQuest->meetSpeech($player),
+            FightEndUiEnum::BruiserArrive,
         );
     }
 
-    private function tutorialLose(Character $player, string $text): FightEndResult
+    private function bruiserLose(Character $player, string $text): FightEndResult
     {
-        $player = $this->onboarding->onTutorialLose($player);
+        $res = $this->bruiserQuest->openDebt($player);
         $this->clearFight->handle($player->tg_id);
-        $player = $this->onboarding->resetToIntro($player);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            return new FightEndResult(
+                $player,
+                $text . $this->bruiserQuest->fightLoseSpeech($player),
+                FightEndUiEnum::None,
+                null,
+                FightEndUiEnum::None,
+            );
+        }
+
+        $player = $res->character;
 
         return new FightEndResult(
             $player,
-            $text . __('onboarding.tutorial_lose'),
+            $text,
             FightEndUiEnum::None,
-            $this->onboarding->introText(),
+            $this->bruiserQuest->fightLoseSpeech($player),
+            FightEndUiEnum::BruiserKnockout,
+        );
+    }
+
+    private function bruiserWin(Character $player, string $text): FightEndResult
+    {
+        $res = $this->bruiserQuest->complete($player);
+        $this->clearFight->handle($player->tg_id);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $error = $res->error;
+
+            if ($error === null) {
+                $error = __('telegram.quest.bruiser.error.wrong_phase');
+            }
+
+            return new FightEndResult(
+                $player,
+                $text,
+                FightEndUiEnum::None,
+                $error . "\n\n" . $this->bruiserQuest->meetSpeech($player),
+                FightEndUiEnum::BruiserArrive,
+            );
+        }
+
+        $player = $res->character;
+
+        if ($player->bruiser_knuckle_pending) {
+            return new FightEndResult(
+                $player,
+                $text,
+                FightEndUiEnum::None,
+                $this->bruiserQuest->knucklePendingSpeech($player),
+                FightEndUiEnum::BruiserKnucklePending,
+            );
+        }
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            $this->bruiserQuest->completeSpeech($player),
+            FightEndUiEnum::BruiserComplete,
+        );
+    }
+
+    private function healerRatFlee(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            __('combat.flee') . "\n\n" . $this->healerQuest->debtSpeech($player),
+            FightEndUiEnum::HealerDebt,
+        );
+    }
+
+    private function healerRatLose(Character $player, string $text): FightEndResult
+    {
+        $maxHp = $this->characters->maxHp($player);
+        $maxStamina = $this->characters->maxStamina($player);
+        $player->current_hp = $maxHp;
+        $player->current_stamina = $maxStamina;
+        $player->last_hp_update = now();
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            __('telegram.quest.healer.rat_lose') . "\n\n" . $this->healerQuest->debtSpeech($player),
+            FightEndUiEnum::HealerDebt,
+        );
+    }
+
+    private function healerRatWin(Character $player, string $text): FightEndResult
+    {
+        $res = $this->healerQuest->markRatWin($player);
+        $this->clearFight->handle($player->tg_id);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $error = $res->error;
+
+            if ($error === null) {
+                $error = __('telegram.quest.healer.error.debt_wrong_phase');
+            }
+
+            return new FightEndResult(
+                $player,
+                $text,
+                FightEndUiEnum::None,
+                $error . "\n\n" . $this->healerQuest->debtSpeech($player),
+                FightEndUiEnum::HealerDebt,
+            );
+        }
+
+        $player = $res->character;
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            $this->healerQuest->ratLootSpeech($player),
+            FightEndUiEnum::HealerRatLoot,
+        );
+    }
+
+    private function blacksmithFlee(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            __('combat.flee') . "\n\n" . $this->blacksmithQuest->meetSpeech($player),
+            FightEndUiEnum::BlacksmithMeet,
+        );
+    }
+
+    private function blacksmithLose(Character $player, string $text): FightEndResult
+    {
+        $res = $this->blacksmithQuest->resetAfterLose($player);
+        $this->clearFight->handle($player->tg_id);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            return new FightEndResult(
+                $player,
+                $text . __('telegram.quest.blacksmith.fight_lose'),
+                FightEndUiEnum::None,
+                null,
+                FightEndUiEnum::None,
+            );
+        }
+
+        $player = $res->character;
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            __('telegram.quest.blacksmith.fight_lose') . "\n\n" . $this->blacksmithQuest->retrySpeech($player),
+            FightEndUiEnum::BlacksmithMeet,
+        );
+    }
+
+    private function blacksmithWin(Character $player, string $text): FightEndResult
+    {
+        $res = $this->blacksmithQuest->complete($player);
+        $this->clearFight->handle($player->tg_id);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $reset = $this->blacksmithQuest->resetAfterLose($player);
+            $player = $reset->character instanceof Character ? $reset->character : $player;
+            $error = $res->error;
+
+            if ($error === null) {
+                $error = __('telegram.quest.blacksmith.error.wrong_phase');
+            }
+
+            return new FightEndResult(
+                $player,
+                $text,
+                FightEndUiEnum::None,
+                $error . "\n\n" . $this->blacksmithQuest->meetSpeech($player),
+                FightEndUiEnum::BlacksmithMeet,
+            );
+        }
+
+        $player = $res->character;
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            $this->blacksmithQuest->completeSpeech($player),
+            FightEndUiEnum::BlacksmithComplete,
+        );
+    }
+
+    private function overseerWin(Character $player, string $text): FightEndResult
+    {
+        $res = $this->overseerQuest->advanceAfterWin($player);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $this->clearFight->handle($player->tg_id);
+
+            return new FightEndResult(
+                $player,
+                $text,
+                FightEndUiEnum::None,
+                null,
+                FightEndUiEnum::None,
+            );
+        }
+
+        $player = $res->character;
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            $this->overseerQuest->statsSpeech($player),
+            FightEndUiEnum::OverseerStats,
+        );
+    }
+
+    private function overseerLose(Character $player, string $text): FightEndResult
+    {
+        $res = $this->overseerQuest->resetAfterLose($player);
+        $this->clearFight->handle($player->tg_id);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            return new FightEndResult(
+                $player,
+                $text . __('telegram.quest.overseer.fight_lose'),
+                FightEndUiEnum::None,
+                null,
+                FightEndUiEnum::None,
+            );
+        }
+
+        $player = $res->character;
+
+        return new FightEndResult(
+            $player,
+            $text,
+            FightEndUiEnum::None,
+            __('telegram.quest.overseer.fight_lose') . "\n\n" . $this->overseerQuest->introSpeech(),
             FightEndUiEnum::Intro,
         );
     }
@@ -277,25 +580,5 @@ final class FightEndService
         }
 
         return __('combat.gems_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
-    }
-
-    /**
-     * @return array{exp: int, silver: int}
-     */
-    private function tutorialReward(): array
-    {
-        $onboarding = $this->config->onboarding();
-
-        if (! array_key_exists('rewards', $onboarding) || ! is_array($onboarding['rewards'])) {
-            throw new RuntimeException('onboarding.rewards missing.');
-        }
-
-        $row = $onboarding['rewards']['tutorialQuest'] ?? null;
-
-        if (! is_array($row) || ! is_int($row['exp']) || ! is_int($row['silver'])) {
-            throw new RuntimeException('tutorialQuest reward missing.');
-        }
-
-        return ['exp' => $row['exp'], 'silver' => $row['silver']];
     }
 }

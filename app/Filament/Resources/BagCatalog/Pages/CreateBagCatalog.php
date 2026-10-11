@@ -64,6 +64,17 @@ final class CreateBagCatalog extends CreateRecord
             $data['mf_anti_crit'] = 0;
         }
 
+        if ($kind === BagKindEnum::QUEST) {
+            $data['type'] = null;
+            $data['profile'] = null;
+            $data['effect_value'] = null;
+            $data['max_durability'] = null;
+            $data['mf_dodge'] = 0;
+            $data['mf_anti_dodge'] = 0;
+            $data['mf_crit'] = 0;
+            $data['mf_anti_crit'] = 0;
+        }
+
         if ($kind instanceof BagKindEnum) {
             $data['kind'] = $kind;
         }

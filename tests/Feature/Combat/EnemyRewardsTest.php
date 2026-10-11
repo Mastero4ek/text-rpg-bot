@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Actions\Enemy\EnemyApplyWinLootAction;
-use App\Enums\ProgressStepEnum;
 use App\Models\Enemy\EnemyCatalog;
 
 it('computes exp from player level and template pct', function (): void {
@@ -51,20 +50,21 @@ it('does not grant loot on defeat', function (): void {
         ->and($p->fresh()->exp)->toBe($startExp);
 });
 
-it('tutorial win uses onboarding not pveRewards', function (): void {
+it('tutorial win advances overseer train without mid rewards', function (): void {
     $start = gameConfig()->character()['start'];
-    $reward = gameConfig()->onboarding()['rewards']['tutorialQuest'];
-    $p = registration()->ensurePlayer(7204);
-    $p = registration()->setNick($p, 'TutWin')->character;
-    $p = registration()->setLocation($p, registration()->cities()[0]->key)->character;
+    $p = cityArrived(7204, 'TutWin');
     $p->silver = $start['silver'];
     $p->exp = $start['exp'];
     $p->save();
-    $p = onboarding()->onTutorialWin($p);
 
-    expect($p->progress_step)->toBe(ProgressStepEnum::QUEST_STATS)
-        ->and($p->silver)->toBe($start['silver'] + $reward['silver'])
-        ->and($p->exp)->toBe($start['exp'] + $reward['exp']);
+    expect(app(App\Quests\OverseerQuest::class)->accept($p)->ok)->toBeTrue();
+    expect(app(App\Quests\OverseerQuest::class)->startFight($p->fresh())->ok)->toBeTrue();
+    $res = app(App\Quests\OverseerQuest::class)->advanceAfterWin($p->fresh());
+
+    expect($res->ok)->toBeTrue()
+        ->and($res->character?->overseer_train_step)->toBe(App\Enums\Quest\OverseerTrainStepEnum::Stats)
+        ->and($res->character?->silver)->toBe($start['silver'])
+        ->and($res->character?->exp)->toBe($start['exp']);
 });
 
 it('win loot action grants template silver', function (): void {

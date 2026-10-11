@@ -9,11 +9,7 @@ use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
-use App\Models\Character;
-use App\Models\City;
 use App\Models\Fight;
-use App\Services\Shop\ShopCatalog;
-use App\Support\Equipment\EquipmentDef;
 use RuntimeException;
 
 final class TelegramKeyboards
@@ -62,16 +58,6 @@ final class TelegramKeyboards
     }
 
     /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function equipMail(): array
-    {
-        return self::inline([
-            [self::cb(__('onboarding.btn_equip_mail'), 'ob:equip_mail')],
-        ]);
-    }
-
-    /**
      * @param  list<array{text: string, catalog_id: string}>  $enemies
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
@@ -95,16 +81,6 @@ final class TelegramKeyboards
             'city:gates',
             null,
         );
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function intro(): array
-    {
-        return self::inline([
-            [self::cb(__('onboarding.btn_ready'), 'ob:intro_fight')],
-        ]);
     }
 
     /**
@@ -220,15 +196,206 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}|null
      */
-    public static function fightEndMarkup(FightEndUiEnum $ui, Character $player): ?array
+    public static function fightEndMarkup(FightEndUiEnum $ui): ?array
     {
         return match ($ui) {
             FightEndUiEnum::None => null,
             FightEndUiEnum::MainMenu => self::mainMenu(),
             FightEndUiEnum::BackToCity => CityKeyboard::backToCity(),
-            FightEndUiEnum::StatsQuest => self::statsQuest($player),
-            FightEndUiEnum::Intro => self::intro(),
+            FightEndUiEnum::OverseerStats => self::overseerTrainStats(),
+            FightEndUiEnum::Intro => self::overseerIntro(),
+            FightEndUiEnum::BlacksmithMeet => self::blacksmithMeet(),
+            FightEndUiEnum::BlacksmithComplete => self::blacksmithComplete(),
+            FightEndUiEnum::BruiserArrive => self::bruiserArrive(),
+            FightEndUiEnum::BruiserTalk => self::bruiserTalk(),
+            FightEndUiEnum::BruiserComplete => self::bruiserComplete(),
+            FightEndUiEnum::BruiserKnucklePending => self::bruiserKnucklePending(),
+            FightEndUiEnum::BruiserKnockout => self::bruiserKnockout(),
+            FightEndUiEnum::HealerDebt => self::healerDebt(),
+            FightEndUiEnum::HealerRatLoot => self::healerRatLoot(),
+            FightEndUiEnum::HealerDebtClosed => self::healerDebtClosed(),
         };
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserArrive(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('telegram.quest.bruiser.btn.talk'), 'quest:bruiser:talk'),
+                self::cb(__('telegram.quest.bruiser.btn.attack'), 'quest:bruiser:fight'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserTalk(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('telegram.quest.bruiser.btn.threat'), 'quest:bruiser:threat'),
+                self::cb(__('telegram.quest.bruiser.btn.bluff'), 'quest:bruiser:bluff'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserThreat(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.quest.bruiser.btn.to_fight'), 'quest:bruiser:fight')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserComplete(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.bruiser.btn.take_purse'), 'city:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserKnucklePending(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('telegram.quest.bruiser.btn.take_purse'), 'city:home'),
+                self::cbSuccess(__('telegram.quest.bruiser.btn.take_knuckle'), 'quest:bruiser:take_knuckle'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bruiserKnockout(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.quest.bruiser.btn.wake'), 'quest:healer:wake')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerDebt(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('telegram.quest.healer.btn.debt_pay'), 'quest:healer:debt_pay'),
+                self::cb(__('telegram.quest.healer.btn.debt_work'), 'quest:healer:debt_work'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerDebtClosed(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.healer.btn.debt_done'), 'city:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerDebtWork(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.quest.healer.btn.debt_chicken'), 'quest:healer:debt'),
+                self::cbSuccess(__('telegram.quest.healer.btn.debt_cellar'), 'quest:healer:rat'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerRatLoot(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.healer.btn.take_tail'), 'quest:healer:take_tail')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmithComplete(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.blacksmith.btn.to_city'), 'city:gates')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmithMeet(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.quest.blacksmith.btn.refuse'), 'city:gates'),
+                self::cbSuccess(__('telegram.quest.blacksmith.btn.fight'), 'quest:blacksmith:fight'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerMeet(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.quest.buyer.btn.refuse'), 'city:home'),
+                self::cbSuccess(__('telegram.quest.buyer.btn.accept'), 'quest:buyer:accept'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerTurnIn(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.buyer.btn.take_share'), 'quest:buyer:turnin')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerComplete(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.healer.btn.to_city'), 'city:gates')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerMeet(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.healer.btn.take'), 'quest:healer:take')],
+        ]);
     }
 
     /**
@@ -242,23 +409,64 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function noviceShop(ShopCatalog $shop, int $potionPrice, City $city): array
+    public static function overseerComplete(): array
     {
-        $rows = [];
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.overseer.btn.to_city'), 'city:home')],
+        ]);
+    }
 
-        if ($city->has_blacksmith) {
-            foreach ($shop->noviceWeapons() as $weapon) {
-                $rows[] = [self::weaponButton($weapon, 'ob:buy:' . $weapon->itemId)];
-            }
-        }
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerIntro(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.quest.overseer.btn.ready'), 'quest:overseer:ready')],
+        ]);
+    }
 
-        if ($city->has_buyer) {
-            $rows[] = [self::cb(__('shop.potion_btn', ['price' => $potionPrice]), 'ob:novice_potion')];
-        }
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerMeet(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.quest.overseer.btn.skip'), 'quest:overseer:skip'),
+                self::cbSuccess(__('telegram.quest.overseer.btn.accept'), 'quest:overseer:accept'),
+            ],
+        ]);
+    }
 
-        $rows[] = [self::cb(__('onboarding.btn_claim_club'), 'ob:claim_club')];
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerTrainOffer(): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.not_now'), 'city:tavern'),
+                self::cbSuccess(__('telegram.quest.overseer.btn.train'), 'quest:overseer:train'),
+            ],
+        ]);
+    }
 
-        return self::inline($rows);
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerTrainStats(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('profile.btn_str'), 'quest:overseer:stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'quest:overseer:stat:' . StatKeyEnum::AGILITY->value),
+            ],
+            [
+                self::cb(__('profile.btn_inst'), 'quest:overseer:stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'quest:overseer:stat:' . StatKeyEnum::VITALITY->value),
+            ],
+        ]);
     }
 
     /**
@@ -283,18 +491,25 @@ final class TelegramKeyboards
         }
 
         if ($fight->step === FightStepEnum::ATTACK || $fight->step === FightStepEnum::ATTACK_SECOND) {
-            return self::attackWithoutPotion();
-        }
-
-        if ($fight->step === FightStepEnum::DEFEND_SECOND) {
+            $markup = self::attackWithoutPotion();
+        } elseif ($fight->step === FightStepEnum::DEFEND_SECOND) {
             if (! $fight->player_defend instanceof ZoneEnum) {
                 throw new RuntimeException('Fight defend zone missing for second block.');
             }
 
-            return self::defendExcluding($fight->player_defend);
+            $markup = self::defendExcluding($fight->player_defend);
+        } else {
+            $markup = self::defend();
         }
 
-        return self::defend();
+        if ($fight->tutorial) {
+            return $markup;
+        }
+
+        $rows = $markup['inline_keyboard'];
+        $rows[] = [self::cbDanger(__('combat.btn_flee'), 'fight:flee')];
+
+        return self::inline($rows);
     }
 
     public static function fightMarkupKind(Fight $fight): string
@@ -351,29 +566,6 @@ final class TelegramKeyboards
             ],
             [
                 self::cbDanger(__('combat.btn_flee'), 'fight:flee'),
-            ],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function statsQuest(Character $character): array
-    {
-        if ($character->stat_points <= 0) {
-            return self::inline([
-                [self::cb(__('onboarding.btn_submit_stats'), 'ob:stats_done')],
-            ]);
-        }
-
-        return self::inline([
-            [
-                self::cb(__('profile.btn_str'), 'ob:stat:' . StatKeyEnum::STRENGTH->value),
-                self::cb(__('profile.btn_agi'), 'ob:stat:' . StatKeyEnum::AGILITY->value),
-            ],
-            [
-                self::cb(__('profile.btn_inst'), 'ob:stat:' . StatKeyEnum::INSTINCT->value),
-                self::cb(__('profile.btn_vit'), 'ob:stat:' . StatKeyEnum::VITALITY->value),
             ],
         ]);
     }
@@ -504,19 +696,5 @@ final class TelegramKeyboards
         }
 
         return self::inline($rows);
-    }
-
-    /**
-     * @return array{text: string, callback_data: string, style?: string}
-     */
-    private static function weaponButton(EquipmentDef $weapon, string $data): array
-    {
-        return self::cb(
-            __('shop.weapon_btn', [
-                'name' => $weapon->itemName,
-                'price' => $weapon->price,
-            ]),
-            $data,
-        );
     }
 }

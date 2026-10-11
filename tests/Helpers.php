@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
@@ -23,7 +24,6 @@ use App\Services\CombatService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
-use App\Services\Onboarding\OnboardingService;
 use App\Services\Registration\RegistrationService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;
@@ -94,11 +94,6 @@ function buyerService(): BuyerService
 function fights(): FightService
 {
     return app(FightService::class);
-}
-
-function onboarding(): OnboardingService
-{
-    return app(OnboardingService::class);
 }
 
 function registration(): RegistrationService
@@ -188,24 +183,146 @@ function cityArrived(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT
     return registration()->setLocation($player, $cityKey)->character;
 }
 
+function cityArrivedSkipped(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityArrived($tgId, $nick, $cityKey);
+    $player->overseer_at_tavern = true;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function cityHealerPhase(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityArrived($tgId, $nick, $cityKey);
+    $player->progress_step = ProgressStepEnum::DONE;
+    $player->quest_phase = QuestPhaseEnum::Healer;
+    $player->overseer_trained = true;
+    $player->overseer_at_tavern = true;
+    $player->overseer_train_step = null;
+    $player->unlock_portal = true;
+    $player->healer_at_tavern = false;
+    $player->healer_meet_open = false;
+    $player->unlock_forest = false;
+    $player->exp = 30;
+    $player->silver = 25;
+    $player->stat_points = 0;
+    $player->tg_chat_id = $tgId;
+    $player->tg_message_id = 9;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function cityBlacksmithPhase(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityHealerPhase($tgId, $nick, $cityKey);
+    $player->quest_phase = QuestPhaseEnum::Blacksmith;
+    $player->healer_at_tavern = true;
+    $player->healer_meet_open = false;
+    $player->unlock_forest = true;
+    $player->blacksmith_at_tavern = false;
+    $player->unlock_board = false;
+    $player->exp = 70;
+    $player->silver = 25;
+    $player->stat_points = 1;
+    $player->save();
+
+    return $player->fresh();
+}
+
+function cityBuyerPhase(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityBlacksmithPhase($tgId, $nick, $cityKey);
+    $player->quest_phase = QuestPhaseEnum::Buyer;
+    $player->blacksmith_at_tavern = true;
+    $player->unlock_board = true;
+    $player->buyer_at_tavern = false;
+    $player->bruiser_contract_active = false;
+    $player->unlock_arena = false;
+    $player->exp = 110;
+    $player->silver = 35;
+    $player->stat_points = 2;
+    $player->save();
+
+    backpack()->addItem($player->tg_id, 'ancient_amulet');
+
+    return $player->fresh();
+}
+
+function cityBruiserPhase(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityBuyerPhase($tgId, $nick, $cityKey);
+    $amulet = backpack()->findOwned($player->tg_id, 'ancient_amulet');
+
+    backpack()->removeOne($amulet);
+
+    $player->quest_phase = QuestPhaseEnum::Bruiser;
+    $player->buyer_at_tavern = true;
+    $player->bruiser_contract_active = true;
+    $player->bruiser_knuckle_pending = false;
+    $player->unlock_arena = true;
+    $player->healer_debt_open = false;
+    $player->healer_rat_loot_pending = false;
+    $player->exp = 130;
+    $player->silver = 66;
+    $player->stat_points = 2;
+    $player->save();
+
+    return $player->fresh();
+}
+
 function cityDone(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
 {
     $player = cityArrived($tgId, $nick, $cityKey);
     $player->progress_step = ProgressStepEnum::DONE;
-    $player->onboarding_skipped = false;
-    $player->save();
+    $player->overseer_trained = true;
+    unlockQuestCity($player);
 
     return $player->fresh();
 }
 
 function citySkipped(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
 {
-    $player = cityArrived($tgId, $nick, $cityKey);
+    $player = cityArrivedSkipped($tgId, $nick, $cityKey);
     $player->progress_step = ProgressStepEnum::DONE;
-    $player->onboarding_skipped = true;
-    $player->save();
+    unlockQuestCity($player);
 
     return $player->fresh();
+}
+
+function cityAwaitingBuyerTurnIn(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT): Character
+{
+    $player = cityBruiserPhase($tgId, $nick, $cityKey);
+    $player->bruiser_contract_active = false;
+    $player->exp = 170;
+    $player->stat_points = 3;
+    $player->save();
+
+    bag()->addQuestItem($player->tg_id, 'buyer_purse');
+
+    return $player->fresh();
+}
+
+function unlockQuestCity(Character $character): Character
+{
+    $character->quest_phase = QuestPhaseEnum::Done;
+    $character->city_unlocked_full = true;
+    $character->unlock_portal = true;
+    $character->unlock_forest = true;
+    $character->unlock_board = true;
+    $character->unlock_arena = true;
+    $character->overseer_at_tavern = true;
+    $character->healer_at_tavern = true;
+    $character->blacksmith_at_tavern = true;
+    $character->buyer_at_tavern = true;
+    $character->bruiser_contract_active = false;
+    $character->bruiser_knuckle_pending = false;
+    $character->healer_debt_open = false;
+    $character->healer_rat_loot_pending = false;
+    $character->save();
+
+    return $character;
 }
 
 function assertCityEditHas(string $needle): void

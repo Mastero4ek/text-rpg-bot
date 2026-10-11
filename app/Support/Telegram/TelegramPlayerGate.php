@@ -7,7 +7,6 @@ namespace App\Support\Telegram;
 use App\Models\Character;
 use App\Services\Backpack\LoadoutService;
 use App\Services\CharacterService;
-use App\Services\Onboarding\OnboardingService;
 use App\Services\Registration\RegistrationFlow;
 
 final class TelegramPlayerGate
@@ -16,7 +15,6 @@ final class TelegramPlayerGate
         private readonly CharacterService $characters,
         private readonly LoadoutService $loadout,
         private readonly RegistrationFlow $registration,
-        private readonly OnboardingService $onboarding,
     ) {}
 
     /**
@@ -46,7 +44,7 @@ final class TelegramPlayerGate
         }
 
         if (! $player->progress_step->canPlayCity()) {
-            $responder->reply($this->onboarding->stepHint($player->progress_step->value), null);
+            $responder->reply(__('common.press_start'), null);
 
             return false;
         }

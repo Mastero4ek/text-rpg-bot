@@ -24,6 +24,8 @@ it('lists only enabled forest enemies with city pivot', function (): void {
     $p->progress_step = ProgressStepEnum::DONE;
     $p->level = 4;
     $p = placeInCity($p, City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
 
     EnemyCatalog::factory()->create([
         'catalog_id' => 'hidden_mob',
@@ -45,7 +47,7 @@ it('lists only enabled forest enemies with city pivot', function (): void {
         $body = $request->body();
 
         return str_contains($body, 'forest.png')
-            && str_contains($body, 'fight:start:chance_wanderer')
+            && str_contains($body, 'fight:start:forest_bandit')
             && ! str_contains($body, 'wooden_soldier')
             && ! str_contains($body, 'hidden_mob');
     });
@@ -56,14 +58,14 @@ it('starts training fight by catalog_id', function (): void {
     $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_ANKRAT);
 
-    $update = fightCallback($p->tg_id, 'fight:start:chance_wanderer');
+    $update = fightCallback($p->tg_id, 'fight:start:forest_bandit');
     app(FightHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
     expect(fights()->exists($p->tg_id))->toBeTrue()
-        ->and(fights()->enemy(fights()->findByTgId($p->tg_id))->catalogId)->toBe('chance_wanderer')
+        ->and(fights()->enemy(fights()->findByTgId($p->tg_id))->catalogId)->toBe('forest_bandit')
         ->and(fights()->findByTgId($p->tg_id)->tutorial)->toBeFalse();
 });
 

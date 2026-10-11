@@ -6,11 +6,9 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Services\Fight\FightRoundService;
 use App\Support\Mf;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Http;
 
 it('scales combat mf by stamina ratio so zero stamina kills dodge', function (): void {
     fakeRandom([0.0]);
@@ -58,7 +56,7 @@ it('drains more stamina for attack stance than defend stance', function (): void
     expect($attackDrain)->toBeGreaterThan($defendDrain);
 });
 
-it('schedules turn timeout job on fight create', function (): void {
+it('initializes stamina and turn_seq on fight create', function (): void {
     Bus::fake();
 
     $p = characters()->createDraft(9101);
@@ -67,11 +65,7 @@ it('schedules turn timeout job on fight create', function (): void {
     expect($fight->player_max_stamina)->toBe(combat()->maxStamina($p->strength))
         ->and($fight->player_stamina)->toBe($fight->player_max_stamina)
         ->and($fight->turn_seq)->toBe(1)
-        ->and($fight->turn_deadline_at)->not->toBeNull();
-
-    Bus::assertDispatched(ResolveFightTurnTimeoutJob::class, function (ResolveFightTurnTimeoutJob $job) use ($fight): bool {
-        return $job->tgId === $fight->tg_id && $job->turnSeq === $fight->turn_seq;
-    });
+        ->and($fight->turn_deadline_at)->toBeNull();
 });
 
 it('resolveSkip applies timeout log and enemy hit without player attack', function (): void {
@@ -83,8 +77,6 @@ it('resolveSkip applies timeout log and enemy hit without player attack', functi
     $p->save();
 
     $fight = fights()->createTraining($p, woodenSoldier($p));
-    $fight->turn_deadline_at = now()->subSecond();
-    $fight->save();
 
     $beforeHp = $fight->player_hp;
     $beforeStamina = $fight->player_stamina;
@@ -123,7 +115,6 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
     $fight->player_defend = ZoneEnum::LEGS;
     $fight->player_defend_second = ZoneEnum::HEAD;
     $fight->use_potion = true;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     $beforeHp = $fight->player_hp;
@@ -147,25 +138,4 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
             'defender' => 'SkipStance',
             'zone' => __('combat.zone_acc.HEAD'),
         ]));
-});
-
-it('timeout job no-ops when turn_seq is stale', function (): void {
-    Bus::fake();
-    Http::fake([
-        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
-    ]);
-
-    $p = characters()->createDraft(9103);
-    $fight = fights()->createTraining($p, woodenSoldier($p));
-    $staleSeq = $fight->turn_seq;
-    $fight->turn_deadline_at = now()->subSecond();
-    $fight->turn_seq = $staleSeq + 1;
-    $fight->save();
-
-    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $staleSeq), 'handle']);
-
-    $fight = fights()->findByTgId($p->tg_id);
-
-    expect($fight->log)->toBe([])
-        ->and($fight->turn_seq)->toBe($staleSeq + 1);
 });

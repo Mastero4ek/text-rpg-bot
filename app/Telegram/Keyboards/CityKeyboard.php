@@ -6,7 +6,7 @@ namespace App\Telegram\Keyboards;
 
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Models\Character;
+use App\Enums\StatKeyEnum;
 use App\Models\City;
 
 final class CityKeyboard
@@ -39,7 +39,7 @@ final class CityKeyboard
     public static function backToArena(): array
     {
         return self::inline([
-            [self::cbDanger(__('telegram.btn.back'), 'city:arena')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:lists')],
         ]);
     }
 
@@ -84,7 +84,7 @@ final class CityKeyboard
             'all',
             $page,
             'city:fights',
-            'city:arena',
+            'city:lists',
             null,
         );
     }
@@ -142,6 +142,16 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function backToOverseer(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'city:overseer')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function backToTavern(): array
     {
         return self::inline([
@@ -170,7 +180,7 @@ final class CityKeyboard
             $filter,
             $page,
             'city:training',
-            'city:arena',
+            'city:lists',
             null,
         );
     }
@@ -367,29 +377,26 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function firstHome(): array
+    public static function idleSession(string $cityName): array
     {
         return self::inline([
-            [
-                self::cbDanger(__('telegram.btn.pass'), 'ob:pass'),
-                self::cbSuccess(__('telegram.btn.hall'), 'ob:hall'),
-            ],
+            [self::cbSuccess(__('telegram.btn.idle_to_city', ['name' => $cityName]), 'city:home')],
         ]);
     }
 
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function gates(City $city): array
+    public static function gates(City $city, string $portalLabel, string $forestLabel): array
     {
         $rows = [];
 
         if ($city->has_portal) {
-            $rows[] = [self::cb(__('telegram.btn.portal'), 'city:portal')];
+            $rows[] = [self::cb($portalLabel, 'city:portal')];
         }
 
         if ($city->has_forest) {
-            $rows[] = [self::cb(__('telegram.btn.forest'), 'city:forest')];
+            $rows[] = [self::cb($forestLabel, 'city:forest')];
         }
 
         $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
@@ -400,12 +407,37 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function overseerOffer(): array
+    public static function overseerStats(int $statPoints): array
+    {
+        $rows = [
+            [self::cbSuccess(__('telegram.btn.reset_stats'), 'city:overseer:reset')],
+        ];
+
+        if ($statPoints > 0) {
+            $rows[] = [
+                self::cb(__('profile.btn_str'), 'city:overseer:stat:' . StatKeyEnum::STRENGTH->value),
+                self::cb(__('profile.btn_agi'), 'city:overseer:stat:' . StatKeyEnum::AGILITY->value),
+            ];
+            $rows[] = [
+                self::cb(__('profile.btn_inst'), 'city:overseer:stat:' . StatKeyEnum::INSTINCT->value),
+                self::cb(__('profile.btn_vit'), 'city:overseer:stat:' . StatKeyEnum::VITALITY->value),
+            ];
+        }
+
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:tavern')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerResetConfirm(): array
     {
         return self::inline([
             [
-                self::cbDanger(__('telegram.btn.not_now'), 'ob:not_now'),
-                self::cbSuccess(__('telegram.btn.hall'), 'ob:hall'),
+                self::cbDanger(__('telegram.btn.no'), 'city:overseer'),
+                self::cbSuccess(__('telegram.btn.yes'), 'city:overseer:reset_yes'),
             ],
         ]);
     }
@@ -540,7 +572,7 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function services(City $city): array
+    public static function services(City $city, string $boardLabel, string $listsLabel): array
     {
         $rows = [
             [self::cb(__('telegram.btn.gates'), 'city:gates')],
@@ -548,10 +580,10 @@ final class CityKeyboard
         ];
 
         if ($city->has_quest_board) {
-            $rows[] = [self::cb(__('telegram.btn.board'), 'city:board')];
+            $rows[] = [self::cb($boardLabel, 'city:board')];
         }
 
-        $rows[] = [self::cb(__('telegram.btn.arena'), 'city:arena')];
+        $rows[] = [self::cb($listsLabel, 'city:lists')];
 
         return self::inline($rows);
     }
@@ -559,7 +591,24 @@ final class CityKeyboard
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function tavern(City $city, Character $character): array
+    public static function lists(City $city, string $arenaLabel): array
+    {
+        $rows = [];
+
+        if ($city->has_training_room) {
+            $rows[] = [self::cb(__('telegram.btn.training'), 'city:training')];
+        }
+
+        $rows[] = [self::cb($arenaLabel, 'city:arena')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function tavern(City $city): array
     {
         $rows = [];
 
@@ -575,7 +624,36 @@ final class CityKeyboard
             $rows[] = [self::cb(__('telegram.btn.buyer'), 'city:buyer')];
         }
 
-        if ($character->onboarding_skipped) {
+        if ($city->has_overseer) {
+            $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
+        }
+
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @param  list<string>  $npcKeys  healer|blacksmith|buyer|overseer
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function tavernQuest(City $city, array $npcKeys): array
+    {
+        $rows = [];
+
+        if (in_array('healer', $npcKeys, true) && $city->has_healer) {
+            $rows[] = [self::cb(__('telegram.btn.healer'), 'city:healer')];
+        }
+
+        if (in_array('blacksmith', $npcKeys, true) && $city->has_blacksmith) {
+            $rows[] = [self::cb(__('telegram.btn.blacksmith'), 'city:blacksmith')];
+        }
+
+        if (in_array('buyer', $npcKeys, true) && $city->has_buyer) {
+            $rows[] = [self::cb(__('telegram.btn.buyer'), 'city:buyer')];
+        }
+
+        if (in_array('overseer', $npcKeys, true) && $city->has_overseer) {
             $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
         }
 

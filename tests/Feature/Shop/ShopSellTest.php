@@ -111,6 +111,9 @@ it('rejects selling equipped items and unknown rows', function (): void {
 
 it('rejects selling without a buyer in the city', function (): void {
     $p = placeInCity(characters()->createDraft(6108), City::KEY_ELDWOOD);
+    $city = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+    $city->has_buyer = false;
+    $city->save();
     $p->silver = 0;
     $p->save();
 
@@ -229,6 +232,9 @@ it('rejects selling a socketed gem', function (): void {
 
 it('rejects selling bag items without a buyer in the city', function (): void {
     $p = placeInCity(characters()->createDraft(6114), City::KEY_ELDWOOD);
+    $city = City::query()->where('key', City::KEY_ELDWOOD)->firstOrFail();
+    $city->has_buyer = false;
+    $city->save();
     $p->silver = 0;
     $p->save();
     bag()->addPotion($p->tg_id, 'heal_0');

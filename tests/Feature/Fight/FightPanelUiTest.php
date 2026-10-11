@@ -29,7 +29,7 @@ it('starts forest fight with single photo panel and inline keyboard', function (
     $p->level = 4;
     $p = placeInCity($p, City::KEY_ANKRAT);
 
-    $update = fightPanelCallback($p->tg_id, 'fight:start:chance_wanderer');
+    $update = fightPanelCallback($p->tg_id, 'fight:start:forest_bandit');
     app(FightHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),
@@ -70,7 +70,7 @@ it('rejects forest start without hp', function (): void {
     $p->current_hp = 0;
     $p = placeInCity($p, City::KEY_ANKRAT);
 
-    $update = fightPanelCallback($p->tg_id, 'fight:start:chance_wanderer');
+    $update = fightPanelCallback($p->tg_id, 'fight:start:forest_bandit');
     app(FightHandler::class)->handleCallback(
         $update,
         new TelegramResponder(app(TelegramClient::class), $update),

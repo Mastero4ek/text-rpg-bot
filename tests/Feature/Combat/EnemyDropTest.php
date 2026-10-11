@@ -86,7 +86,7 @@ it('does not drop mirrored player gear', function (): void {
     $p = characters()->createDraft(7305);
     $p = giveAndEquipStarterKnuckles($p);
     $p = equipItemToSlot($p, 'mobile_0', SlotEnum::HELMET);
-    $catalog = EnemyCatalog::query()->findOrFail('chance_wanderer');
+    $catalog = EnemyCatalog::query()->findOrFail('forest_bandit');
     $enemy = enemies()->makeFromCatalog($catalog, $p);
 
     foreach ($enemy->drops as $drop) {

@@ -12,6 +12,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
+use App\Quests\HealerQuest;
 use App\Services\Bag\BagCatalog;
 use App\Services\CityMenuService;
 use App\Services\GameConfig;
@@ -22,6 +23,7 @@ use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
+use App\Telegram\Keyboards\TelegramKeyboards;
 use RuntimeException;
 use Throwable;
 
@@ -34,6 +36,7 @@ final class HealerHandler
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
         private readonly GameConfig $config,
+        private readonly HealerQuest $healerQuest,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -299,6 +302,26 @@ final class HealerHandler
 
     private function healerScreen(TelegramResponder $responder, Character $player): void
     {
+        if ($this->healerQuest->hasOpenDebt($player)) {
+            if ($this->healerQuest->hasRatLootPending($player)) {
+                $this->editHealerPanel(
+                    $responder,
+                    $this->healerQuest->ratLootSpeech($player),
+                    TelegramKeyboards::healerRatLoot(),
+                );
+
+                return;
+            }
+
+            $this->editHealerPanel(
+                $responder,
+                $this->healerQuest->debtSpeech($player),
+                TelegramKeyboards::healerDebt(),
+            );
+
+            return;
+        }
+
         $city = $this->cityMenu->currentCity($player);
 
         if (! $city instanceof City || ! $city->has_healer) {

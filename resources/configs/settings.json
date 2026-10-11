@@ -1,4 +1,7 @@
 {
+    "telegram": {
+        "idleSessionSeconds": 600
+    },
     "backpack": {
         "maxRows": 50
     },
@@ -35,7 +38,6 @@
     "combat": {
         "aiDefendChance": 0.55,
         "dualWieldMinLevel": 0,
-        "turnTimeoutSeconds": 180,
         "mfPerStat": 3,
         "stamina": {
             "maxPerStrength": 6,
@@ -496,5 +498,40 @@
                 "silverGain": 73
             }
         ]
+    },
+    "quest": {
+        "rewards": {
+            "OverseerQuest": { "exp": 30, "silver": 5 },
+            "HealerQuest": {
+                "exp": 40,
+                "silver": 0,
+                "potion_catalog_ids": ["heal_0", "stamina_0"],
+                "debt": {
+                    "silver": 30,
+                    "enemy_catalog_id": "rabid_rat",
+                    "rat_tail_catalog_id": "rat_tail"
+                }
+            },
+            "BlacksmithQuest": {
+                "exp": 40,
+                "silver": 10,
+                "mail_catalog_id": "worn_mail",
+                "amulet_catalog_id": "ancient_amulet",
+                "enemy_catalog_id": "forest_bandit"
+            },
+            "BuyerQuest": {
+                "contract": { "exp": 20, "silver": 15, "amulet_catalog_id": "ancient_amulet" },
+                "turnIn": { "exp": 30, "silver": 0, "gold": 5, "purse_catalog_id": "buyer_purse" }
+            },
+            "BruiserQuest": {
+                "exp": 40,
+                "silver": 0,
+                "purse_catalog_id": "buyer_purse",
+                "knuckle_catalog_id": "bruiser_knuckle",
+                "power_pct": 120,
+                "enemy_name": "Громила",
+                "enemy_catalog_id": "bruiser"
+            }
+        }
     }
 }

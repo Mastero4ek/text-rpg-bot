@@ -8,9 +8,11 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\ProgressStepEnum;
-use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\Fight;
+use App\Services\Fight\FightEndService;
+use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightRoundService;
+use App\Support\Telegram\TelegramClient;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -54,7 +56,7 @@ it('drinks stamina potion instead of attacking and clamps to max', function (): 
     expect($outcome->kind)->toBe('continue')
         ->and($fight->player_stamina)->toBe(10 + $heal - $drain)
         ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::STAMINA))->toBe(0)
-        ->and(implode("\n", $fight->log))->toContain((string) $heal);
+        ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
 });
 
 it('drinks heal potion instead of attacking', function (): void {
@@ -92,7 +94,7 @@ it('drinks heal potion instead of attacking', function (): void {
     expect($fight->player_hp)->toBeGreaterThan(20)
         ->and($fight->player_hp)->toBeLessThanOrEqual(20 + $heal)
         ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
-        ->and(implode("\n", $fight->log))->toContain((string) $heal);
+        ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
 });
 
 it('win persists hp at least one even if session hp is zero', function (): void {
@@ -114,12 +116,23 @@ it('win persists hp at least one even if session hp is zero', function (): void 
     $fight->player_stamina = 12;
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 55;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     fakeRandom([0.99, 0.0, 0.0]);
 
-    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
+    expect($outcome->kind)->toBe('win')
+        ->and($outcome->character)->not->toBeNull()
+        ->and($outcome->fight)->not->toBeNull();
+
+    $result = app(FightEndService::class)->finishWin($outcome->character, $outcome->fight);
+    app(FightPanelService::class)->publishEnd(
+        app(TelegramClient::class),
+        $result,
+        $outcome->fight->tg_chat_id,
+        $outcome->fight->tg_message_id,
+        $outcome->fight,
+    );
 
     expect(Fight::query()->whereKey($p->tg_id)->exists())->toBeFalse();
 
@@ -150,12 +163,16 @@ it('lose persists zero hp and zero stamina', function (): void {
     $fight->player_stamina = 33;
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 66;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     fakeRandom([0.99, 0.0, 0.75, 0.99, 0.99, 0.5]);
 
-    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
+    expect($outcome->kind)->toBe('lose')
+        ->and($outcome->character)->not->toBeNull()
+        ->and($outcome->fight)->not->toBeNull();
+
+    app(FightEndService::class)->finishLose($outcome->character, $outcome->fight);
 
     $player = characters()->findByTgId($p->tg_id);
     expect($player->current_hp)->toBe(0)

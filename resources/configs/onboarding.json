@@ -1,8 +1,0 @@
-{
-  "rewards": {
-    "tutorialQuest": { "exp": 15, "silver": 2 },
-    "statsQuest": { "exp": 10, "silver": 0 },
-    "equipQuest": { "exp": 10, "silver": 25 },
-    "shopQuest": { "exp": 20, "silver": 5 }
-  }
-}

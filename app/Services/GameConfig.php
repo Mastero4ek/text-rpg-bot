@@ -9,14 +9,10 @@ use RuntimeException;
 final class GameConfig
 {
     /** @var array<string, mixed> */
-    private array $onboarding;
-
-    /** @var array<string, mixed> */
     private array $settings;
 
     public function __construct()
     {
-        $this->onboarding = $this->loadJson('onboarding.json');
         $this->settings = $this->loadJson('settings.json');
     }
 
@@ -47,9 +43,25 @@ final class GameConfig
     /**
      * @return array<string, mixed>
      */
-    public function onboarding(): array
+    public function telegram(): array
     {
-        return $this->onboarding;
+        if (! array_key_exists('telegram', $this->settings) || ! is_array($this->settings['telegram'])) {
+            throw new RuntimeException('settings.telegram missing.');
+        }
+
+        return $this->settings['telegram'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function quest(): array
+    {
+        if (! array_key_exists('quest', $this->settings) || ! is_array($this->settings['quest'])) {
+            throw new RuntimeException('settings.quest missing.');
+        }
+
+        return $this->settings['quest'];
     }
 
     /**

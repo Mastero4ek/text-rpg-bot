@@ -17,7 +17,7 @@ final class ShopCatalog
 {
     private const string CACHE_KEY = 'backpack.catalog.v1';
 
-    private const string STARTER_ARMOR_ID = 'heavy_0';
+    private const string STARTER_ARMOR_ID = 'worn_mail';
 
     private const string STARTER_KNUCKLES_ID = 'knuckles_0';
 

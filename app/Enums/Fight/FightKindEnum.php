@@ -11,7 +11,10 @@ use Filament\Support\Contracts\HasLabel;
 enum FightKindEnum: string implements HasColor, HasLabel
 {
     case PVE = 'PVE';
-    case TUTORIAL = 'TUTORIAL';
+    case QUEST_OVERSEER = 'QUEST_OVERSEER';
+    case QUEST_BLACKSMITH = 'QUEST_BLACKSMITH';
+    case QUEST_BRUISER = 'QUEST_BRUISER';
+    case QUEST_HEALER = 'QUEST_HEALER';
 
     /**
      * @return array<int|string, string>
@@ -20,7 +23,10 @@ enum FightKindEnum: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::PVE => Color::Sky,
-            self::TUTORIAL => Color::Amber,
+            self::QUEST_OVERSEER => Color::Amber,
+            self::QUEST_BLACKSMITH => Color::Orange,
+            self::QUEST_BRUISER => Color::Rose,
+            self::QUEST_HEALER => Color::Lime,
         };
     }
 

@@ -22,8 +22,8 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Actions** (`app/Actions/`) — one class per state change (`handle()`). Game-rule failures return an `ActionResult` DTO (`ok`, `error?` via `__()`, `character?`); do not throw for expected “cannot do that”.
 - **Queries** (`app/Queries/`) — read-side builders.
 - **Models** (`app/Models/`) — Eloquent relationships only, no domain logic. Подпапки по домену при ≥2 файлах (`Backpack/`, `Bag/`, `Enemy/`); одиночные модели в корне.
-- **Enums** (`app/Enums/`) — onboarding steps, stats, combat zones, etc.
-- **Quests** (`app/Quest/`) — one class per quest.
+- **Enums** (`app/Enums/`) — progress/quest phases, stats, combat zones, etc.
+- **Quests** (`app/Quests/`) — one class per quest.
 - **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
 
 ## Actions
@@ -39,10 +39,10 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 |------|-------|
 | Telegram handlers | `app/Telegram/Handlers/` (плоско: `RegistrationHandler`, `CityHandler`, …) |
 | Telegram keyboards | `app/Telegram/Keyboards/` (`CityKeyboard`, `RegistrationKeyboard`, `TelegramKeyboards` + trait) |
-| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Onboarding/`; иначе корень) |
+| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Quest/`; иначе корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/SetNickAction`, `SetLocationAction`) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
-| Quests | `app/Quest/` |
+| Quests | `app/Quests/` |
 | Models | `app/Models/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Enemy/`; иначе корень) |
 | Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Enemy/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `ProgressStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
@@ -80,7 +80,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 ## Document map
 
 - `.ai/guidelines/` — always-on agent rules; `.ai/rules/` — path-scoped rules.
-- `docs/` — индекс; игра — `docs/game/`; Telegram — `docs/telegram/`.
+- `docs/` — индекс; игра — `docs/game/`; Telegram — `docs/telegram/`; квесты — `docs/quests/`.
 
 ## Out of scope
 
@@ -194,7 +194,7 @@ Always run `composer check-parallel` as the final validation step. Do not push o
 2. **Placement:** mirror the subject (`tests/Feature/Actions/...`, `tests/Unit/Services/Combat/...`). Basename must be unique under `tests/`.
 3. **Data:** factories and (later) `App\Testing\Scenario\*`.
 4. **Combat RNG:** inject a deterministic `RandomSource`; never rely on live `mt_rand` in tests.
-5. Cover happy path and key failures (insufficient gold, wrong onboarding step, etc.). No coverage percentage gate.
+5. Cover happy path and key failures (insufficient gold, wrong quest phase, etc.). No coverage percentage gate.
 6. **Telegram:** fake Update JSON + `Http::fake()` outbound. Never call the live Bot API in CI. Poll and webhook share one processor; do not run long polling in tests.
 
 === foundation rules ===

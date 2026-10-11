@@ -20,12 +20,12 @@ use Illuminate\Support\Facades\Http;
 it('maps armor by zone and sets two block slots with shield', function (): void {
     $p = characters()->createDraft(8101);
     backpack()->addItem($p->tg_id, 'mobile_0');
-    backpack()->addItem($p->tg_id, 'heavy_0');
+    backpack()->addItem($p->tg_id, 'worn_mail');
     backpack()->addItem($p->tg_id, 'mobile_2');
     backpack()->addItem($p->tg_id, 'mobile_1');
     backpack()->addItem($p->tg_id, 'heavy_1');
 
-    foreach (['mobile_0', 'heavy_0', 'mobile_2', 'mobile_1', 'heavy_1'] as $itemId) {
+    foreach (['mobile_0', 'worn_mail', 'mobile_2', 'mobile_1', 'heavy_1'] as $itemId) {
         $row = backpack()->findOwned($p->tg_id, $itemId);
         $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
@@ -36,7 +36,7 @@ it('maps armor by zone and sets two block slots with shield', function (): void 
 
     expect($loadout->blockSlots)->toBe(2)
         ->and($loadout->armorByZone['HEAD'])->toBe(shopCatalog()->findItem('mobile_0')->armor)
-        ->and($loadout->armorByZone['CHEST'])->toBe(shopCatalog()->findItem('heavy_0')->armor)
+        ->and($loadout->armorByZone['CHEST'])->toBe(shopCatalog()->findItem('worn_mail')->armor)
         ->and($loadout->armorByZone['BELLY'])->toBe(shopCatalog()->findItem('mobile_2')->armor)
         ->and($loadout->armorByZone['LEGS'])->toBe(shopCatalog()->findItem('mobile_1')->armor)
         ->and($loadout->armor)->toBe(
@@ -77,14 +77,14 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     $p->save();
 
     backpack()->addItem($p->tg_id, 'focus_0');
-    backpack()->addItem($p->tg_id, 'vital_0');
+    backpack()->addItem($p->tg_id, 'ancient_amulet');
 
     $baseMin = app(LoadoutService::class)->forCharacter($p)->weaponDamageMin;
     $baseMax = app(LoadoutService::class)->forCharacter($p)->weaponDamageMax;
 
     $p = equipItemToSlot($p, 'knife_0', SlotEnum::LEFT_HAND);
 
-    foreach (['focus_0', 'vital_0'] as $itemId) {
+    foreach (['focus_0', 'ancient_amulet'] as $itemId) {
         $row = backpack()->findOwned($p->tg_id, $itemId);
         $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
@@ -94,7 +94,7 @@ it('sums left hand weapon damage and jewelry mf into loadout', function (): void
     $loadout = app(LoadoutService::class)->forCharacter($p);
     $knife = shopCatalog()->findItem('knife_0');
     $ring = shopCatalog()->findItem('focus_0');
-    $amulet = shopCatalog()->findItem('vital_0');
+    $amulet = shopCatalog()->findItem('ancient_amulet');
 
     expect($loadout->weaponDamageMin)->toBe($baseMin + $knife->weaponDamageMin)
         ->and($loadout->weaponDamageMax)->toBe($baseMax + $knife->weaponDamageMax)
@@ -108,7 +108,7 @@ it('sells new doll wearables from shop', function (): void {
     $p->silver = 500;
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
-    foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'vital_0', 'knife_0'] as $itemId) {
+    foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'ancient_amulet', 'knife_0'] as $itemId) {
         $buy = blacksmithService()->buyGear($p->tg_id, $itemId);
 
         if ($itemId === 'knife_0') {
@@ -121,7 +121,7 @@ it('sells new doll wearables from shop', function (): void {
 
     expect(shopCatalog()->isEquippable('heavy_1'))->toBeTrue()
         ->and(shopCatalog()->isEquippable('focus_0'))->toBeTrue()
-        ->and(shopCatalog()->isShopJewelry('vital_0'))->toBeTrue();
+        ->and(shopCatalog()->isShopJewelry('ancient_amulet'))->toBeTrue();
 });
 
 it('asks for second defend zone when shield is equipped', function (): void {

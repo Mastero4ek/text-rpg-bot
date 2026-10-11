@@ -234,16 +234,16 @@ describe('blacksmith', function (): void {
         assertTelegramMarkupBody(function (string $body): bool {
             return str_contains($body, 'city:blacksmith:buy:sword_0')
                 && str_contains($body, 'city:blacksmith:gear:list:wpn:1')
-                && ! str_contains($body, 'city:blacksmith:buy:heavy_0');
+                && ! str_contains($body, 'city:blacksmith:buy:worn_mail');
         });
     });
 
     it('filters repair list by gear type', function (): void {
         $player = cityDone(10122, 'ListSmithRepair');
         backpack()->addItem($player->tg_id, 'knife_0');
-        backpack()->addItem($player->tg_id, 'heavy_0');
+        backpack()->addItem($player->tg_id, 'worn_mail');
         $knife = backpack()->findOwned($player->tg_id, 'knife_0');
-        $armor = backpack()->findOwned($player->tg_id, 'heavy_0');
+        $armor = backpack()->findOwned($player->tg_id, 'worn_mail');
         $knife->durability = 1;
         $knife->save();
         $armor->durability = 1;

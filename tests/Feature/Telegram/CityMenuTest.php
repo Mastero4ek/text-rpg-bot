@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
-use App\Jobs\ResolveFightTurnTimeoutJob;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
+use App\Services\Fight\FightEndService;
+use App\Services\Fight\FightRoundService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -51,9 +52,7 @@ it('opens training pick then starts hall fight without forest pivot', function (
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageText')
-            && ($request['text'] ?? null) === __('telegram.location.training')
-            && str_contains((string) $request['reply_markup'], 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID);
+        return str_contains($request->body(), 'city:training:start:' . EnemyCatalog::TUTORIAL_CATALOG_ID);
     });
 
     app(CityHandler::class)->handleCallback(
@@ -93,11 +92,15 @@ it('does not wear gear or break gems after hall win', function (): void {
     $fight->player_stamina = 12;
     $fight->tg_chat_id = $p->tg_id;
     $fight->tg_message_id = 55;
-    $fight->turn_deadline_at = now()->subSecond();
     $fight->save();
 
     fakeRandom([0.99, 0.0, 0.0]);
-    app()->call([new ResolveFightTurnTimeoutJob($fight->tg_id, $fight->turn_seq), 'handle']);
+    $outcome = app(FightRoundService::class)->runSkipRound($p);
+    expect($outcome->kind)->toBe('win')
+        ->and($outcome->character)->not->toBeNull()
+        ->and($outcome->fight)->not->toBeNull();
+
+    app(FightEndService::class)->finishWin($outcome->character, $outcome->fight);
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     $knuckles->refresh();
@@ -105,10 +108,11 @@ it('does not wear gear or break gems after hall win', function (): void {
         ->and(bag()->socketedInstances($knuckles)->count())->toBe(1);
 });
 
-it('shows arena submenu without creating a fight', function (): void {
+it('opens fights list from arena without creating a fight', function (): void {
     $p = characters()->createDraft(9123);
     $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_ANKRAT);
+    unlockQuestCity($p);
 
     app(CityHandler::class)->handleCallback(
         cityCallback($p->tg_id, 'city:arena'),
@@ -117,16 +121,16 @@ it('shows arena submenu without creating a fight', function (): void {
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     Http::assertSent(function (Request $request): bool {
-        $arena = __('telegram.location.arena');
+        $body = $request->body();
 
-        if (str_contains($request->url(), '/editMessageMedia')) {
-            return str_contains($request->body(), str_replace("\n", '\\n', $arena))
-                || str_contains($request->body(), $arena);
-        }
-
-        return (str_contains($request->url(), '/editMessageText')
-                || str_contains($request->url(), '/editMessageCaption'))
-            && (($request['text'] ?? $request['caption'] ?? null) === $arena);
+        return (
+            str_contains($request->url(), '/editMessageMedia')
+            || str_contains($request->url(), '/editMessageCaption')
+            || str_contains($request->url(), '/editMessageText')
+        )
+            && str_contains($body, 'arena.png')
+            && str_contains($body, 'city:fights:list:')
+            && str_contains($body, 'city:lists');
     });
 });
 

@@ -12,6 +12,7 @@ enum BagKindEnum: string implements HasColor, HasLabel
 {
     case GEM = 'GEM';
     case POTION = 'POTION';
+    case QUEST = 'QUEST';
 
     public function getLabel(): string
     {
@@ -26,6 +27,7 @@ enum BagKindEnum: string implements HasColor, HasLabel
         return match ($this) {
             self::GEM => Color::Sky,
             self::POTION => Color::Green,
+            self::QUEST => Color::Amber,
         };
     }
 }

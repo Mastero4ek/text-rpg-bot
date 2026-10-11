@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Cache;
 
 it('seeds equipment catalog into the database', function (): void {
     expect(BackpackCatalog::query()->count())->toBeGreaterThan(10)
-        ->and(shopCatalog()->mailShirtId())->toBe('heavy_0')
+        ->and(shopCatalog()->mailShirtId())->toBe('worn_mail')
         ->and(shopCatalog()->starterKnucklesId())->toBe('knuckles_0')
         ->and(shopCatalog()->freeTrainerItemId())->toBe('club_0')
         ->and(bagCatalog()->potionPrice())->toBe(15)

@@ -78,6 +78,7 @@ final class CityCatalogForm
                             Toggle::make('has_blacksmith')->label(__('admin.labels.has_blacksmith')),
                             Toggle::make('has_healer')->label(__('admin.labels.has_healer')),
                             Toggle::make('has_buyer')->label(__('admin.labels.has_buyer')),
+                            Toggle::make('has_overseer')->label(__('admin.labels.has_overseer')),
                             Toggle::make('has_quest_board')->label(__('admin.labels.has_quest_board')),
                             Toggle::make('has_portal')->label(__('admin.labels.has_portal')),
                             Toggle::make('has_forest')->label(__('admin.labels.has_forest')),

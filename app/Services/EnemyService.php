@@ -32,6 +32,60 @@ final class EnemyService
         return $this->makeFixedEnemy($catalog);
     }
 
+    /**
+     * @param  list<array{bag_catalog_id: string, chance_pct: int}>  $drops
+     */
+    public function makeQuestMirror(
+        Character $character,
+        string $name,
+        string $catalogId,
+        int $powerPct,
+        array $drops = [],
+    ): Enemy {
+        if ($powerPct < 1) {
+            throw new RuntimeException('Quest mirror power_pct must be >= 1.');
+        }
+
+        $loadout = $this->loadout->forCharacter($character);
+        $strength = self::scalePct($character->strength, $powerPct);
+        $maxHp = self::scalePct($this->characters->maxHp($character), $powerPct);
+        $maxStamina = $this->combat->maxStamina($strength);
+        $mainDamage = self::scalePct(
+            $this->combat->rollWeaponDamage($loadout->mainHandDamageMin, $loadout->mainHandDamageMax),
+            $powerPct,
+        );
+        $offDamage = self::scalePct(
+            $this->combat->rollWeaponDamage($loadout->offHandDamageMin, $loadout->offHandDamageMax),
+            $powerPct,
+        );
+
+        return new Enemy(
+            $name,
+            $character->level,
+            $strength,
+            self::scalePct($character->agility, $powerPct),
+            self::scalePct($character->instinct, $powerPct),
+            self::scalePct($character->vitality, $powerPct),
+            $maxHp,
+            $maxHp,
+            $mainDamage,
+            self::scaleMf($loadout->mfForMainHandAttack(), $powerPct),
+            StanceEnum::DEFEND,
+            $maxStamina,
+            $maxStamina,
+            self::scaleArmor($loadout->armorByZone, $powerPct),
+            $loadout->attackSlots,
+            $loadout->blockSlots,
+            $offDamage,
+            self::scaleMf($loadout->mfForOffHandAttack(), $powerPct),
+            $catalogId,
+            0,
+            0,
+            0,
+            $drops,
+        );
+    }
+
     public function menuLabel(EnemyCatalog $catalog, Character $character): string
     {
         if ($catalog->kind === EnemyKindEnum::FIXED) {

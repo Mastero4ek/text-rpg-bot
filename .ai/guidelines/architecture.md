@@ -19,8 +19,8 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Actions** (`app/Actions/`) — one class per state change (`handle()`). Game-rule failures return an `ActionResult` DTO (`ok`, `error?` via `__()`, `character?`); do not throw for expected “cannot do that”.
 - **Queries** (`app/Queries/`) — read-side builders.
 - **Models** (`app/Models/`) — Eloquent relationships only, no domain logic. Подпапки по домену при ≥2 файлах (`Backpack/`, `Bag/`, `Enemy/`); одиночные модели в корне.
-- **Enums** (`app/Enums/`) — onboarding steps, stats, combat zones, etc.
-- **Quests** (`app/Quest/`) — one class per quest.
+- **Enums** (`app/Enums/`) — progress/quest phases, stats, combat zones, etc.
+- **Quests** (`app/Quests/`) — one class per quest.
 - **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
 
 ## Actions
@@ -36,10 +36,10 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 |------|-------|
 | Telegram handlers | `app/Telegram/Handlers/` (плоско, без подпапок по флоу) |
 | Telegram keyboards | `app/Telegram/Keyboards/` (`CityKeyboard`, `RegistrationKeyboard`, `TelegramKeyboards`) |
-| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Onboarding/`; иначе корень) |
+| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Quest/`; иначе корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/` для nick/location на регистрации) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
-| Quests | `app/Quest/` |
+| Quests | `app/Quests/` |
 | Models | `app/Models/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Enemy/`; иначе корень) |
 | Enums | `app/Enums/{Domain}/{Entity}Enum.php` (`Combat/`, `Fight/`, `Enemy/`, `Equipment/`, `Bag/`, `Gem/`, `Economy/`); корневые `ProgressStepEnum`, `StatKeyEnum` |
 | Filament admin | `app/Filament/Resources/...` |
