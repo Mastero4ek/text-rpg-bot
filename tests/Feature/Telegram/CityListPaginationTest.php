@@ -313,7 +313,7 @@ describe('portal', function (): void {
         assertTelegramMarkupBody(function (string $body) use ($free): bool {
             return str_contains($body, 'portal:' . $free->id)
                 && str_contains($body, 'portal:list:free:1')
-                && ! str_contains($body, '10🪙');
+                && ! str_contains($body, '🪙 -');
         });
     });
 

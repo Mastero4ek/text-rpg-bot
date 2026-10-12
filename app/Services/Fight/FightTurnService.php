@@ -14,6 +14,7 @@ use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
+use App\Services\CombatService;
 use App\Support\PotionDef;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,7 @@ final class FightTurnService
         private readonly LoadoutService $loadout,
         private readonly BagService $bag,
         private readonly CharacterService $characters,
+        private readonly CombatService $combat,
     ) {}
 
     public function commitAttack(int $tgId, string $choice): FightTurnCommit
@@ -190,16 +192,36 @@ final class FightTurnService
 
         $heal = $consumed->potion->effectValue;
 
+        if ($player->username === null) {
+            $actorName = __('common.you');
+        } else {
+            $actorName = $player->username;
+        }
+
+        $actor = $this->combat->logName($actorName, $player->level);
+
         if ($profile === ProfileEnum::STAMINA) {
             $fight->player_stamina = $this->characters->clampStamina(
                 $fight->player_stamina + $heal,
                 $fight->player_max_stamina,
             );
+            $fight = $this->fights->appendLogLines($fight, [
+                __('combat.drink_stamina_potion', [
+                    'name' => $actor,
+                    'heal' => $heal,
+                ]),
+            ]);
         } else {
             $fight->player_hp = $this->characters->clampHp(
                 $fight->player_hp + $heal,
                 $fight->player_max_hp,
             );
+            $fight = $this->fights->appendLogLines($fight, [
+                __('combat.drink_potion', [
+                    'name' => $actor,
+                    'heal' => $heal,
+                ]),
+            ]);
         }
 
         $fight->use_potion = false;

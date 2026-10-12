@@ -10,6 +10,7 @@ enum Chapter1ScreenEnum: string implements HasLabel
 {
     case RegistrationSplash = 'registration_splash';
     case RegistrationSetNick = 'registration_set_nick';
+    case RegistrationSetSkin = 'registration_set_skin';
     case RegistrationSetCity = 'registration_set_city';
     case OverseerGates = 'overseer_gates';
     case OverseerTavern = 'overseer_tavern';
@@ -56,6 +57,7 @@ enum Chapter1ScreenEnum: string implements HasLabel
         return match ($this) {
             self::RegistrationSplash,
             self::RegistrationSetNick,
+            self::RegistrationSetSkin,
             self::RegistrationSetCity => false,
             default => true,
         };
@@ -66,6 +68,7 @@ enum Chapter1ScreenEnum: string implements HasLabel
         return match ($this) {
             self::RegistrationSplash,
             self::RegistrationSetNick,
+            self::RegistrationSetSkin,
             self::RegistrationSetCity => 1,
             self::OverseerGates,
             self::OverseerTavern,

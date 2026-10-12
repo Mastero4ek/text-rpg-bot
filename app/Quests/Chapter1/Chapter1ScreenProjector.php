@@ -8,19 +8,11 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
-use App\Quests\BuyerQuest;
-use App\Services\Backpack\BackpackService;
-use App\Services\Bag\BagService;
 
 final class Chapter1ScreenProjector
 {
-    public function __construct(
-        private readonly BackpackService $backpack,
-        private readonly BagService $bag,
-        private readonly BuyerQuest $buyerQuest,
-    ) {}
-
     public function apply(Character $character, Chapter1ScreenEnum $screen): void
     {
         $this->clearOwnedState($character);
@@ -29,6 +21,7 @@ final class Chapter1ScreenProjector
         match ($screen) {
             Chapter1ScreenEnum::RegistrationSplash => $this->applyRegistration($character, ProgressStepEnum::SPLASH),
             Chapter1ScreenEnum::RegistrationSetNick => $this->applyRegistration($character, ProgressStepEnum::SET_NICK),
+            Chapter1ScreenEnum::RegistrationSetSkin => $this->applyRegistration($character, ProgressStepEnum::SET_SKIN),
             Chapter1ScreenEnum::RegistrationSetCity => $this->applyRegistration($character, ProgressStepEnum::SET_CITY),
             Chapter1ScreenEnum::OverseerGates => $this->applyOverseerGates($character),
             Chapter1ScreenEnum::OverseerTavern => $this->applyOverseerTavern($character),
@@ -116,6 +109,16 @@ final class Chapter1ScreenProjector
     {
         $character->progress_step = $step;
         $character->quest_phase = QuestPhaseEnum::Overseer;
+
+        if (
+            in_array($step, [ProgressStepEnum::SPLASH, ProgressStepEnum::SET_NICK, ProgressStepEnum::SET_SKIN], true)
+        ) {
+            $character->skin = null;
+        }
+
+        if ($step === ProgressStepEnum::SET_CITY && ! $character->skin instanceof SkinEnum) {
+            $character->skin = SkinEnum::Mobile;
+        }
     }
 
     private function applyOverseerGates(Character $character): void
@@ -160,13 +163,11 @@ final class Chapter1ScreenProjector
     {
         $this->applyBlacksmithMeet($character);
         $this->writeAfterBlacksmithComplete($character);
-        $this->grantAmuletIfMissing($character);
     }
 
     private function applyBuyerTurnIn(Character $character): void
     {
         $this->applyBruiserReadyForPurse($character);
-        $this->grantPurseIfMissing($character);
     }
 
     private function applyBruiserArrive(Character $character): void
@@ -222,27 +223,5 @@ final class Chapter1ScreenProjector
     {
         $this->applyBlacksmithMeet($character);
         $this->writeAfterBlacksmithComplete($character);
-    }
-
-    private function grantAmuletIfMissing(Character $character): void
-    {
-        $amuletId = $this->buyerQuest->amuletCatalogId();
-
-        if ($this->backpack->owns($character->tg_id, $amuletId)) {
-            return;
-        }
-
-        $this->backpack->addItem($character->tg_id, $amuletId);
-    }
-
-    private function grantPurseIfMissing(Character $character): void
-    {
-        $purseId = $this->buyerQuest->purseCatalogId();
-
-        if ($this->bag->ownsQuestItem($character->tg_id, $purseId)) {
-            return;
-        }
-
-        $this->bag->addQuestItem($character->tg_id, $purseId);
     }
 }

@@ -44,6 +44,26 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    public static function fightReportLog(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('combat.btn_log'), 'fight:report:log')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function fightReportSummary(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'fight:report:summary')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function defend(): array
     {
         return self::defendButtons(null);

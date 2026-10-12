@@ -309,6 +309,7 @@ final readonly class Enemy
     {
         return new Fighter(
             $this->name,
+            $this->level,
             $this->strength,
             $this->agility,
             $this->instinct,

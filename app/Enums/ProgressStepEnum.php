@@ -12,6 +12,7 @@ enum ProgressStepEnum: string implements HasColor, HasLabel
 {
     case SPLASH = 'SPLASH';
     case SET_NICK = 'SET_NICK';
+    case SET_SKIN = 'SET_SKIN';
     case SET_CITY = 'SET_CITY';
     case ARRIVED = 'ARRIVED';
     case DONE = 'DONE';
@@ -29,6 +30,7 @@ enum ProgressStepEnum: string implements HasColor, HasLabel
         return match ($this) {
             self::SPLASH => Color::Zinc,
             self::SET_NICK => Color::Gray,
+            self::SET_SKIN => Color::Stone,
             self::SET_CITY => Color::Slate,
             self::ARRIVED => Color::Teal,
             self::DONE => Color::Green,

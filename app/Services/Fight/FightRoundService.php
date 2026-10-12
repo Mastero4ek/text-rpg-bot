@@ -190,16 +190,32 @@ final class FightRoundService
             } else {
                 $heal = $consumed->potion->effectValue;
 
+                if ($fresh->username === null) {
+                    $actorName = __('common.you');
+                } else {
+                    $actorName = $fresh->username;
+                }
+
+                $actor = $this->combat->logName($actorName, $fresh->level);
+
                 if ($profile === ProfileEnum::STAMINA) {
                     $fight->player_stamina = $this->characters->clampStamina(
                         $fight->player_stamina + $heal,
                         $fight->player_max_stamina,
                     );
+                    $logs[] = __('combat.drink_stamina_potion', [
+                        'name' => $actor,
+                        'heal' => $heal,
+                    ]);
                 } else {
                     $fight->player_hp = $this->characters->clampHp(
                         $fight->player_hp + $heal,
                         $fight->player_max_hp,
                     );
+                    $logs[] = __('combat.drink_potion', [
+                        'name' => $actor,
+                        'heal' => $heal,
+                    ]);
                 }
             }
         } elseif (
@@ -345,14 +361,8 @@ final class FightRoundService
             }
         }
 
-        $combined = $fight->log;
-
-        foreach ($logs as $line) {
-            $combined[] = $line;
-        }
-
+        $fight = $this->fights->appendLogLines($fight, $logs);
         $fight->enemy = $enemy->toArray();
-        $fight->log = $combined;
         $fight->last_round = $this->lastRoundSnapshot(
             $skip,
             $roundUsedPotion,
@@ -584,6 +594,7 @@ final class FightRoundService
 
         return new Fighter(
             $name,
+            $character->level,
             $character->strength,
             $character->agility,
             $character->instinct,

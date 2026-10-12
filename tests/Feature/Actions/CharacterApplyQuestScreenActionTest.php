@@ -6,6 +6,7 @@ use App\Actions\Character\CharacterApplyQuestScreenAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Models\Fight;
 use App\Quests\BuyerQuest;
@@ -167,7 +168,7 @@ it('revokes rewards and quest items when jumping back', function (): void {
 
     $mid = $player->fresh();
 
-    expect(backpack()->owns($mid->tg_id, $amuletId))->toBeTrue()
+    expect(backpack()->owns($mid->tg_id, $amuletId))->toBeFalse()
         ->and(bag()->ownsQuestItem($mid->tg_id, $purseId))->toBeTrue()
         ->and($mid->exp)->toBeGreaterThan(0);
 
@@ -213,9 +214,27 @@ it('grants cumulative rewards when jumping to chapter1_done', function (): void 
     );
 
     $fresh = $before->fresh();
+    $rewardsCfg = gameConfig()->quest()['rewards'];
+    $potionIds = $rewardsCfg['HealerQuest']['potion_catalog_ids'];
+    $mailId = $rewardsCfg['BlacksmithQuest']['mail_catalog_id'];
+    $amuletId = $rewardsCfg['BlacksmithQuest']['amulet_catalog_id'];
+    $knuckleId = $rewardsCfg['BruiserQuest']['knuckle_catalog_id'];
+    $purseId = $rewardsCfg['BruiserQuest']['purse_catalog_id'];
 
     // silver may be higher: level-up thresholds also grant silverGain
     expect($fresh->exp)->toBe($before->exp + $deltaExp)
         ->and($fresh->silver)->toBeGreaterThanOrEqual($before->silver + $deltaSilver)
-        ->and($fresh->gold)->toBe($before->gold + $deltaGold);
+        ->and($fresh->gold)->toBe($before->gold + $deltaGold)
+        ->and(backpack()->owns($fresh->tg_id, $mailId))->toBeTrue()
+        ->and(backpack()->owns($fresh->tg_id, $amuletId))->toBeFalse()
+        ->and(backpack()->owns($fresh->tg_id, $knuckleId))->toBeTrue()
+        ->and(bag()->ownsQuestItem($fresh->tg_id, $purseId))->toBeFalse();
+
+    foreach ($potionIds as $potionId) {
+        expect(BagItem::query()
+            ->where('tg_id', $fresh->tg_id)
+            ->where('catalog_id', $potionId)
+            ->whereNull('backpack_item_id')
+            ->exists())->toBeTrue();
+    }
 });

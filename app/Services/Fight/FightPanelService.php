@@ -20,6 +20,7 @@ final class FightPanelService
     public function __construct(
         private readonly FightService $fights,
         private readonly FightStatusFormatter $fightStatus,
+        private readonly FightReportStore $reports,
         private readonly RegistrationService $registration,
     ) {}
 
@@ -66,14 +67,30 @@ final class FightPanelService
         }
 
         if ($statusMessageId !== null) {
-            $this->publishEndStatus(
+            $markup = TelegramKeyboards::clearInline();
+
+            if (
+                $result->editUi === FightEndUiEnum::BackToCity
+                && $result->logText !== null
+            ) {
+                $markup = TelegramKeyboards::fightReportLog();
+            }
+
+            $messageId = $this->publishEndStatus(
                 $telegram,
                 $chatId,
                 $statusMessageId,
                 $result->editText,
-                TelegramKeyboards::clearInline(),
+                $markup,
                 $fightBeforeClear,
             );
+
+            if (
+                $result->editUi === FightEndUiEnum::BackToCity
+                && $result->logText !== null
+            ) {
+                $this->reports->put($chatId, $messageId, $result->editText, $result->logText);
+            }
         }
 
         if ($result->replyText === null || $result->replyUi === FightEndUiEnum::None) {
@@ -119,6 +136,43 @@ final class FightPanelService
         $statusId = $this->refreshPanel($telegram, $chatId, $fight, $caption, $markup);
         $this->fights->rememberTelegramPanel($fight, (int) $chatId, $statusId, $replyKind, null);
         $this->registration->rememberTelegramMessage($player, $chatId, $statusId);
+    }
+
+    public function showReportLog(TelegramClient $telegram, int|string $chatId, int $messageId): bool
+    {
+        $payload = $this->reports->get($chatId, $messageId);
+
+        if ($payload === null) {
+            return false;
+        }
+
+        $caption = '<i>' . $this->reports->clipCaption($payload['log']) . '</i>';
+        $telegram->editMessageCaption(
+            $chatId,
+            $messageId,
+            $caption,
+            TelegramKeyboards::fightReportSummary(),
+        );
+
+        return true;
+    }
+
+    public function showReportSummary(TelegramClient $telegram, int|string $chatId, int $messageId): bool
+    {
+        $payload = $this->reports->get($chatId, $messageId);
+
+        if ($payload === null) {
+            return false;
+        }
+
+        $telegram->editMessageCaption(
+            $chatId,
+            $messageId,
+            $this->reports->clipCaption($payload['summary']),
+            TelegramKeyboards::fightReportLog(),
+        );
+
+        return true;
     }
 
     private function enemyImagePath(Fight $fight): ?string
@@ -274,9 +328,9 @@ final class FightPanelService
         string $caption,
         array $markup,
         ?Fight $fightBeforeClear,
-    ): void {
+    ): int {
         if ($this->tryEditPanel($telegram, $chatId, $statusMessageId, $caption, $markup)) {
-            return;
+            return $statusMessageId;
         }
 
         $telegram->deleteMessage($chatId, $statusMessageId);
@@ -288,12 +342,10 @@ final class FightPanelService
         }
 
         if ($imagePath !== null) {
-            $telegram->sendPhoto($chatId, $imagePath, $caption, $markup);
-
-            return;
+            return $telegram->sendPhoto($chatId, $imagePath, $caption, $markup);
         }
 
-        $telegram->sendMessage($chatId, $caption, $markup);
+        return $telegram->sendMessage($chatId, $caption, $markup);
     }
 
     /**

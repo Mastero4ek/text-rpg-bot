@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Quests\Chapter1;
 
 use App\Enums\ProgressStepEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
-use App\Models\City;
 use App\Quests\BlacksmithQuest;
 use App\Quests\BruiserQuest;
 use App\Quests\BuyerQuest;
@@ -16,7 +16,6 @@ use App\Services\Registration\RegistrationFlow;
 use App\Services\Registration\RegistrationService;
 use App\Support\ActionResult;
 use App\Support\Telegram\TelegramClient;
-use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Keyboards\RegistrationKeyboard;
@@ -87,6 +86,11 @@ final class Chapter1ScreenPanelPusher
                 $this->registrationImage($character),
                 $this->registrationFlow->nickText(null),
                 RegistrationKeyboard::nickBack(),
+            ],
+            Chapter1ScreenEnum::RegistrationSetSkin => [
+                $this->registrationImage($character),
+                $this->registrationSkinCaption($character),
+                RegistrationKeyboard::skin($this->registration->skinPreview($character)),
             ],
             Chapter1ScreenEnum::RegistrationSetCity => [
                 $this->registrationImage($character),
@@ -162,22 +166,50 @@ final class Chapter1ScreenPanelPusher
 
     private function registrationCityCaption(Character $character): string
     {
-        $character->loadMissing('city');
         $name = '';
 
-        if ($character->city instanceof City) {
-            $name = TelegramHtml::escape($character->city->name);
+        if (is_string($character->username) && $character->username !== '') {
+            $name = $character->username;
         }
 
         return $this->registrationFlow->cityText($name, null);
+    }
+
+    private function registrationSkinCaption(Character $character): string
+    {
+        $name = '';
+
+        if (is_string($character->username) && $character->username !== '') {
+            $name = $character->username;
+        }
+
+        return $this->registrationFlow->skinText(
+            $name,
+            $this->registration->skinPreview($character),
+            null,
+        );
     }
 
     private function registrationImage(Character $character): string
     {
         if ($character->progress_step === ProgressStepEnum::SPLASH) {
             $path = config('bot.registration_rest_image');
-        } else {
+        } elseif ($character->progress_step === ProgressStepEnum::SET_NICK) {
             $path = config('bot.registration_up_image');
+        } else {
+            $skin = $character->skin;
+
+            if (! $skin instanceof SkinEnum) {
+                $skin = $this->registration->skinPreview($character);
+            }
+
+            $images = config('bot.character_skin_images');
+
+            if (! is_array($images) || ! isset($images[$skin->value]) || ! is_string($images[$skin->value])) {
+                throw new RuntimeException('Character skin image missing for quest screen push.');
+            }
+
+            $path = $images[$skin->value];
         }
 
         if (! is_string($path) || $path === '' || ! is_file($path)) {

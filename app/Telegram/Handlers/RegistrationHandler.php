@@ -6,7 +6,9 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Registration\SetLocationAction;
 use App\Actions\Registration\SetNickAction;
+use App\Actions\Registration\SetSkinAction;
 use App\Enums\ProgressStepEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
@@ -23,6 +25,7 @@ final class RegistrationHandler
         private readonly RegistrationService $registration,
         private readonly RegistrationFlow $flow,
         private readonly SetNickAction $setNick,
+        private readonly SetSkinAction $setSkin,
         private readonly SetLocationAction $setLocation,
         private readonly CityHandler $city,
         private readonly QuestHandler $quest,
@@ -102,7 +105,7 @@ final class RegistrationHandler
             }
 
             $this->registration->clearPendingDeletes($res->character);
-            $this->flow->showClean($responder, $res->character);
+            $this->flow->showSwappingPhoto($responder, $res->character);
 
             return;
         }
@@ -138,7 +141,19 @@ final class RegistrationHandler
         }
 
         if ($data === 'ob:back') {
-            $this->backToSplash($update, $responder);
+            $this->back($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'ob:skin:pick:')) {
+            $this->chooseSkin($update, $responder, mb_substr($data, 13));
+
+            return;
+        }
+
+        if (str_starts_with($data, 'ob:skin:')) {
+            $this->previewSkin($update, $responder, mb_substr($data, 8));
 
             return;
         }
@@ -161,17 +176,80 @@ final class RegistrationHandler
         $this->flow->showSwappingPhoto($responder, $player);
     }
 
-    private function backToSplash(TelegramUpdate $update, TelegramResponder $responder): void
+    private function back(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $player = Character::query()->find($update->userId());
 
-        if ($player === null || $player->progress_step !== ProgressStepEnum::SET_NICK) {
+        if ($player === null) {
             return;
         }
 
-        $player = $this->registration->backToSplash($player);
+        if ($player->progress_step === ProgressStepEnum::SET_NICK) {
+            $player = $this->registration->backToSplash($player);
+            $this->flow->syncAnchor($player, $update);
+            $this->flow->showSwappingPhoto($responder, $player);
+
+            return;
+        }
+
+        if ($player->progress_step === ProgressStepEnum::SET_SKIN) {
+            $player = $this->registration->backToNick($player);
+            $this->flow->syncAnchor($player, $update);
+            $this->flow->showSwappingPhoto($responder, $player);
+        }
+    }
+
+    private function previewSkin(TelegramUpdate $update, TelegramResponder $responder, string $skinKey): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->progress_step !== ProgressStepEnum::SET_SKIN) {
+            return;
+        }
+
+        $skin = SkinEnum::tryFrom($skinKey);
+
+        if (! $skin instanceof SkinEnum) {
+            return;
+        }
+
+        if ($this->registration->skinPreview($player) === $skin) {
+            return;
+        }
+
+        $this->registration->rememberSkinPreview($player, $skin);
         $this->flow->syncAnchor($player, $update);
         $this->flow->showSwappingPhoto($responder, $player);
+    }
+
+    private function chooseSkin(TelegramUpdate $update, TelegramResponder $responder, string $skinKey): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if ($player === null || $player->progress_step !== ProgressStepEnum::SET_SKIN) {
+            return;
+        }
+
+        $res = $this->setSkin->handle($player, $skinKey);
+
+        if (! $res->ok || ! $res->character instanceof Character) {
+            $player->refresh();
+
+            if ($player->progress_step !== ProgressStepEnum::SET_SKIN) {
+                return;
+            }
+
+            $this->flow->show(
+                $responder,
+                $player,
+                TelegramResponder::errorMessage($res->error),
+            );
+
+            return;
+        }
+
+        $this->flow->syncAnchor($res->character, $update);
+        $this->flow->showClean($responder, $res->character);
     }
 
     private function chooseCity(TelegramUpdate $update, TelegramResponder $responder, string $cityKey): void

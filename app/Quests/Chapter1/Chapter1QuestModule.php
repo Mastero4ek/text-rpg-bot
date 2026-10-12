@@ -48,6 +48,7 @@ final class Chapter1QuestModule implements QuestChapterModuleContract
             return match ($character->progress_step) {
                 ProgressStepEnum::SPLASH => Chapter1ScreenEnum::RegistrationSplash,
                 ProgressStepEnum::SET_NICK => Chapter1ScreenEnum::RegistrationSetNick,
+                ProgressStepEnum::SET_SKIN => Chapter1ScreenEnum::RegistrationSetSkin,
                 ProgressStepEnum::SET_CITY => Chapter1ScreenEnum::RegistrationSetCity,
                 default => Chapter1ScreenEnum::RegistrationSplash,
             };

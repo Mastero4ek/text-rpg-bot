@@ -9,6 +9,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Enums\SkinEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use Carbon\CarbonInterface;
@@ -24,6 +25,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 /**
  * @property int $tg_id
  * @property string|null $username
+ * @property SkinEnum|null $skin
  * @property int|null $birth_city_id
  * @property int|null $city_id
  * @property ProgressStepEnum $progress_step
@@ -82,6 +84,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 #[Fillable([
     'tg_id',
     'username',
+    'skin',
     'birth_city_id',
     'city_id',
     'progress_step',
@@ -202,6 +205,7 @@ final class Character extends Model implements HasMedia
     {
         return [
             'tg_id' => 'integer',
+            'skin' => SkinEnum::class,
             'birth_city_id' => 'integer',
             'city_id' => 'integer',
             'progress_step' => ProgressStepEnum::class,

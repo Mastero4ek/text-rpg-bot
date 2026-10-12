@@ -128,7 +128,7 @@ final class CombatService
                     false,
                     false,
                     __('combat.pierce', [
-                        'attacker' => TelegramHtml::escape($attacker->name),
+                        'attacker' => $this->logName($attacker->name, $attacker->level),
                         'zone' => $zone,
                         'dmg' => $dmg,
                     ]),
@@ -142,7 +142,7 @@ final class CombatService
                 false,
                 false,
                 __('combat.block', [
-                    'defender' => TelegramHtml::escape($defender->name),
+                    'defender' => $this->logName($defender->name, $defender->level),
                     'zone' => $zone,
                 ]),
             );
@@ -162,7 +162,7 @@ final class CombatService
                 false,
                 true,
                 __('combat.dodge', [
-                    'defender' => TelegramHtml::escape($defender->name),
+                    'defender' => $this->logName($defender->name, $defender->level),
                     'zone' => $zone,
                 ]),
             );
@@ -187,7 +187,7 @@ final class CombatService
                 true,
                 false,
                 __('combat.crit', [
-                    'attacker' => TelegramHtml::escape($attacker->name),
+                    'attacker' => $this->logName($attacker->name, $attacker->level),
                     'zone' => $zone,
                     'dmg' => $dmg,
                 ]),
@@ -209,7 +209,7 @@ final class CombatService
             false,
             false,
             __('combat.hit', [
-                'attacker' => TelegramHtml::escape($attacker->name),
+                'attacker' => $this->logName($attacker->name, $attacker->level),
                 'zone' => $zone,
                 'dmg' => $dmg,
             ]),
@@ -283,6 +283,7 @@ final class CombatService
 
         return new Fighter(
             $name,
+            $character->level,
             $character->strength,
             $character->agility,
             $character->instinct,
@@ -320,6 +321,11 @@ final class CombatService
         }
 
         return $this->fighterFromPlayer($character, $loadout, $name);
+    }
+
+    public function logName(string $name, int $level): string
+    {
+        return '<b>' . TelegramHtml::escape($name) . ' [' . $level . ']</b>';
     }
 
     public function fleeChance(Mf $playerMf, Mf $enemyMf): float

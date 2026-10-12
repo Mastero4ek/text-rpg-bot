@@ -15,6 +15,7 @@ final readonly class Fighter
      */
     public function __construct(
         public string $name,
+        public int $level,
         public int $strength,
         public int $agility,
         public int $instinct,

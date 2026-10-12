@@ -83,7 +83,8 @@ it('set nick via text update', function (): void {
 
     $character = Character::query()->find(4243);
     expect($character->username)->toBe('HeroNick')
-        ->and($character->progress_step)->toBe(ProgressStepEnum::SET_CITY);
+        ->and($character->progress_step)->toBe(ProgressStepEnum::SET_SKIN)
+        ->and($character->skin)->toBeNull();
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/deleteMessage')
@@ -91,8 +92,9 @@ it('set nick via text update', function (): void {
     });
 
     Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/editMessageCaption')
-            && str_contains((string) $request['caption'], 'HeroNick');
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($request->body(), 'HeroNick')
+            && str_contains($request->body(), 'mobile.png');
     });
 });
 

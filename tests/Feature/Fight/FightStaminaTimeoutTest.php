@@ -135,7 +135,7 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
         ->and($fight->use_potion)->toBeFalse()
         ->and($fight->log)->toContain(__('combat.turn_timeout'))
         ->and($fight->log)->toContain(__('combat.dodge', [
-            'defender' => 'SkipStance',
+            'defender' => '<b>SkipStance [' . $p->level . ']</b>',
             'zone' => __('combat.zone_acc.HEAD'),
         ]));
 });

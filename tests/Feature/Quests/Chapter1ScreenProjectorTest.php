@@ -19,21 +19,10 @@ it('registry returns chapter1 module', function (): void {
 
 it('round-trips every mvp chapter1 screen through detect', function (): void {
     $player = cityDone(88201, 'ScrRound');
-    $projector = app(Chapter1ScreenProjector::class);
     $module = app(Chapter1QuestModule::class);
 
-    $purseId = app(BuyerQuest::class)->purseCatalogId();
-
     foreach (Chapter1ScreenEnum::cases() as $screen) {
-        // no-strip on apply: leftover purse would make detect prefer buyer_turn_in
-        if (
-            $screen === Chapter1ScreenEnum::BruiserReadyForPurse
-            && bag()->ownsQuestItem($player->tg_id, $purseId)
-        ) {
-            bag()->removeQuestItem($player->tg_id, $purseId);
-        }
-
-        $projector->apply($player, $screen);
+        $module->applySnapshot($player, $screen);
         $player->save();
         $player->refresh();
 
@@ -57,30 +46,30 @@ it('applies healer_meet mask', function (): void {
 it('grants amulet on buyer_meet if missing', function (): void {
     $player = cityArrived(88203, 'ScrBuyer');
     $amuletId = app(BuyerQuest::class)->amuletCatalogId();
+    $module = app(Chapter1QuestModule::class);
 
     expect(backpack()->owns($player->tg_id, $amuletId))->toBeFalse();
 
-    app(Chapter1ScreenProjector::class)->apply($player, Chapter1ScreenEnum::BuyerMeet);
+    $module->applySnapshot($player, Chapter1ScreenEnum::BuyerMeet);
     $player->save();
 
     expect(backpack()->owns($player->tg_id, $amuletId))->toBeTrue()
-        ->and(app(Chapter1QuestModule::class)->detect($player->fresh()))->toBe(Chapter1ScreenEnum::BuyerMeet);
+        ->and($module->detect($player->fresh()))->toBe(Chapter1ScreenEnum::BuyerMeet);
 });
 
 it('grants purse on buyer_turn_in and keeps ready without purse', function (): void {
     $player = cityDone(88204, 'ScrPurse');
     $purseId = app(BuyerQuest::class)->purseCatalogId();
-    $projector = app(Chapter1ScreenProjector::class);
     $module = app(Chapter1QuestModule::class);
 
-    $projector->apply($player, Chapter1ScreenEnum::BruiserReadyForPurse);
+    $module->applySnapshot($player, Chapter1ScreenEnum::BruiserReadyForPurse);
     $player->save();
 
     expect(bag()->ownsQuestItem($player->tg_id, $purseId))->toBeFalse()
         ->and($module->detect($player->fresh()))->toBe(Chapter1ScreenEnum::BruiserReadyForPurse);
 
     $fresh = $player->fresh();
-    $projector->apply($fresh, Chapter1ScreenEnum::BuyerTurnIn);
+    $module->applySnapshot($fresh, Chapter1ScreenEnum::BuyerTurnIn);
     $fresh->save();
 
     expect(bag()->ownsQuestItem($fresh->tg_id, $purseId))->toBeTrue()
@@ -118,6 +107,8 @@ it('projector alone does not strip amulet (revoke is reward sync)', function ():
     $player = cityArrived(88207, 'ScrKeep');
     $amuletId = app(BuyerQuest::class)->amuletCatalogId();
     $projector = app(Chapter1ScreenProjector::class);
+
+    backpack()->addItem($player->tg_id, $amuletId);
 
     $projector->apply($player, Chapter1ScreenEnum::BuyerMeet);
     $player->save();

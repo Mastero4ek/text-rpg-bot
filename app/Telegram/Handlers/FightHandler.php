@@ -24,6 +24,8 @@ use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
+use App\Telegram\Keyboards\TelegramKeyboards;
+use RuntimeException;
 
 final class FightHandler
 {
@@ -43,6 +45,19 @@ final class FightHandler
     public function handleCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
+
+        if ($data === 'fight:report:log') {
+            $this->reportLog($responder);
+
+            return;
+        }
+
+        if ($data === 'fight:report:summary') {
+            $this->reportSummary($responder);
+
+            return;
+        }
+
         $responder->answerCallback();
 
         if (preg_match('/^fight:stance:(ATTACK|DEFEND)$/', $data, $m) === 1) {
@@ -140,7 +155,60 @@ final class FightHandler
             $result->editUi,
             $result->replyText,
             $result->replyUi,
+            $result->logText,
         );
+    }
+
+    private function reportLog(TelegramResponder $responder): void
+    {
+        $ok = $this->panel->showReportLog(
+            $this->telegram,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+
+        if (! $ok) {
+            $responder->answerCallbackToast(__('combat.report_expired'));
+
+            try {
+                $this->telegram->editMessageReplyMarkup(
+                    $responder->chatId(),
+                    $responder->messageId(),
+                    TelegramKeyboards::clearInline(),
+                );
+            } catch (RuntimeException) {
+            }
+
+            return;
+        }
+
+        $responder->answerCallback();
+    }
+
+    private function reportSummary(TelegramResponder $responder): void
+    {
+        $ok = $this->panel->showReportSummary(
+            $this->telegram,
+            $responder->chatId(),
+            $responder->messageId(),
+        );
+
+        if (! $ok) {
+            $responder->answerCallbackToast(__('combat.report_expired'));
+
+            try {
+                $this->telegram->editMessageReplyMarkup(
+                    $responder->chatId(),
+                    $responder->messageId(),
+                    TelegramKeyboards::clearInline(),
+                );
+            } catch (RuntimeException) {
+            }
+
+            return;
+        }
+
+        $responder->answerCallback();
     }
 
     private function stance(TelegramUpdate $update, StanceEnum $stance): void
