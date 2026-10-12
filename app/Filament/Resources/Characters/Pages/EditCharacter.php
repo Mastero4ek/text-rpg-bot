@@ -54,6 +54,12 @@ final class EditCharacter extends EditRecord
         ]);
     }
 
+    public function refreshAfterQuestScreen(): void
+    {
+        $this->getRecord()->refresh();
+        $this->fillForm();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -87,6 +93,45 @@ final class EditCharacter extends EditRecord
                     return true;
                 }),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        foreach ([
+            'quest_chapter',
+            'quest_phase',
+            'progress_step',
+            'unlock_portal',
+            'unlock_forest',
+            'unlock_board',
+            'unlock_arena',
+            'city_unlocked_full',
+            'overseer_trained',
+            'overseer_at_tavern',
+            'overseer_train_step',
+            'healer_at_tavern',
+            'healer_meet_open',
+            'blacksmith_at_tavern',
+            'buyer_at_tavern',
+            'bruiser_contract_active',
+            'bruiser_knuckle_pending',
+            'healer_debt_open',
+            'healer_rat_loot_pending',
+        ] as $key) {
+            unset($data[$key]);
+        }
+
+        foreach (array_keys($data) as $key) {
+            if (str_starts_with($key, 'quest_screen_')) {
+                unset($data[$key]);
+            }
+        }
+
+        return $data;
     }
 
     /**

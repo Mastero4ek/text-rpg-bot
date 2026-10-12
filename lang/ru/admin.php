@@ -96,6 +96,8 @@ return [
         'name' => 'Название',
         'progress_step' => 'Регистрация',
         'quest_phase' => 'Квестовая фаза',
+        'quest_screen' => 'Экран',
+        'quest_chapter' => 'Глава',
         'overseer_train_step' => 'Шаг обучения Смотрителя',
         'unlock_portal' => 'Портал',
         'unlock_forest' => 'Лес',
@@ -381,6 +383,26 @@ return [
             'modal_submit' => 'Сбросить',
             'notification' => 'Статы сброшены',
         ],
+        'apply_quest_screen' => [
+            'label' => 'Применить',
+            'modal_heading' => 'Применить квестовый экран?',
+            'modal_description' => 'Флаги главы перезапишутся снимком, панель персонажа в Telegram обновится. Прыжок вперёд — доначисление наград и предметов; назад — отъём тех же наград и предметов.',
+            'modal_submit' => 'Применить',
+            'notification' => 'Экран применён и открыт в Telegram персонажа',
+            'error' => [
+                'archived' => 'Нельзя менять квест у архивного персонажа',
+                'city_required' => 'Сначала укажи город персонажа',
+                'invalid' => 'Выбери экран этого шага',
+                'unknown_chapter' => 'Неизвестная глава кампании',
+                'unknown_screen' => 'Неизвестный экран главы',
+            ],
+        ],
+        'push_quest_screen' => [
+            'error' => [
+                'no_message' => 'Не найден чат или сообщение Telegram. Снимок применён, панель у персонажа не открыта.',
+                'telegram' => 'Снимок применён, но отправить панель в Telegram персонажу не удалось.',
+            ],
+        ],
         'set_inventory_max_rows' => [
             'invalid' => 'Вместительность должна быть целым числом ≥ 1',
             'notification' => 'Вместительность обновлена',
@@ -420,6 +442,33 @@ return [
         'Fight' => 'Бой',
         'Stats' => 'Статы',
     ],
+    'quest_chapters' => [
+        'chapter1' => 'Глава 1',
+    ],
+    'quest_screens' => [
+        'unknown' => 'Неизвестно',
+        'chapter1' => [
+            'registration_splash' => 'Старт',
+            'registration_set_nick' => 'Ник',
+            'registration_set_city' => 'Город',
+            'overseer_gates' => 'Ворота',
+            'overseer_tavern' => 'В таверне (пропуск первой встречи)',
+            'overseer_intro' => 'Обучение (объяснение)',
+            'overseer_await_fight' => 'Обучение (бой)',
+            'overseer_stats' => 'Обучение (распределение статов)',
+            'healer_meet' => 'Встреча',
+            'healer_potion_lock' => 'Выдача зелий',
+            'blacksmith_meet' => 'Встреча',
+            'buyer_meet' => 'Встреча',
+            'buyer_turn_in' => 'Сдать кошель',
+            'bruiser_arrive' => 'Прибытие',
+            'healer_debt' => 'Долг Лекарю',
+            'healer_rat_loot' => 'Хвост крысы',
+            'bruiser_knuckle_pending' => 'Кастет ждёт',
+            'bruiser_ready_for_purse' => 'Готов к кошелю',
+            'chapter1_done' => 'Мир открыт',
+        ],
+    ],
     'quest_wizard' => [
         'chapter' => 'Глава 1',
         'registration' => [
@@ -444,7 +493,7 @@ return [
         ],
         'bruiser' => [
             'label' => 'Громила',
-            'description' => 'Ристалище и долг',
+            'description' => 'Ристалище, долг и кошель',
         ],
         'done' => [
             'label' => 'Финал',
@@ -494,6 +543,7 @@ return [
         'gem_mf' => 'Единственное MF-поле камня по типу. Целое ≥ 1. Остальные MF скрыты и = 0.',
         'gem_slots' => 'Число слотов под камни. Любой тип из каталога gems. 0/пусто — нельзя вставить. Бижу/зелья не сокетятся.',
         'image' => 'Изображение. Один файл: jpeg / png / webp. Без файла — плейсхолдер.',
+        'quest_screen' => 'Снимок экрана + пуш в Telegram. Save не меняет квест — только «Применить». Вперёд — награды/предметы милестоунов; назад — отъём.',
         'power_pct' => 'Множитель боевых чисел зеркала. 100 = как игрок, 130 = ×1.3 с округлением вниз.',
         'reward_exp_pct' => 'Процент от exp_base (settings.combat.pveRewards + уровень игрока).',
         'enemy_level' => 'Уровень шаблона FIXED. У MIRROR берётся уровень игрока.',

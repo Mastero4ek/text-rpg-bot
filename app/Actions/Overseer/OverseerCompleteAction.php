@@ -8,6 +8,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
+use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
 use App\Support\ActionResult;
@@ -18,6 +19,7 @@ final class OverseerCompleteAction
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly Chapter1ScreenProjector $projector,
         private readonly GameConfig $config,
     ) {}
 
@@ -56,12 +58,7 @@ final class OverseerCompleteAction
 
             $maxHp = $this->characters->maxHp($locked);
             $maxStamina = $this->characters->maxStamina($locked);
-            $locked->overseer_trained = true;
-            $locked->overseer_at_tavern = true;
-            $locked->overseer_train_step = null;
-            $locked->unlock_portal = true;
-            $locked->quest_phase = QuestPhaseEnum::Healer;
-            $locked->progress_step = ProgressStepEnum::DONE;
+            $this->projector->writeAfterOverseerComplete($locked);
             $locked->current_hp = $maxHp;
             $locked->current_stamina = $maxStamina;
             $locked->last_hp_update = now();

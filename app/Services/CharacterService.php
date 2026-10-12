@@ -371,6 +371,31 @@ final class CharacterService
         });
     }
 
+    public function subtractExpSilver(Character $character, int $expLoss, int $silverLoss): Character
+    {
+        return DB::transaction(function () use ($character, $expLoss, $silverLoss): Character {
+            $oldExp = $character->exp;
+            $character->exp = max(0, $character->exp - max(0, $expLoss));
+            $character->silver = max(0, $character->silver - max(0, $silverLoss));
+            $this->rollbackExperienceThresholds($character, $oldExp, $character->exp);
+            $character->current_hp = $this->clampHp($character->current_hp, $this->maxHp($character));
+            $character->current_stamina = $this->clampStamina($character->current_stamina, $this->maxStamina($character));
+            $character->save();
+
+            return $character;
+        });
+    }
+
+    public function subtractGold(Character $character, int $amount): Character
+    {
+        return DB::transaction(function () use ($character, $amount): Character {
+            $character->gold = max(0, $character->gold - max(0, $amount));
+            $character->save();
+
+            return $character;
+        });
+    }
+
     public function grantStatPoints(Character $character, int $amount): Character
     {
         return DB::transaction(function () use ($character, $amount): Character {
@@ -588,6 +613,54 @@ final class CharacterService
         }
 
         return $this->intField($character['statReset'], 'goldCost');
+    }
+
+    private function rollbackExperienceThresholds(Character $character, int $oldExp, int $newExp): void
+    {
+        if ($newExp >= $oldExp) {
+            return;
+        }
+
+        $levelCfg = $this->characterLevelConfig();
+        $start = $this->characterStartConfig();
+
+        foreach ($this->experienceRows() as $row) {
+            if ($row['kind'] === 'start') {
+                continue;
+            }
+
+            if ($row['exp'] > $oldExp) {
+                continue;
+            }
+
+            if ($row['exp'] <= $newExp) {
+                continue;
+            }
+
+            if ($row['kind'] === 'up') {
+                $character->stat_points = max(0, $character->stat_points - $levelCfg['statPointsOnUp']);
+                $character->silver = max(0, $character->silver - $row['silverGain']);
+
+                continue;
+            }
+
+            if ($row['kind'] === 'level') {
+                $character->stat_points = max(0, $character->stat_points - $this->statPointsForLevel($row['level']));
+                $character->silver = max(0, $character->silver - $row['silverGain']);
+            }
+        }
+
+        $character->level = $start['level'];
+
+        foreach ($this->experienceRows() as $row) {
+            if ($row['kind'] !== 'level') {
+                continue;
+            }
+
+            if ($row['exp'] <= $character->exp) {
+                $character->level = $row['level'];
+            }
+        }
     }
 
     private function statPointsForLevel(int $newLevel): int

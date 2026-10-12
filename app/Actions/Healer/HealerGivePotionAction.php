@@ -8,6 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Bag\BagItem;
 use App\Models\Character;
+use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
@@ -20,6 +21,7 @@ final class HealerGivePotionAction
     public function __construct(
         private readonly BagService $bag,
         private readonly CharacterService $characters,
+        private readonly Chapter1ScreenProjector $projector,
         private readonly GameConfig $config,
     ) {}
 
@@ -69,10 +71,7 @@ final class HealerGivePotionAction
             $this->characters->addExpSilver($locked, $reward['exp'], $reward['silver']);
             $locked = $this->characters->findByTgId($locked->tg_id);
 
-            $locked->healer_at_tavern = true;
-            $locked->healer_meet_open = false;
-            $locked->unlock_forest = true;
-            $locked->quest_phase = QuestPhaseEnum::Blacksmith;
+            $this->projector->writeAfterHealerComplete($locked);
             $locked->save();
 
             return ActionResult::ok($locked);

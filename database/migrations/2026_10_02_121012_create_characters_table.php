@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -19,6 +20,7 @@ return new class extends Migration
             $table->foreignId('birth_city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->foreignId('city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->string('progress_step')->default(ProgressStepEnum::SPLASH->value);
+            $table->string('quest_chapter')->default(QuestChapterEnum::Chapter1->value);
             $table->string('quest_phase')->default(QuestPhaseEnum::Overseer->value);
             $table->boolean('unlock_portal')->default(false);
             $table->boolean('unlock_forest')->default(false);

@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Actions\Bruiser\BruiserStartFightAction;
 use App\Enums\ProgressStepEnum;
+use App\Enums\Quest\OverseerTrainStepEnum;
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character;
 use App\Models\City;
+use App\Services\CharacterService;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramClient;
@@ -339,4 +343,133 @@ it('does not schedule idle when update belongs to unknown character', function (
     ]);
 
     Bus::assertNotDispatched(IdleSessionResetJob::class);
+});
+
+it('idle abandon overseer quest fight resets train step and fully heals', function (): void {
+    Bus::fake([IdleSessionResetJob::class]);
+    $p = cityArrived(9414, 'IdleOverseerFight');
+    $p->overseer_train_step = OverseerTrainStepEnum::Fight;
+    $p->current_hp = 1;
+    $p->current_stamina = 1;
+    $p->tg_chat_id = $p->tg_id;
+    $p->tg_message_id = 77;
+    $p->save();
+
+    $this->freezeTime();
+    app(IdleSessionService::class)->touch($p);
+    $actionAtUnix = now()->getTimestamp();
+
+    $fight = fights()->createTutorial($p->fresh(), woodenSoldier($p));
+    $fight->tg_chat_id = $p->tg_id;
+    $fight->tg_message_id = 88;
+    $fight->player_hp = 1;
+    $fight->player_stamina = 1;
+    $fight->save();
+
+    $this->travel(601)->seconds();
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
+    ]);
+
+    app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
+
+    $p->refresh();
+    $maxHp = app(CharacterService::class)->maxHp($p);
+    $maxStamina = app(CharacterService::class)->maxStamina($p);
+
+    expect(fights()->exists($p->tg_id))->toBeFalse()
+        ->and($p->overseer_train_step)->toBe(OverseerTrainStepEnum::Intro)
+        ->and($p->current_hp)->toBe($maxHp)
+        ->and($p->current_stamina)->toBe($maxStamina)
+        ->and($p->quest_phase)->toBe(QuestPhaseEnum::Overseer);
+});
+
+it('idle abandon blacksmith quest fight fully heals without completing quest', function (): void {
+    Bus::fake([IdleSessionResetJob::class]);
+    $p = cityBlacksmithPhase(9415, 'IdleSmithFight');
+    $p->current_hp = 1;
+    $p->current_stamina = 1;
+    $p->save();
+
+    $this->freezeTime();
+    app(IdleSessionService::class)->touch($p);
+    $actionAtUnix = now()->getTimestamp();
+
+    $fight = fights()->createBlacksmithQuest($p->fresh(), enemyFromCatalog('forest_bandit', $p));
+    $fight->tg_chat_id = $p->tg_id;
+    $fight->tg_message_id = 88;
+    $fight->save();
+
+    $this->travel(601)->seconds();
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
+    ]);
+
+    app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
+
+    $p->refresh();
+    $maxHp = app(CharacterService::class)->maxHp($p);
+
+    expect(fights()->exists($p->tg_id))->toBeFalse()
+        ->and($p->current_hp)->toBe($maxHp)
+        ->and($p->blacksmith_at_tavern)->toBeFalse()
+        ->and($p->quest_phase)->toBe(QuestPhaseEnum::Blacksmith);
+});
+
+it('idle abandon bruiser quest fight fully heals without opening debt', function (): void {
+    Bus::fake([IdleSessionResetJob::class]);
+    $p = cityBruiserPhase(9416, 'IdleBruiserFight');
+    $p->current_hp = 1;
+    $p->current_stamina = 1;
+    $p->save();
+
+    $this->freezeTime();
+    app(IdleSessionService::class)->touch($p);
+    $actionAtUnix = now()->getTimestamp();
+
+    expect(app(BruiserStartFightAction::class)->handle($p->fresh())->ok)->toBeTrue();
+
+    $fight = fights()->findByTgId($p->tg_id);
+    $fight->tg_chat_id = $p->tg_id;
+    $fight->tg_message_id = 88;
+    $fight->player_hp = 1;
+    $fight->player_stamina = 1;
+    $fight->save();
+
+    $p->current_hp = 1;
+    $p->current_stamina = 1;
+    $p->save();
+
+    $this->travel(601)->seconds();
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
+    ]);
+
+    app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
+
+    $p->refresh();
+    $maxHp = app(CharacterService::class)->maxHp($p);
+
+    expect(fights()->exists($p->tg_id))->toBeFalse()
+        ->and($p->current_hp)->toBe($maxHp)
+        ->and($p->healer_debt_open)->toBeFalse()
+        ->and($p->bruiser_contract_active)->toBeTrue();
+});
+
+it('stale callback after idle wake shows idle panel and does not route fight click', function (): void {
+    Bus::fake([IdleSessionResetJob::class]);
+    [$p, $city] = idleReadyPlayer(9417);
+
+    $fight = fights()->createTraining($p, woodenSoldier($p));
+    $fight->tg_chat_id = $p->tg_id;
+    $fight->tg_message_id = 88;
+    $fight->save();
+
+    $p->last_action_at = now()->subSeconds(601);
+    $p->save();
+
+    cityFlowCallback($p->tg_id, 88, 'fight:stance:ATTACK');
+
+    expect(idlePortalEditSent($city->name))->toBeTrue()
+        ->and(fights()->exists($p->tg_id))->toBeFalse();
 });

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Schemas;
 
+use App\Actions\Character\CharacterPushQuestScreenAction;
 use App\Actions\Character\CharacterResetStatsAction;
-use App\Enums\ProgressStepEnum;
-use App\Enums\Quest\OverseerTrainStepEnum;
-use App\Enums\Quest\QuestPhaseEnum;
+use App\Enums\Quest\QuestChapterEnum;
 use App\Models\Character;
+use App\Quests\Chapter1\Chapter1ScreenEnum;
+use App\Quests\QuestChapterRegistry;
 use App\Services\CharacterService;
 use App\Support\LangVariant;
 use App\Support\NickValidator;
@@ -18,12 +19,12 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
@@ -32,6 +33,7 @@ use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\TextSize;
 use Filament\Support\Icons\Heroicon;
+use RuntimeException;
 
 final class CharacterForm
 {
@@ -233,79 +235,37 @@ final class CharacterForm
                                 ->description(__('admin.quest_wizard.registration.description'))
                                 ->icon(Heroicon::OutlinedIdentification)
                                 ->columns(5)
-                                ->schema([
-                                    Select::make('quest_phase')
-                                        ->label(__('admin.labels.quest_phase'))
-                                        ->options(QuestPhaseEnum::class)
-                                        ->native(false)
-                                        ->required()
-                                        ->columnSpan(1),
-                                    Select::make('progress_step')
-                                        ->label(__('admin.labels.progress_step'))
-                                        ->options(ProgressStepEnum::class)
-                                        ->native(false)
-                                        ->required()
-                                        ->columnSpan(1),
-                                ]),
+                                ->schema(self::questScreenStepSchema(1)),
                             Step::make(__('admin.quest_wizard.overseer.label'))
                                 ->description(__('admin.quest_wizard.overseer.description'))
                                 ->icon(Heroicon::OutlinedShieldCheck)
                                 ->columns(5)
-                                ->schema([
-                                    Select::make('overseer_train_step')
-                                        ->label(__('admin.labels.overseer_train_step'))
-                                        ->options(OverseerTrainStepEnum::class)
-                                        ->native(false)
-                                        ->nullable()
-                                        ->columnSpan(1),
-                                    Group::make([
-                                        Toggle::make('overseer_trained')->label(__('admin.labels.overseer_trained')),
-                                        Toggle::make('overseer_at_tavern')->label(__('admin.labels.overseer_at_tavern')),
-                                        Toggle::make('unlock_portal')->label(__('admin.labels.unlock_portal')),
-                                    ])->columns(5)->columnSpanFull(),
-                                ]),
+                                ->schema(self::questScreenStepSchema(2)),
                             Step::make(__('admin.quest_wizard.healer.label'))
                                 ->description(__('admin.quest_wizard.healer.description'))
                                 ->icon(Heroicon::OutlinedHeart)
                                 ->columns(5)
-                                ->schema([
-                                    Toggle::make('healer_meet_open')->label(__('admin.labels.healer_meet_open')),
-                                    Toggle::make('healer_at_tavern')->label(__('admin.labels.healer_at_tavern')),
-                                    Toggle::make('unlock_forest')->label(__('admin.labels.unlock_forest')),
-                                ]),
+                                ->schema(self::questScreenStepSchema(3)),
                             Step::make(__('admin.quest_wizard.blacksmith.label'))
                                 ->description(__('admin.quest_wizard.blacksmith.description'))
                                 ->icon(Heroicon::OutlinedWrenchScrewdriver)
                                 ->columns(5)
-                                ->schema([
-                                    Toggle::make('blacksmith_at_tavern')->label(__('admin.labels.blacksmith_at_tavern')),
-                                    Toggle::make('unlock_board')->label(__('admin.labels.unlock_board')),
-                                ]),
+                                ->schema(self::questScreenStepSchema(4)),
                             Step::make(__('admin.quest_wizard.buyer.label'))
                                 ->description(__('admin.quest_wizard.buyer.description'))
                                 ->icon(Heroicon::OutlinedShoppingBag)
                                 ->columns(5)
-                                ->schema([
-                                    Toggle::make('buyer_at_tavern')->label(__('admin.labels.buyer_at_tavern')),
-                                    Toggle::make('unlock_arena')->label(__('admin.labels.unlock_arena')),
-                                ]),
+                                ->schema(self::questScreenStepSchema(5)),
                             Step::make(__('admin.quest_wizard.bruiser.label'))
                                 ->description(__('admin.quest_wizard.bruiser.description'))
                                 ->icon(Heroicon::OutlinedFire)
                                 ->columns(5)
-                                ->schema([
-                                    Toggle::make('bruiser_contract_active')->label(__('admin.labels.bruiser_contract_active')),
-                                    Toggle::make('bruiser_knuckle_pending')->label(__('admin.labels.bruiser_knuckle_pending')),
-                                    Toggle::make('healer_debt_open')->label(__('admin.labels.healer_debt_open')),
-                                    Toggle::make('healer_rat_loot_pending')->label(__('admin.labels.healer_rat_loot_pending')),
-                                ]),
+                                ->schema(self::questScreenStepSchema(6)),
                             Step::make(__('admin.quest_wizard.done.label'))
                                 ->description(__('admin.quest_wizard.done.description'))
                                 ->icon(Heroicon::OutlinedCheckBadge)
                                 ->columns(5)
-                                ->schema([
-                                    Toggle::make('city_unlocked_full')->label(__('admin.labels.city_unlocked_full')),
-                                ]),
+                                ->schema(self::questScreenStepSchema(7)),
                         ])
                             ->skippable()
                             ->contained()
@@ -354,6 +314,119 @@ final class CharacterForm
     }
 
     /**
+     * @return list<\Filament\Schemas\Components\Component>
+     */
+    private static function questScreenStepSchema(int $step): array
+    {
+        $field = 'quest_screen_' . $step;
+        $module = app(QuestChapterRegistry::class)->module(QuestChapterEnum::Chapter1);
+
+        return [
+            Select::make($field)
+                ->label(__('admin.labels.quest_screen'))
+                ->options($module->screenOptionsForSection($step))
+                ->placeholder(__('admin.quest_screens.unknown'))
+                ->native(false)
+                ->live()
+                ->saved(false)
+                ->dehydrated(false)
+                ->disabled(fn (string $operation): bool => $operation === 'view')
+                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.quest_screen'))
+                ->afterStateHydrated(function (Select $component, ?Character $record) use ($step, $module): void {
+                    if (! $record instanceof Character) {
+                        return;
+                    }
+
+                    $current = $module->detect($record);
+
+                    if ($current instanceof Chapter1ScreenEnum && $current->section() === $step) {
+                        $component->state($current->value);
+
+                        return;
+                    }
+
+                    $component->state(null);
+                })
+                ->columnSpan(2),
+            Actions::make([
+                Action::make('applyQuestScreen_' . $step)
+                    ->label(__('admin.actions.apply_quest_screen.label'))
+                    ->color(Color::Teal)
+                    ->requiresConfirmation()
+                    ->modalHeading(__('admin.actions.apply_quest_screen.modal_heading'))
+                    ->modalDescription(__('admin.actions.apply_quest_screen.modal_description'))
+                    ->modalSubmitActionLabel(__('admin.actions.apply_quest_screen.modal_submit'))
+                    ->visible(fn (?Character $record, string $operation): bool => $operation === 'edit' && $record instanceof Character && ! $record->trashed())
+                    ->disabled(fn (Get $get): bool => ! is_string($get($field)) || $get($field) === '')
+                    ->action(function (Character $record, mixed $livewire) use ($field, $step): void {
+                        $screen = self::questScreenFromLivewire($livewire, $field, $step);
+
+                        if (! $screen instanceof Chapter1ScreenEnum) {
+                            Notification::make()
+                                ->title(__('admin.actions.apply_quest_screen.error.invalid'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $result = app(CharacterPushQuestScreenAction::class)->handle(
+                            $record,
+                            QuestChapterEnum::Chapter1,
+                            $screen->value,
+                        );
+
+                        if (method_exists($livewire, 'refreshAfterQuestScreen')) {
+                            $livewire->refreshAfterQuestScreen();
+                        }
+
+                        if (! $result->ok) {
+                            $error = $result->error;
+
+                            if (! is_string($error) || $error === '') {
+                                throw new RuntimeException('Quest screen apply failed without error.');
+                            }
+
+                            Notification::make()
+                                ->title($error)
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title(__('admin.actions.apply_quest_screen.notification'))
+                            ->success()
+                            ->send();
+                    }),
+            ])
+                ->key('characterQuestScreenActions_' . $step)
+                ->alignment(Alignment::Start)
+                ->columnSpanFull(),
+        ];
+    }
+
+    private static function questScreenFromLivewire(mixed $livewire, string $field, int $step): ?Chapter1ScreenEnum
+    {
+        if (! is_object($livewire) || ! property_exists($livewire, 'data') || ! is_array($livewire->data)) {
+            throw new RuntimeException('Livewire form data missing for quest screen.');
+        }
+
+        if (! array_key_exists($field, $livewire->data) || ! is_string($livewire->data[$field]) || $livewire->data[$field] === '') {
+            return null;
+        }
+
+        $screen = Chapter1ScreenEnum::tryFrom($livewire->data[$field]);
+
+        if (! $screen instanceof Chapter1ScreenEnum || $screen->section() !== $step) {
+            return null;
+        }
+
+        return $screen;
+    }
+
+    /**
      * @return Closure(string): (?Heroicon)
      */
     private static function fieldHintIcon(): Closure
@@ -373,17 +446,14 @@ final class CharacterForm
             return 1;
         }
 
-        if (! $record->progress_step->canPlayCity()) {
-            return 1;
+        $detected = app(QuestChapterRegistry::class)
+            ->module(QuestChapterEnum::Chapter1)
+            ->detect($record);
+
+        if ($detected instanceof Chapter1ScreenEnum) {
+            return $detected->section();
         }
 
-        return match ($record->quest_phase) {
-            QuestPhaseEnum::Overseer => 2,
-            QuestPhaseEnum::Healer => 3,
-            QuestPhaseEnum::Blacksmith => 4,
-            QuestPhaseEnum::Buyer => 5,
-            QuestPhaseEnum::Bruiser => 6,
-            QuestPhaseEnum::Done => 7,
-        };
+        return 1;
     }
 }

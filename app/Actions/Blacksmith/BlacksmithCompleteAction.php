@@ -6,6 +6,7 @@ namespace App\Actions\Blacksmith;
 
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
+use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\CharacterService;
@@ -19,6 +20,7 @@ final class BlacksmithCompleteAction
     public function __construct(
         private readonly BackpackService $backpack,
         private readonly CharacterService $characters,
+        private readonly Chapter1ScreenProjector $projector,
         private readonly GameConfig $config,
         private readonly LoadoutService $loadout,
     ) {}
@@ -78,9 +80,7 @@ final class BlacksmithCompleteAction
 
             $maxHp = $this->characters->maxHp($locked);
             $maxStamina = $this->characters->maxStamina($locked);
-            $locked->blacksmith_at_tavern = true;
-            $locked->unlock_board = true;
-            $locked->quest_phase = QuestPhaseEnum::Buyer;
+            $this->projector->writeAfterBlacksmithComplete($locked);
             $locked->current_hp = $maxHp;
             $locked->current_stamina = $maxStamina;
             $locked->last_hp_update = now();
