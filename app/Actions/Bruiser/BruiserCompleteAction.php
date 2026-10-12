@@ -6,6 +6,7 @@ namespace App\Actions\Bruiser;
 
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character;
+use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
@@ -20,6 +21,7 @@ final class BruiserCompleteAction
         private readonly BackpackService $backpack,
         private readonly BagService $bag,
         private readonly CharacterService $characters,
+        private readonly Chapter1ScreenProjector $projector,
         private readonly GameConfig $config,
     ) {}
 
@@ -70,8 +72,11 @@ final class BruiserCompleteAction
 
             $maxHp = $this->characters->maxHp($locked);
             $maxStamina = $this->characters->maxStamina($locked);
-            $locked->bruiser_contract_active = false;
-            $locked->bruiser_knuckle_pending = $knucklePending;
+            if ($knucklePending) {
+                $this->projector->writeAfterBruiserCompleteKnucklePending($locked);
+            } else {
+                $this->projector->writeAfterBruiserCompleteReady($locked);
+            }
             $locked->current_hp = $maxHp;
             $locked->current_stamina = $maxStamina;
             $locked->last_hp_update = now();

@@ -72,13 +72,18 @@ final class UpdateProcessor
                 return;
             }
 
-            $this->trackIdleSession($update, $responder);
-
             if ($update->isCallback()) {
+                if ($this->wakeIdleCallback($update, $responder)) {
+                    return;
+                }
+
                 $this->routeCallback($update, $responder);
+                $this->touchIdleSession($update);
 
                 return;
             }
+
+            $this->trackIdleSession($update, $responder);
 
             if ($update->isStartCommand()) {
                 $this->routeStart($update, $responder);
@@ -298,6 +303,17 @@ final class UpdateProcessor
         $responder->reply(__('common.press_start'), null);
     }
 
+    private function touchIdleSession(TelegramUpdate $update): void
+    {
+        $player = Character::query()->find($update->userId());
+
+        if (! $player instanceof Character) {
+            return;
+        }
+
+        $this->idleSession->touch($player);
+    }
+
     private function trackIdleSession(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $player = Character::query()->find($update->userId());
@@ -308,5 +324,23 @@ final class UpdateProcessor
 
         $this->idleSession->notifyIfIdle($player, $responder);
         $this->idleSession->touch($player);
+    }
+
+    private function wakeIdleCallback(TelegramUpdate $update, TelegramResponder $responder): bool
+    {
+        $player = Character::query()->find($update->userId());
+
+        if (! $player instanceof Character) {
+            return false;
+        }
+
+        if (! $this->idleSession->shouldNotify($player)) {
+            return false;
+        }
+
+        $responder->answerCallback();
+        $this->idleSession->notifyIfIdle($player, $responder);
+
+        return true;
     }
 }

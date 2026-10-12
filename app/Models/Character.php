@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
+use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
@@ -26,6 +27,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int|null $birth_city_id
  * @property int|null $city_id
  * @property ProgressStepEnum $progress_step
+ * @property QuestChapterEnum $quest_chapter
  * @property QuestPhaseEnum $quest_phase
  * @property bool $unlock_portal
  * @property bool $unlock_forest
@@ -83,6 +85,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'birth_city_id',
     'city_id',
     'progress_step',
+    'quest_chapter',
     'quest_phase',
     'unlock_portal',
     'unlock_forest',
@@ -202,6 +205,7 @@ final class Character extends Model implements HasMedia
             'birth_city_id' => 'integer',
             'city_id' => 'integer',
             'progress_step' => ProgressStepEnum::class,
+            'quest_chapter' => QuestChapterEnum::class,
             'quest_phase' => QuestPhaseEnum::class,
             'unlock_portal' => 'boolean',
             'unlock_forest' => 'boolean',

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Telegram;
 
-use App\Actions\Fight\FightClearAction;
+use App\Actions\Fight\FightAbandonOnIdleAction;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character;
-use App\Models\Fight;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
 use App\Support\Telegram\TelegramResponder;
@@ -20,7 +19,7 @@ final class IdleSessionService
     public function __construct(
         private readonly CharacterService $characters,
         private readonly CityHandler $city,
-        private readonly FightClearAction $clearFight,
+        private readonly FightAbandonOnIdleAction $abandonFight,
         private readonly GameConfig $config,
     ) {}
 
@@ -39,7 +38,7 @@ final class IdleSessionService
             return;
         }
 
-        $character = $this->abandonActiveFight($character);
+        $character = $this->abandonFight->handle($character);
         $this->city->sendIdleHomePanel($responder, $character);
         $this->touch($character);
     }
@@ -73,25 +72,6 @@ final class IdleSessionService
         $character->save();
 
         $this->schedule($character);
-
-        return $character;
-    }
-
-    private function abandonActiveFight(Character $character): Character
-    {
-        $fight = Fight::query()->find($character->tg_id);
-
-        if (! $fight instanceof Fight) {
-            return $character;
-        }
-
-        if ($fight->tg_chat_id !== null && $fight->tg_message_id !== null) {
-            $character->tg_chat_id = $fight->tg_chat_id;
-            $character->tg_message_id = $fight->tg_message_id;
-            $character->save();
-        }
-
-        $this->clearFight->handle($character->tg_id);
 
         return $character;
     }

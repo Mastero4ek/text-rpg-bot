@@ -2,16 +2,21 @@
 
 declare(strict_types=1);
 
+use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Models\Character;
+use App\Models\Fight;
 use App\Models\User;
+use App\Quests\Chapter1\Chapter1ScreenEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 
 use function Pest\Livewire\livewire;
 
@@ -90,6 +95,74 @@ it('rejects forbidden nick on edit', function (): void {
         ])
         ->call('save')
         ->assertHasFormErrors(['username']);
+});
+
+it('applies quest screen, clears fight and pushes telegram panel', function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 42]]),
+    ]);
+
+    $character = cityDone(1510, 'QuestCpHero');
+    $character->tg_chat_id = 1510;
+    $character->tg_message_id = 42;
+    $character->save();
+    fights()->createTraining($character, woodenSoldier($character));
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm([
+            'quest_screen_3' => Chapter1ScreenEnum::HealerPotionLock->value,
+        ])
+        ->callAction(TestAction::make('applyQuestScreen_3')->schemaComponent('characterQuestScreenActions_3'));
+
+    $fresh = $character->fresh();
+
+    expect($fresh->quest_phase)->toBe(QuestPhaseEnum::Healer)
+        ->and($fresh->healer_meet_open)->toBeTrue()
+        ->and($fresh->unlock_portal)->toBeTrue()
+        ->and(Fight::query()->whereKey($character->tg_id)->exists())->toBeFalse();
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->body(), 'quest:healer:take');
+    });
+});
+
+it('does not mutate quest flags on ordinary save', function (): void {
+    $character = cityHealerPhase(1511, 'QuestSaveHero');
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm([
+            'username' => 'QuestSaveHero',
+            'exp' => $character->exp,
+            'level' => $character->level,
+            'stat_points' => $character->stat_points,
+            'strength' => $character->strength,
+            'agility' => $character->agility,
+            'instinct' => $character->instinct,
+            'vitality' => $character->vitality,
+            'current_hp' => $character->current_hp,
+            'max_hp' => $character->max_hp,
+            'current_stamina' => $character->current_stamina,
+            'max_stamina' => $character->max_stamina,
+            'silver' => $character->silver + 1,
+            'gold' => $character->gold,
+            'arena_points' => $character->arena_points,
+        ])
+        ->set('data.quest_phase', QuestPhaseEnum::Done->value)
+        ->set('data.city_unlocked_full', true)
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = $character->fresh();
+
+    expect($fresh->silver)->toBe($character->silver + 1)
+        ->and($fresh->quest_phase)->toBe(QuestPhaseEnum::Healer)
+        ->and($fresh->healer_meet_open)->toBeFalse()
+        ->and($fresh->unlock_portal)->toBeTrue()
+        ->and($fresh->city_unlocked_full)->toBeFalse();
 });
 
 it('resets stats from edit form action', function (): void {
