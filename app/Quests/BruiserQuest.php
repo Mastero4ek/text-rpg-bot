@@ -9,7 +9,7 @@ use App\Actions\Bruiser\BruiserCompleteAction;
 use App\Actions\Bruiser\BruiserOpenDebtAction;
 use App\Actions\Bruiser\BruiserStartFightAction;
 use App\Actions\Bruiser\BruiserTakeKnuckleAction;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\Fight;
 use App\Services\Fight\FightService;

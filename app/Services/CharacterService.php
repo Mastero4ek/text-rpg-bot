@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;

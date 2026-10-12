@@ -12,7 +12,7 @@ use App\Filament\Resources\Characters\CharacterResource;
 use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;

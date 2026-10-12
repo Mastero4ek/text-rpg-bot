@@ -11,7 +11,7 @@ use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;

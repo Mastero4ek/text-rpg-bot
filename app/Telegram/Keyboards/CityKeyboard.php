@@ -6,6 +6,7 @@ namespace App\Telegram\Keyboards;
 
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Enums\NpcEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\City;
 
@@ -47,7 +48,7 @@ final class CityKeyboard
      * @param  list<array{text: string, callback_data: string}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function boardList(array $items, string $filter, int $page): array
+    public static function boardList(array $items, string $filter, int $page, int $totalCount): array
     {
         return PaginatedListKeyboard::markup(
             $items,
@@ -57,6 +58,7 @@ final class CityKeyboard
             'city:board',
             'city:home',
             null,
+            $totalCount,
         );
     }
 
@@ -86,6 +88,7 @@ final class CityKeyboard
             'city:fights',
             'city:lists',
             null,
+            count($items),
         );
     }
 
@@ -182,26 +185,15 @@ final class CityKeyboard
             'city:training',
             'city:lists',
             null,
+            count($items),
         );
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function blacksmith(): array
-    {
-        return self::inline([
-            [self::cb(__('telegram.btn.gear'), 'city:blacksmith:gear')],
-            [self::cb(__('telegram.btn.repair'), 'city:blacksmith:repair')],
-            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
-        ]);
     }
 
     /**
      * @param  list<array{text: string, catalog_id: string}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function blacksmithGear(array $items, string $filter, int $page): array
+    public static function blacksmithGear(array $items, string $filter, int $page, int $totalCount): array
     {
         $rows = [];
 
@@ -220,6 +212,7 @@ final class CityKeyboard
             'city:blacksmith:gear',
             'city:blacksmith',
             null,
+            $totalCount,
         );
     }
 
@@ -227,8 +220,13 @@ final class CityKeyboard
      * @param  list<array{text: string, row_id: int}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function blacksmithRepair(array $items, string $filter, int $page, ?string $repairAllBtn): array
-    {
+    public static function blacksmithRepair(
+        array $items,
+        string $filter,
+        int $page,
+        ?string $repairAllBtn,
+        int $totalCount,
+    ): array {
         $rows = [];
 
         foreach ($items as $item) {
@@ -256,6 +254,7 @@ final class CityKeyboard
             'city:blacksmith:repair',
             'city:blacksmith',
             $extra,
+            $totalCount,
         );
     }
 
@@ -264,11 +263,51 @@ final class CityKeyboard
      */
     public static function healerOffer(): array
     {
-        return self::inline([
-            [self::cbSuccess(__('telegram.btn.heal'), 'city:healer:heal')],
-            [self::cb(__('telegram.btn.potions'), 'city:healer:potions')],
-            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
-        ]);
+        return self::healerOfferWithDaily(false);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function healerOfferWithDaily(bool $hasDailyReady): array
+    {
+        $rows = [];
+
+        if ($hasDailyReady) {
+            $rows[] = [self::cbSuccess(__('telegram.daily.btn_contracts'), 'daily:healer:list')];
+        }
+
+        $rows[] = [self::cbSuccess(__('telegram.btn.heal'), 'city:healer:heal')];
+        $rows[] = [self::cb(__('telegram.btn.potions'), 'city:healer:potions')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:tavern')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmith(): array
+    {
+        return self::blacksmithWithDaily(false);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function blacksmithWithDaily(bool $hasDailyReady): array
+    {
+        $rows = [];
+
+        if ($hasDailyReady) {
+            $rows[] = [self::cbSuccess(__('telegram.daily.btn_contracts'), 'daily:blacksmith:list')];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.gear'), 'city:blacksmith:gear')];
+        $rows[] = [self::cb(__('telegram.btn.repair'), 'city:blacksmith:repair')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:tavern')];
+
+        return self::inline($rows);
     }
 
     /**
@@ -276,18 +315,127 @@ final class CityKeyboard
      */
     public static function buyerOffer(): array
     {
+        return self::buyerOfferWithDaily(false);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function buyerOfferWithDaily(bool $hasDailyReady): array
+    {
+        $rows = [];
+
+        if ($hasDailyReady) {
+            $rows[] = [self::cbSuccess(__('telegram.daily.btn_contracts'), 'daily:buyer:list')];
+        }
+
+        $rows[] = [self::cb(__('telegram.btn.chest'), 'city:buyer:chest')];
+        $rows[] = [self::cb(__('telegram.btn.sell'), 'city:buyer:sell')];
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:tavern')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function npcOfferWithDaily(NpcEnum $issuer, bool $hasDailyReady, int $statPoints): array
+    {
+        return match ($issuer) {
+            NpcEnum::Buyer => self::buyerOfferWithDaily($hasDailyReady),
+            NpcEnum::Healer => self::healerOfferWithDaily($hasDailyReady),
+            NpcEnum::Blacksmith => self::blacksmithWithDaily($hasDailyReady),
+            NpcEnum::Overseer => self::overseerWithDaily($hasDailyReady, $statPoints),
+            NpcEnum::Bruiser => self::backToTavern(),
+        };
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backToNpc(NpcEnum $issuer): array
+    {
         return self::inline([
-            [self::cb(__('telegram.btn.chest'), 'city:buyer:chest')],
-            [self::cb(__('telegram.btn.sell'), 'city:buyer:sell')],
-            [self::cbDanger(__('telegram.btn.back'), 'city:tavern')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:' . $issuer->value)],
         ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function dailyNpcTurnIn(NpcEnum $issuer, int $contractId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.daily.btn_later'), 'city:' . $issuer->value),
+                self::cbSuccess(__('telegram.daily.btn_give'), 'daily:' . $issuer->value . ':turnin:' . $contractId),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function dailyOfferCard(int $contractId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.daily.btn_refuse'), 'city:board'),
+                self::cbSuccess(__('telegram.daily.btn_accept'), 'daily:accept:' . $contractId),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function boardBack(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'city:board')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function dailyBuyerTurnIn(int $contractId): array
+    {
+        return self::dailyNpcTurnIn(NpcEnum::Buyer, $contractId);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function forestPick(array $items, string $filter, int $page): array
+    {
+        return self::pveZonePick($items, $filter, $page, 'city:forest');
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function pveZonePick(array $items, string $filter, int $page, string $listPrefix): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            $filter,
+            $page,
+            $listPrefix,
+            'city:gates',
+            null,
+            count($items),
+        );
     }
 
     /**
      * @param  list<array{text: string, catalog_id: string}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function buyerChest(array $items, string $filter, int $page): array
+    public static function buyerChest(array $items, string $filter, int $page, int $totalCount): array
     {
         $rows = [];
 
@@ -306,6 +454,7 @@ final class CityKeyboard
             'city:buyer:chest',
             'city:buyer',
             null,
+            $totalCount,
         );
     }
 
@@ -313,7 +462,7 @@ final class CityKeyboard
      * @param  list<array{text: string, source: string, row_id: int}>  $items
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function buyerSell(array $items, string $filter, int $page): array
+    public static function buyerSell(array $items, string $filter, int $page, int $totalCount): array
     {
         $rows = [];
 
@@ -332,6 +481,7 @@ final class CityKeyboard
             'city:buyer:sell',
             'city:buyer',
             null,
+            $totalCount,
         );
     }
 
@@ -352,7 +502,7 @@ final class CityKeyboard
      * @param  list<array{text: string, catalog_id: string}>  $potions
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function healerPotions(array $potions, string $filter, int $page): array
+    public static function healerPotions(array $potions, string $filter, int $page, int $totalCount): array
     {
         $rows = [];
 
@@ -371,7 +521,16 @@ final class CityKeyboard
             'city:healer:potions',
             'city:healer',
             null,
+            $totalCount,
         );
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function boardRefreshed(string $cityName): array
+    {
+        return self::idleSession($cityName);
     }
 
     /**
@@ -385,9 +544,10 @@ final class CityKeyboard
     }
 
     /**
+     * @param  list<array{text: string, callback_data: string}>  $pveRows
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function gates(City $city, string $portalLabel, string $forestLabel): array
+    public static function gates(City $city, string $portalLabel, array $pveRows): array
     {
         $rows = [];
 
@@ -395,8 +555,8 @@ final class CityKeyboard
             $rows[] = [self::cb($portalLabel, 'city:portal')];
         }
 
-        if ($city->has_forest) {
-            $rows[] = [self::cb($forestLabel, 'city:forest')];
+        foreach ($pveRows as $pve) {
+            $rows[] = [self::cb($pve['text'], $pve['callback_data'])];
         }
 
         $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
@@ -409,9 +569,21 @@ final class CityKeyboard
      */
     public static function overseerStats(int $statPoints): array
     {
-        $rows = [
-            [self::cbSuccess(__('telegram.btn.reset_stats'), 'city:overseer:reset')],
-        ];
+        return self::overseerWithDaily(false, $statPoints);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function overseerWithDaily(bool $hasDailyReady, int $statPoints): array
+    {
+        $rows = [];
+
+        if ($hasDailyReady) {
+            $rows[] = [self::cbSuccess(__('telegram.daily.btn_contracts'), 'daily:overseer:list')];
+        }
+
+        $rows[] = [self::cbSuccess(__('telegram.btn.reset_stats'), 'city:overseer:reset')];
 
         if ($statPoints > 0) {
             $rows[] = [
@@ -446,7 +618,7 @@ final class CityKeyboard
      * @param  iterable<int, City>  $targets
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function portalTargets(iterable $targets, string $filter, int $page): array
+    public static function portalTargets(iterable $targets, string $filter, int $page, int $totalCount): array
     {
         $rows = [];
 
@@ -476,6 +648,7 @@ final class CityKeyboard
             'portal',
             'city:gates',
             null,
+            $totalCount,
         );
     }
 
@@ -606,26 +779,27 @@ final class CityKeyboard
     }
 
     /**
+     * @param  list<string>  $dailyNpc  healer|blacksmith|buyer|overseer with turn-inable daily
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function tavern(City $city): array
+    public static function tavern(City $city, array $dailyNpc): array
     {
         $rows = [];
 
         if ($city->has_healer) {
-            $rows[] = [self::cb(__('telegram.btn.healer'), 'city:healer')];
+            $rows[] = [self::cb(self::tavernNpcLabel('healer', $dailyNpc), 'city:healer')];
         }
 
         if ($city->has_blacksmith) {
-            $rows[] = [self::cb(__('telegram.btn.blacksmith'), 'city:blacksmith')];
+            $rows[] = [self::cb(self::tavernNpcLabel('blacksmith', $dailyNpc), 'city:blacksmith')];
         }
 
         if ($city->has_buyer) {
-            $rows[] = [self::cb(__('telegram.btn.buyer'), 'city:buyer')];
+            $rows[] = [self::cb(self::tavernNpcLabel('buyer', $dailyNpc), 'city:buyer')];
         }
 
         if ($city->has_overseer) {
-            $rows[] = [self::cb(__('telegram.btn.overseer'), 'city:overseer')];
+            $rows[] = [self::cb(self::tavernNpcLabel('overseer', $dailyNpc), 'city:overseer')];
         }
 
         $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
@@ -660,5 +834,19 @@ final class CityKeyboard
         $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:home')];
 
         return self::inline($rows);
+    }
+
+    /**
+     * @param  list<string>  $dailyNpc
+     */
+    private static function tavernNpcLabel(string $npcKey, array $dailyNpc): string
+    {
+        $label = __('telegram.btn.' . $npcKey);
+
+        if (! in_array($npcKey, $dailyNpc, true)) {
+            return $label;
+        }
+
+        return __('telegram.daily.npc_mark', ['name' => $label]);
     }
 }

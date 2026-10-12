@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Fight;
 
 use App\Enums\Fight\FightEndUiEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Services\Registration\RegistrationService;

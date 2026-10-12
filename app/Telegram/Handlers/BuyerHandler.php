@@ -9,9 +9,10 @@ use App\Actions\City\CityBuyerSellAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
+use App\Enums\NpcEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Quests\BuyerQuest;
@@ -19,6 +20,7 @@ use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CityMenuService;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -44,6 +46,7 @@ final class BuyerHandler
         private readonly CityBuyerSellAction $sellItem,
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
+        private readonly DailyContractService $dailyContracts,
         private readonly ShopCatalog $shop,
         private readonly TelegramPlayerGate $gate,
     ) {}
@@ -166,7 +169,12 @@ final class BuyerHandler
             __('telegram.npc.buyer.bought', [
                 'name' => TelegramHtml::escape($this->bagCatalog->findGem($catalogId)->name),
             ]),
-            CityKeyboard::buyerChest($this->buyerRows($res->character, 'all'), 'all', 1),
+            CityKeyboard::buyerChest(
+                $this->buyerRows($res->character, 'all'),
+                'all',
+                1,
+                count($this->buyerRows($res->character, 'all')),
+            ),
         );
     }
 
@@ -186,9 +194,16 @@ final class BuyerHandler
         }
 
         $filter = $this->chestFilter($filter);
-        $items = $this->buyerRows($player, $filter);
+        $allItems = $this->buyerRows($player, 'all');
+
+        if ($filter === 'all') {
+            $items = $allItems;
+        } else {
+            $items = $this->buyerRows($player, $filter);
+        }
+
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
-        $markup = CityKeyboard::buyerChest($items, $filter, $page);
+        $markup = CityKeyboard::buyerChest($items, $filter, $page, count($allItems));
 
         $responder->answerCallback();
 
@@ -225,7 +240,7 @@ final class BuyerHandler
 
         $items = $this->buyerRows($player, 'all');
 
-        return CityKeyboard::buyerChest($items, 'all', 1);
+        return CityKeyboard::buyerChest($items, 'all', 1, count($items));
     }
 
     private function buyerErrorText(?string $error): string
@@ -316,10 +331,14 @@ final class BuyerHandler
             return;
         }
 
+        $hasDailyReady = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Buyer)
+            ->isNotEmpty();
+
         $this->editBuyerPanel(
             $responder,
             __('telegram.npc.buyer.offer'),
-            CityKeyboard::buyerOffer(),
+            CityKeyboard::buyerOfferWithDaily($hasDailyReady),
         );
     }
 
@@ -397,7 +416,7 @@ final class BuyerHandler
                 'price' => $preview['payout'],
                 'mark' => $preview['mark'],
             ]),
-            CityKeyboard::buyerSell($items, 'all', 1),
+            CityKeyboard::buyerSell($items, 'all', 1, count($items)),
         );
     }
 
@@ -472,9 +491,16 @@ final class BuyerHandler
         }
 
         $filter = $this->sellFilter($filter);
-        $items = $this->sellableTradeRows($player, $filter);
+        $allItems = $this->sellableTradeRows($player, 'all');
+
+        if ($filter === 'all') {
+            $items = $allItems;
+        } else {
+            $items = $this->sellableTradeRows($player, $filter);
+        }
+
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
-        $markup = CityKeyboard::buyerSell($items, $filter, $page);
+        $markup = CityKeyboard::buyerSell($items, $filter, $page, count($allItems));
 
         $responder->answerCallback();
 

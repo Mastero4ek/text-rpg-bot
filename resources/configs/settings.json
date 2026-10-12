@@ -533,5 +533,84 @@
                 "enemy_catalog_id": "bruiser"
             }
         }
+    },
+    "daily_contracts": {
+        "max_accepts_per_day": 3,
+        "refresh": {
+            "enabled": true,
+            "push": true,
+            "chunk": 100,
+            "push_spread_seconds": 0
+        },
+        "economy_balance": {
+            "hunt": {
+                "silver_multiplier": 10,
+                "exp_multiplier": 35
+            },
+            "delivery": {
+                "silver_multiplier": 25,
+                "exp_multiplier": 12
+            }
+        },
+        "type_weights": {
+            "hunt": 1,
+            "delivery": 1
+        },
+        "hunt_pool": [
+            {
+                "enemy_catalog_key": "forest_bandit",
+                "zone_key": "forest",
+                "issuer_npc": "buyer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "enemy_catalog_key": "swamp_witch",
+                "zone_key": "swamp",
+                "issuer_npc": "buyer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "enemy_catalog_key": "wild_dog",
+                "zone_key": "ruins",
+                "issuer_npc": "buyer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "enemy_catalog_key": "rabid_rat",
+                "zone_key": "port",
+                "issuer_npc": "buyer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            }
+        ],
+        "delivery_pool": [
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "buyer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "healer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "blacksmith",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "overseer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            }
+        ]
     }
 }

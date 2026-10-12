@@ -6,7 +6,7 @@ namespace App\Quests\Chapter1;
 
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;

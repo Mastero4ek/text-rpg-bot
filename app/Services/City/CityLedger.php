@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\City;
 
 use App\Enums\Economy\CurrencyEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 
 final class CityLedger
 {

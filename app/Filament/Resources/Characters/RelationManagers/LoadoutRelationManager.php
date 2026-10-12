@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\RelationManagers;
 
 use App\Filament\Resources\Characters\Tables\LoadoutTable;
-use App\Models\Character;
+use App\Models\Character\Character;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\RenderHook;

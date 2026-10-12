@@ -31,7 +31,7 @@ beforeEach(function (): void {
     ]);
 });
 
-function runOverseerTrain(App\Models\Character $player): App\Models\Character
+function runOverseerTrain(App\Models\Character\Character $player): App\Models\Character\Character
 {
     expect(app(OverseerAcceptChallengeAction::class)->handle($player)->ok)->toBeTrue();
     app(OverseerQuest::class)->startFight($player->fresh());
@@ -46,14 +46,14 @@ function runOverseerTrain(App\Models\Character $player): App\Models\Character
     return $player->fresh();
 }
 
-function runHealerGrant(App\Models\Character $player): App\Models\Character
+function runHealerGrant(App\Models\Character\Character $player): App\Models\Character\Character
 {
     expect(app(HealerGivePotionAction::class)->handle($player)->ok)->toBeTrue();
 
     return $player->fresh();
 }
 
-function runBlacksmithWin(App\Models\Character $player): App\Models\Character
+function runBlacksmithWin(App\Models\Character\Character $player): App\Models\Character\Character
 {
     expect(app(BlacksmithStartBagFightAction::class)->handle($player)->ok)->toBeTrue();
     $fight = fights()->findByTgId($player->tg_id);
@@ -62,14 +62,14 @@ function runBlacksmithWin(App\Models\Character $player): App\Models\Character
     return $player->fresh();
 }
 
-function runBuyerContract(App\Models\Character $player): App\Models\Character
+function runBuyerContract(App\Models\Character\Character $player): App\Models\Character\Character
 {
     expect(app(BuyerAcceptContractAction::class)->handle($player)->ok)->toBeTrue();
 
     return $player->fresh();
 }
 
-function runBuyerTurnIn(App\Models\Character $player): App\Models\Character
+function runBuyerTurnIn(App\Models\Character\Character $player): App\Models\Character\Character
 {
     expect(app(BuyerTurnInPurseAction::class)->handle($player)->ok)->toBeTrue();
 

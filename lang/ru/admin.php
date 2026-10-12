@@ -75,6 +75,9 @@ return [
         'birth_characters' => 'Персонажи',
         'cities' => 'Города',
         'forest' => 'Лес',
+        'swamp' => 'Болота',
+        'ruins' => 'Руины',
+        'port' => 'Порт',
         'training_hall' => 'Тренировочный зал',
         'no_cities' => 'нет городов',
         'city_key' => 'Код',
@@ -86,6 +89,9 @@ return [
         'has_quest_board' => 'Доска объявлений',
         'has_portal' => 'Портал',
         'has_forest' => 'Лес',
+        'has_swamp' => 'Болота',
+        'has_ruins' => 'Руины',
+        'has_port' => 'Порт',
         'has_fights_list' => 'Список боёв',
         'has_training_room' => 'Тренировочный зал',
         'max_durability' => 'Макс. прочность',
@@ -311,6 +317,15 @@ return [
         'all_forest_cities' => [
             'label' => 'Все города',
         ],
+        'all_swamp_cities' => [
+            'label' => 'Все города',
+        ],
+        'all_ruins_cities' => [
+            'label' => 'Все города',
+        ],
+        'all_port_cities' => [
+            'label' => 'Все города',
+        ],
         'all_training_cities' => [
             'label' => 'Все города',
         ],
@@ -531,7 +546,8 @@ return [
         'enemy_catalog_rewards' => 'Награды',
         'enemy_catalog_drops' => 'Дроп',
         'city_identity' => 'Идентичность',
-        'city_services' => 'NPC и локации',
+        'city_npcs' => 'NPC',
+        'city_locations' => 'Локации',
         'city_economy' => 'Экономика',
     ],
     'hints' => [

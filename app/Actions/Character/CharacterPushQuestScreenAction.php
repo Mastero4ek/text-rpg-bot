@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Enums\Quest\QuestChapterEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\QuestChapterRegistry;
 use App\Support\ActionResult;
 use RuntimeException;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\City;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Quest\QuestUnlockService;
 use App\Support\ActionResult;

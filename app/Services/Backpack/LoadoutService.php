@@ -9,7 +9,7 @@ use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use App\Services\Bag\BagService;

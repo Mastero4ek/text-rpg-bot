@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\City\PveZoneEnum;
 use App\Enums\Quest\LocationEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\Quest\QuestNpcPlacement;
 use App\Services\Quest\QuestUnlockService;
 use App\Telegram\Keyboards\CityKeyboard;
@@ -17,6 +19,7 @@ final class CityMenuService
 {
     public function __construct(
         private readonly CityQuery $cities,
+        private readonly DailyContractService $dailyContracts,
         private readonly QuestNpcPlacement $npcPlacement,
         private readonly QuestUnlockService $questUnlocks,
     ) {}
@@ -61,10 +64,27 @@ final class CityMenuService
             return null;
         }
 
+        $pveRows = [];
+
+        foreach (PveZoneEnum::cases() as $zone) {
+            if (! $zone->cityHas($city)) {
+                continue;
+            }
+
+            $pveRows[] = [
+                'text' => $this->locationButtonLabel(
+                    $character,
+                    $zone->location(),
+                    __('telegram.btn.' . $zone->value),
+                ),
+                'callback_data' => $zone->callbackRoot(),
+            ];
+        }
+
         return CityKeyboard::gates(
             $city,
             $this->locationButtonLabel($character, LocationEnum::Portal, __('telegram.btn.portal')),
-            $this->locationButtonLabel($character, LocationEnum::Forest, __('telegram.btn.forest')),
+            $pveRows,
         );
     }
 
@@ -128,8 +148,11 @@ final class CityMenuService
         }
 
         $targets = [];
+        $totalCount = 0;
 
         foreach ($this->cities->portalTargets($character->city_id) as $target) {
+            $totalCount++;
+
             if ($filter === 'free' && $target->portal_cost_silver > 0) {
                 continue;
             }
@@ -141,7 +164,7 @@ final class CityMenuService
             $targets[] = $target;
         }
 
-        return CityKeyboard::portalTargets($targets, $filter, $page);
+        return CityKeyboard::portalTargets($targets, $filter, $page, $totalCount);
     }
 
     public function tavernHasNpc(Character $character): bool
@@ -177,7 +200,7 @@ final class CityMenuService
         }
 
         if ($this->cityFullyOpen($character)) {
-            return CityKeyboard::tavern($city);
+            return CityKeyboard::tavern($city, $this->dailyContracts->turnInableIssuerKeys($character, $city));
         }
 
         $npcKeys = [];

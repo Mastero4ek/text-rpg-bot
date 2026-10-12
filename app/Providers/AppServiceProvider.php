@@ -33,5 +33,7 @@ final class AppServiceProvider extends ServiceProvider
         if (config('queue.default') === 'sync') {
             DevCommands::artisan('queue:listen database --tries=1 --timeout=0', 'queue');
         }
+
+        DevCommands::artisan('schedule:work', 'schedule');
     }
 }

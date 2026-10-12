@@ -6,7 +6,7 @@ namespace App\Services\Backpack;
 
 use App\Enums\Equipment\RepairEnum;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;

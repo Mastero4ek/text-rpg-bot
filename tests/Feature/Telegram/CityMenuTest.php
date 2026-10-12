@@ -121,7 +121,7 @@ it('opens fights list from arena without creating a fight', function (): void {
 
     expect(fights()->exists($p->tg_id))->toBeFalse();
     Http::assertSent(function (Request $request): bool {
-        $body = $request->body();
+        $body = urldecode($request->body());
 
         return (
             str_contains($request->url(), '/editMessageMedia')
@@ -129,8 +129,9 @@ it('opens fights list from arena without creating a fight', function (): void {
             || str_contains($request->url(), '/editMessageText')
         )
             && str_contains($body, 'arena.png')
-            && str_contains($body, 'city:fights:list:')
-            && str_contains($body, 'city:lists');
+            && str_contains($body, 'city:lists')
+            && ! str_contains($body, 'city:fights:list:')
+            && ! str_contains($body, 'city:fights:listpage:');
     });
 });
 

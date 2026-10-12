@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Support\LangVariant;
 use Illuminate\Http\Client\Request;

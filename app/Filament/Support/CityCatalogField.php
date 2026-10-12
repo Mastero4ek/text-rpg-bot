@@ -43,6 +43,57 @@ final class CityCatalogField
         );
     }
 
+    public static function makePort(): Select
+    {
+        return self::citiesSelect(
+            'portCities',
+            __('admin.labels.port'),
+            'all_port_cities',
+            __('admin.actions.all_port_cities.label'),
+            function (Builder $query): Builder {
+                return $query
+                    ->where('enabled', true)
+                    ->where('has_port', true)
+                    ->orderBy('name')
+                    ->orderBy('id');
+            },
+        );
+    }
+
+    public static function makeRuins(): Select
+    {
+        return self::citiesSelect(
+            'ruinsCities',
+            __('admin.labels.ruins'),
+            'all_ruins_cities',
+            __('admin.actions.all_ruins_cities.label'),
+            function (Builder $query): Builder {
+                return $query
+                    ->where('enabled', true)
+                    ->where('has_ruins', true)
+                    ->orderBy('name')
+                    ->orderBy('id');
+            },
+        );
+    }
+
+    public static function makeSwamp(): Select
+    {
+        return self::citiesSelect(
+            'swampCities',
+            __('admin.labels.swamp'),
+            'all_swamp_cities',
+            __('admin.actions.all_swamp_cities.label'),
+            function (Builder $query): Builder {
+                return $query
+                    ->where('enabled', true)
+                    ->where('has_swamp', true)
+                    ->orderBy('name')
+                    ->orderBy('id');
+            },
+        );
+    }
+
     public static function makeTraining(): Select
     {
         return self::citiesSelect(

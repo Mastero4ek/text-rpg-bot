@@ -6,7 +6,7 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use App\Services\Fight\FightService;
 use App\Support\Telegram\TelegramPlayerGate;

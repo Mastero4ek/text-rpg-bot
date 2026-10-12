@@ -6,7 +6,7 @@ use App\Enums\Combat\StanceEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\OverseerQuest;
 use App\Support\Telegram\TelegramClient;
 use Illuminate\Http\Client\Request;

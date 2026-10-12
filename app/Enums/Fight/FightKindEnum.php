@@ -15,6 +15,7 @@ enum FightKindEnum: string implements HasColor, HasLabel
     case QUEST_BLACKSMITH = 'QUEST_BLACKSMITH';
     case QUEST_BRUISER = 'QUEST_BRUISER';
     case QUEST_HEALER = 'QUEST_HEALER';
+    case QUEST_DAILY = 'QUEST_DAILY';
 
     /**
      * @return array<int|string, string>
@@ -27,6 +28,7 @@ enum FightKindEnum: string implements HasColor, HasLabel
             self::QUEST_BLACKSMITH => Color::Orange,
             self::QUEST_BRUISER => Color::Rose,
             self::QUEST_HEALER => Color::Lime,
+            self::QUEST_DAILY => Color::Teal,
         };
     }
 

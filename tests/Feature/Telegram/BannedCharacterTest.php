@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 

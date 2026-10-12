@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Services\EnemyService;

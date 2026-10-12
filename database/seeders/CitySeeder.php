@@ -28,7 +28,7 @@ final class CitySeeder extends Seeder
         }
 
         $this->attachShopCatalog();
-        $this->attachForestCatalog();
+        $this->attachPveCatalogs();
         $this->attachTrainingCatalog();
     }
 
@@ -70,6 +70,9 @@ final class CitySeeder extends Seeder
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
+                'has_swamp' => true,
+                'has_ruins' => true,
+                'has_port' => true,
                 'has_fights_list' => true,
                 'has_training_room' => true,
             ],
@@ -86,6 +89,9 @@ final class CitySeeder extends Seeder
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
+                'has_swamp' => true,
+                'has_ruins' => true,
+                'has_port' => true,
                 'has_fights_list' => true,
                 'has_training_room' => true,
             ],
@@ -102,23 +108,68 @@ final class CitySeeder extends Seeder
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
+                'has_swamp' => true,
+                'has_ruins' => true,
+                'has_port' => true,
                 'has_fights_list' => true,
                 'has_training_room' => true,
             ],
         ];
     }
 
-    private function attachForestCatalog(): void
+    private function attachPveCatalogs(): void
     {
-        $forestIds = [];
+        $forestIds = $this->cityIdsWithFlag('has_forest');
+        $swampIds = $this->cityIdsWithFlag('has_swamp');
+        $ruinsIds = $this->cityIdsWithFlag('has_ruins');
+        $portIds = $this->cityIdsWithFlag('has_port');
 
-        foreach (City::query()->where('has_forest', true)->get() as $city) {
-            $forestIds[] = $city->id;
+        $bandit = EnemyCatalog::query()->find('forest_bandit');
+        $witch = EnemyCatalog::query()->find('swamp_witch');
+        $dog = EnemyCatalog::query()->find('wild_dog');
+        $rat = EnemyCatalog::query()->find('rabid_rat');
+
+        if ($bandit instanceof EnemyCatalog) {
+            $bandit->cities()->sync($forestIds);
+            $bandit->swampCities()->sync([]);
+            $bandit->ruinsCities()->sync([]);
+            $bandit->portCities()->sync([]);
         }
 
-        foreach (EnemyCatalog::query()->where('catalog_id', '!=', EnemyCatalog::TUTORIAL_CATALOG_ID)->get() as $catalog) {
-            $catalog->cities()->sync($forestIds);
+        if ($witch instanceof EnemyCatalog) {
+            $witch->cities()->sync([]);
+            $witch->swampCities()->sync($swampIds);
+            $witch->ruinsCities()->sync([]);
+            $witch->portCities()->sync([]);
         }
+
+        if ($dog instanceof EnemyCatalog) {
+            $dog->cities()->sync([]);
+            $dog->swampCities()->sync([]);
+            $dog->ruinsCities()->sync($ruinsIds);
+            $dog->portCities()->sync([]);
+        }
+
+        if ($rat instanceof EnemyCatalog) {
+            $rat->cities()->sync([]);
+            $rat->swampCities()->sync([]);
+            $rat->ruinsCities()->sync([]);
+            $rat->portCities()->sync($portIds);
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function cityIdsWithFlag(string $flag): array
+    {
+        $ids = [];
+
+        foreach (City::query()->where($flag, true)->get() as $city) {
+            $ids[] = $city->id;
+        }
+
+        return $ids;
     }
 
     private function attachTrainingCatalog(): void

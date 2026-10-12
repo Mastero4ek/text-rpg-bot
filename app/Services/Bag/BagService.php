@@ -9,7 +9,7 @@ use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\GameConfig;

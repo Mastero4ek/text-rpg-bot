@@ -6,7 +6,7 @@ namespace App\Filament\Resources\Characters\RelationManagers;
 
 use App\Actions\Character\CharacterSetBagMaxRowsAction;
 use App\Filament\Resources\Characters\Tables\BagTable;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Bag\BagService;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;

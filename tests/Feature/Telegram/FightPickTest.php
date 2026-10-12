@@ -57,6 +57,8 @@ it('starts training fight by catalog_id', function (): void {
     $p = characters()->createDraft(7402);
     $p->progress_step = ProgressStepEnum::DONE;
     $p = placeInCity($p, City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
 
     $update = fightCallback($p->tg_id, 'fight:start:forest_bandit');
     app(FightHandler::class)->handleCallback(

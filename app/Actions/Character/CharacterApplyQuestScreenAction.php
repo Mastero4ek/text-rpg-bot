@@ -7,7 +7,7 @@ namespace App\Actions\Character;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use App\Quests\QuestChapterRegistry;
 use App\Support\ActionResult;

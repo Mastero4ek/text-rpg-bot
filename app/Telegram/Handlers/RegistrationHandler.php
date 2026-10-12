@@ -9,7 +9,7 @@ use App\Actions\Registration\SetNickAction;
 use App\Actions\Registration\SetSkinAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
 use App\Services\CharacterService;

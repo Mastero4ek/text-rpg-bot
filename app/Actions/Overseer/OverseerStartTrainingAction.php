@@ -7,7 +7,7 @@ namespace App\Actions\Overseer;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;

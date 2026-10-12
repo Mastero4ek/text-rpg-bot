@@ -8,7 +8,7 @@ use App\Actions\Character\CharacterSyncSkinMediaAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\CharacterService;

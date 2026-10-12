@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use Illuminate\Support\Str;
 use RuntimeException;
 

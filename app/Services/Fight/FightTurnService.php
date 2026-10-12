@@ -9,7 +9,7 @@ use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\ProfileEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;

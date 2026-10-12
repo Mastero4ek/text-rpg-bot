@@ -6,12 +6,14 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
+use App\Enums\NpcEnum;
 use App\Enums\ProgressStepEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\CityMenuService;
+use App\Services\DailyContract\DailyContractService;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -27,6 +29,7 @@ final class OverseerHandler
         private readonly CharacterSpendStatPointAction $spendStatPoint,
         private readonly CityHandler $city,
         private readonly CityMenuService $cityMenu,
+        private readonly DailyContractService $dailyContracts,
         private readonly OverseerQuest $overseerQuest,
         private readonly TelegramPlayerGate $gate,
     ) {}
@@ -117,10 +120,14 @@ final class OverseerHandler
             return;
         }
 
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Overseer)
+            ->isNotEmpty();
+
         $this->editOverseerPanel(
             $responder,
             $this->statsPanelText($player),
-            CityKeyboard::overseerStats($player->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points),
         );
     }
 
@@ -206,10 +213,14 @@ final class OverseerHandler
             return;
         }
 
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($res->character, $city, NpcEnum::Overseer)
+            ->isNotEmpty();
+
         $this->editOverseerPanel(
             $responder,
             $this->resetDoneText($res->character),
-            CityKeyboard::overseerStats($res->character->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points),
         );
     }
 
@@ -234,12 +245,16 @@ final class OverseerHandler
         }
 
         $res = $this->spendStatPoint->handle($player, $stat);
+        $panelChar = $res->character ?? $player;
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($panelChar, $city, NpcEnum::Overseer)
+            ->isNotEmpty();
 
         if (! $res->ok || ! $res->character instanceof Character) {
             $this->editOverseerPanel(
                 $responder,
                 TelegramResponder::errorMessage($res->error),
-                CityKeyboard::overseerStats($player->stat_points),
+                CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points),
             );
 
             return;
@@ -248,7 +263,7 @@ final class OverseerHandler
         $this->editOverseerPanel(
             $responder,
             $this->statsPanelText($res->character),
-            CityKeyboard::overseerStats($res->character->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points),
         );
     }
 

@@ -6,7 +6,7 @@ namespace App\Services\Telegram;
 
 use App\Actions\Fight\FightAbandonOnIdleAction;
 use App\Jobs\IdleSessionResetJob;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
 use App\Support\Telegram\TelegramResponder;

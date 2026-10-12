@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Registration;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Registration\RegistrationService;
 use App\Support\ActionResult;
 

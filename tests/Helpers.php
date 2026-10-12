@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
+use App\Enums\DailyContract\DailyContractTypeEnum;
 use App\Enums\Equipment\SlotEnum;
+use App\Enums\NpcEnum;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
+use App\Models\Bag\BagCatalog as BagCatalogModel;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
+use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\BackpackService;
@@ -21,6 +25,7 @@ use App\Services\City\BlacksmithService;
 use App\Services\City\BuyerService;
 use App\Services\City\HealerService;
 use App\Services\CombatService;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Services\GameConfig;
@@ -39,6 +44,170 @@ use Illuminate\Support\Facades\Http;
 function gameConfig(): GameConfig
 {
     return app(GameConfig::class);
+}
+
+function dailyService(): DailyContractService
+{
+    return app(DailyContractService::class);
+}
+
+function dailyCity(Character $player): City
+{
+    $city = City::query()->find($player->city_id);
+
+    if (! $city instanceof City) {
+        throw new RuntimeException('Player city missing for daily test.');
+    }
+
+    return $city;
+}
+
+function dailyPlayer(int $tgId, string $nick, int $level = 1): Character
+{
+    $player = cityDone($tgId, $nick);
+
+    if ($player->level !== $level) {
+        $player->level = $level;
+        $player->save();
+    }
+
+    return $player->fresh();
+}
+
+function dailyOffer(Character $player, string $zoneKey = 'forest'): CharacterDailyContract
+{
+    if ($player->level < 1) {
+        $player->level = 1;
+        $player->save();
+        $player = $player->fresh();
+    }
+
+    $offers = dailyService()->ensureOffers($player, dailyCity($player));
+    $first = $offers->first();
+
+    if (! $first instanceof CharacterDailyContract) {
+        throw new RuntimeException('Daily offer missing after ensureOffers.');
+    }
+
+    foreach ($offers as $row) {
+        if ($row->type !== DailyContractTypeEnum::Hunt) {
+            continue;
+        }
+
+        $rowZone = 'forest';
+
+        if (
+            array_key_exists('zone', $row->params)
+            && is_string($row->params['zone'])
+            && $row->params['zone'] !== ''
+        ) {
+            $rowZone = $row->params['zone'];
+        }
+
+        if ($rowZone === $zoneKey) {
+            return $row;
+        }
+    }
+
+    $catalogId = match ($zoneKey) {
+        'forest' => 'forest_bandit',
+        'swamp' => 'swamp_witch',
+        'ruins' => 'wild_dog',
+        'port' => 'rabid_rat',
+        default => throw new RuntimeException('dailyOffer zone unknown: ' . $zoneKey),
+    };
+
+    $catalog = EnemyCatalog::query()->find($catalogId);
+
+    if (! $catalog instanceof EnemyCatalog) {
+        throw new RuntimeException('dailyOffer enemy missing: ' . $catalogId);
+    }
+
+    $params = $first->params;
+    $params['zone'] = $zoneKey;
+    $params['monster_name'] = $catalog->name;
+    $params['enemy_catalog_key'] = $catalog->catalog_id;
+    unset($params['item_name'], $params['bag_catalog_key']);
+    $first->type = DailyContractTypeEnum::Hunt;
+    $first->enemy_catalog_id = $catalog->catalog_id;
+    $first->bag_catalog_id = null;
+    $first->target_kills = 1;
+    $first->issuer_npc = NpcEnum::Buyer;
+    $first->params = $params;
+    $first->save();
+
+    return $first->fresh();
+}
+
+function dailyDeliveryOffer(Character $player, NpcEnum $issuer = NpcEnum::Buyer): CharacterDailyContract
+{
+    if ($player->level < 1) {
+        $player->level = 1;
+        $player->save();
+        $player = $player->fresh();
+    }
+
+    $boardCity = dailyCity($player);
+    $offers = dailyService()->ensureOffers($player, $boardCity);
+
+    foreach ($offers as $row) {
+        if (
+            $row->type === DailyContractTypeEnum::Delivery
+            && $row->issuer_npc === $issuer
+            && is_int($row->target_city_id)
+            && $row->target_city_id !== $boardCity->id
+        ) {
+            return $row;
+        }
+    }
+
+    $first = $offers->first();
+
+    if (! $first instanceof CharacterDailyContract) {
+        throw new RuntimeException('Daily offer missing after ensureOffers.');
+    }
+
+    $catalog = BagCatalogModel::query()->find('daily_parcel');
+
+    if (! $catalog instanceof BagCatalogModel) {
+        throw new RuntimeException('dailyDeliveryOffer bag catalog missing: daily_parcel');
+    }
+
+    $target = City::query()
+        ->where('enabled', true)
+        ->where('id', '!=', $boardCity->id)
+        ->orderBy('id')
+        ->get()
+        ->first(fn (City $city): bool => match ($issuer) {
+            NpcEnum::Buyer => $city->has_buyer,
+            NpcEnum::Healer => $city->has_healer,
+            NpcEnum::Blacksmith => $city->has_blacksmith,
+            NpcEnum::Overseer => $city->has_overseer,
+            NpcEnum::Bruiser => false,
+        });
+
+    if (! $target instanceof City) {
+        throw new RuntimeException('dailyDeliveryOffer: no other city for issuer ' . $issuer->value);
+    }
+
+    $params = $first->params;
+    $params['item_name'] = $catalog->name;
+    $params['bag_catalog_key'] = $catalog->catalog_id;
+    $params['lvl'] = $player->level;
+    $params['city_name'] = $target->name;
+    $params['city_key'] = $target->key;
+    unset($params['zone'], $params['monster_name'], $params['enemy_catalog_key']);
+
+    $first->type = DailyContractTypeEnum::Delivery;
+    $first->enemy_catalog_id = null;
+    $first->bag_catalog_id = $catalog->catalog_id;
+    $first->issuer_npc = $issuer;
+    $first->target_city_id = $target->id;
+    $first->target_kills = 0;
+    $first->params = $params;
+    $first->save();
+
+    return $first->fresh();
 }
 
 function shopCatalog(): ShopCatalog

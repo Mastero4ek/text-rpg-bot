@@ -141,6 +141,17 @@ final class BagCatalogSeeder extends Seeder
                 'price' => 0,
                 'currency' => CurrencyEnum::SILVER,
             ],
+            [
+                'catalog_id' => 'daily_parcel',
+                'kind' => BagKindEnum::QUEST,
+                'name' => 'Свиток поручения',
+                'description' => 'Запечатанный свиток с городской доски. Сдать тому, чей знак на сургуче.',
+                'profile' => null,
+                'effect_value' => null,
+                'enabled' => true,
+                'price' => 0,
+                'currency' => CurrencyEnum::SILVER,
+            ],
         ];
     }
 }
