@@ -35,6 +35,7 @@ it('chains splash through chapter1_done via apply action', function (): void {
     $chain = [
         Chapter1ScreenEnum::RegistrationSplash,
         Chapter1ScreenEnum::RegistrationSetNick,
+        Chapter1ScreenEnum::RegistrationSetSkin,
         Chapter1ScreenEnum::RegistrationSetCity,
     ];
 

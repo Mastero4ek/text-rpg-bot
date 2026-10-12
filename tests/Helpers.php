@@ -179,6 +179,7 @@ function cityArrived(int $tgId, string $nick, string $cityKey = City::KEY_ANKRAT
 {
     $player = registration()->ensurePlayer($tgId);
     $player = registration()->setNick($player, $nick)->character;
+    $player = registration()->setSkin($player, 'mobile')->character;
 
     return registration()->setLocation($player, $cityKey)->character;
 }
@@ -608,6 +609,11 @@ function fighter(array $overrides = []): Fighter
         $name = $overrides['name'];
     }
 
+    $level = 0;
+    if (array_key_exists('level', $overrides) && is_int($overrides['level'])) {
+        $level = $overrides['level'];
+    }
+
     $strength = 5;
     if (array_key_exists('strength', $overrides) && is_int($overrides['strength'])) {
         $strength = $overrides['strength'];
@@ -665,6 +671,7 @@ function fighter(array $overrides = []): Fighter
 
     return new Fighter(
         $name,
+        $level,
         $strength,
         $agility,
         $instinct,

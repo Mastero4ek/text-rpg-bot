@@ -15,5 +15,6 @@ final readonly class FightEndResult
         public FightEndUiEnum $editUi,
         public ?string $replyText,
         public FightEndUiEnum $replyUi,
+        public ?string $logText,
     ) {}
 }

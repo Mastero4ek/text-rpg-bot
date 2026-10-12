@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Pages;
 
+use App\Actions\Character\CharacterSyncSkinMediaAction;
+use App\Enums\SkinEnum;
 use App\Filament\Resources\Characters\CharacterResource;
+use App\Models\Character;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 use Livewire\Attributes\On;
@@ -27,5 +30,24 @@ final class ViewCharacter extends ViewRecord
         return [
             EditAction::make(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $record = $this->getRecord();
+
+        if (
+            $record instanceof Character
+            && $record->skin instanceof SkinEnum
+            && ! $record->hasMedia('image')
+        ) {
+            app(CharacterSyncSkinMediaAction::class)->handle($record);
+        }
+
+        return $data;
     }
 }

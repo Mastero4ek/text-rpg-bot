@@ -74,7 +74,7 @@ it('lists city potions on shelf screen', function (): void {
     assertCityEditHas(mb_trim(__('telegram.npc.healer.potions')));
     assertCityEditMarkupHas('city:healer:potion:heal_0');
     assertCityEditMarkupHas('city:healer:potion:stamina_0');
-    assertCityEditHas('15🪙 · ');
+    assertCityEditHas('🪙 -15 · ');
 });
 
 it('buys potion through telegram and keeps shelf markup', function (): void {

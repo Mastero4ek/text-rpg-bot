@@ -143,7 +143,8 @@ it('resolves two player hits with split hand damage', function (): void {
     expect($outcome->kind)->not->toBe('missing');
     $fight->refresh();
 
-    expect($fight->log)->toHaveCount(3)
+    expect($fight->log)->toHaveCount(4)
+        ->and($fight->log[0])->toBe(__('combat.log_round', ['round' => 1]))
         ->and((int) $fight->enemy['current_hp'])->toBeLessThan($enemyHpBefore);
 });
 

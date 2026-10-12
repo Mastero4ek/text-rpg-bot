@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Registration;
 
+use App\Actions\Character\CharacterSyncSkinMediaAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -13,6 +15,7 @@ use App\Services\CharacterService;
 use App\Support\ActionResult;
 use App\Support\LangVariant;
 use App\Support\NickValidator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -41,6 +44,11 @@ final class RegistrationService
     public function cityButtonError(): string
     {
         return LangVariant::pick('telegram.registration.error.pick_city_button');
+    }
+
+    public function skinButtonError(): string
+    {
+        return LangVariant::pick('telegram.registration.error.pick_skin_button');
     }
 
     public function ensurePlayer(int $tgId): Character
@@ -76,6 +84,45 @@ final class RegistrationService
         $character->save();
 
         return $character;
+    }
+
+    public function backToNick(Character $character): Character
+    {
+        if ($character->progress_step !== ProgressStepEnum::SET_SKIN) {
+            return $character;
+        }
+
+        $character->progress_step = ProgressStepEnum::SET_NICK;
+        $character->skin = null;
+        $character->save();
+        $this->forgetSkinPreview($character);
+
+        return $character;
+    }
+
+    public function skinPreview(Character $character): SkinEnum
+    {
+        $cached = Cache::get($this->skinPreviewCacheKey($character->tg_id));
+
+        if (is_string($cached)) {
+            $skin = SkinEnum::tryFrom($cached);
+
+            if ($skin instanceof SkinEnum) {
+                return $skin;
+            }
+        }
+
+        return SkinEnum::Mobile;
+    }
+
+    public function rememberSkinPreview(Character $character, SkinEnum $skin): void
+    {
+        Cache::put($this->skinPreviewCacheKey($character->tg_id), $skin->value, 86400);
+    }
+
+    public function forgetSkinPreview(Character $character): void
+    {
+        Cache::forget($this->skinPreviewCacheKey($character->tg_id));
     }
 
     public function rememberTelegramMessage(Character $character, int|string $chatId, int $messageId): Character
@@ -143,10 +190,40 @@ final class RegistrationService
             }
 
             $character->username = $nick;
-            $character->progress_step = ProgressStepEnum::SET_CITY;
+            $character->progress_step = ProgressStepEnum::SET_SKIN;
             $character->save();
+            $this->rememberSkinPreview($character, SkinEnum::Mobile);
 
             return ActionResult::ok($character);
+        });
+    }
+
+    public function setSkin(Character $character, string $skinKey): ActionResult
+    {
+        return DB::transaction(function () use ($character, $skinKey): ActionResult {
+            $locked = Character::query()->whereKey($character->tg_id)->lockForUpdate()->first();
+
+            if (! $locked instanceof Character) {
+                throw new RuntimeException('Character missing for setSkin.');
+            }
+
+            if ($locked->progress_step !== ProgressStepEnum::SET_SKIN) {
+                return ActionResult::fail($this->skinButtonError());
+            }
+
+            $skin = SkinEnum::tryFrom($skinKey);
+
+            if (! $skin instanceof SkinEnum) {
+                return ActionResult::fail($this->skinButtonError());
+            }
+
+            $locked->skin = $skin;
+            $locked->progress_step = ProgressStepEnum::SET_CITY;
+            $locked->save();
+            $this->forgetSkinPreview($locked);
+            app(CharacterSyncSkinMediaAction::class)->handle($locked);
+
+            return ActionResult::ok($locked->fresh());
         });
     }
 
@@ -160,6 +237,10 @@ final class RegistrationService
             }
 
             if ($locked->progress_step !== ProgressStepEnum::SET_CITY) {
+                return ActionResult::fail($this->cityButtonError());
+            }
+
+            if (! $locked->skin instanceof SkinEnum) {
                 return ActionResult::fail($this->cityButtonError());
             }
 
@@ -192,5 +273,10 @@ final class RegistrationService
 
             return ActionResult::ok($locked);
         });
+    }
+
+    private function skinPreviewCacheKey(int $tgId): string
+    {
+        return 'registration.skin_preview.' . $tgId;
     }
 }

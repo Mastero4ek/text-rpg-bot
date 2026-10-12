@@ -100,6 +100,7 @@ final class BagRelationManager extends RelationManager
     }
 
     #[On('character-gems-changed')]
+    #[On('character-quest-screen-changed')]
     public function refreshAfterExternalChange(): void
     {
         $owner = $this->getOwnerRecord();

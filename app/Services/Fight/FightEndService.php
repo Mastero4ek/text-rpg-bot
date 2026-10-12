@@ -108,7 +108,7 @@ final class FightEndService
         }
 
         if ($fight->hall) {
-            return $this->hallLose($player, $text);
+            return $this->hallLose($player, $fight, $text);
         }
 
         return $this->trainingLose($player, $fight, $text);
@@ -131,6 +131,7 @@ final class FightEndService
             FightEndUiEnum::None,
             __('combat.flee') . "\n\n" . $this->bruiserQuest->meetSpeech($player),
             FightEndUiEnum::BruiserArrive,
+            null,
         );
     }
 
@@ -146,6 +147,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 null,
                 FightEndUiEnum::None,
+                null,
             );
         }
 
@@ -157,6 +159,7 @@ final class FightEndService
             FightEndUiEnum::None,
             $this->bruiserQuest->fightLoseSpeech($player),
             FightEndUiEnum::BruiserKnockout,
+            null,
         );
     }
 
@@ -178,6 +181,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 $error . "\n\n" . $this->bruiserQuest->meetSpeech($player),
                 FightEndUiEnum::BruiserArrive,
+                null,
             );
         }
 
@@ -190,6 +194,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 $this->bruiserQuest->knucklePendingSpeech($player),
                 FightEndUiEnum::BruiserKnucklePending,
+                null,
             );
         }
 
@@ -199,6 +204,7 @@ final class FightEndService
             FightEndUiEnum::None,
             $this->bruiserQuest->completeSpeech($player),
             FightEndUiEnum::BruiserComplete,
+            null,
         );
     }
 
@@ -219,6 +225,7 @@ final class FightEndService
             FightEndUiEnum::None,
             __('combat.flee') . "\n\n" . $this->healerQuest->debtSpeech($player),
             FightEndUiEnum::HealerDebt,
+            null,
         );
     }
 
@@ -239,6 +246,7 @@ final class FightEndService
             FightEndUiEnum::None,
             __('telegram.quest.healer.rat_lose') . "\n\n" . $this->healerQuest->debtSpeech($player),
             FightEndUiEnum::HealerDebt,
+            null,
         );
     }
 
@@ -260,6 +268,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 $error . "\n\n" . $this->healerQuest->debtSpeech($player),
                 FightEndUiEnum::HealerDebt,
+                null,
             );
         }
 
@@ -271,6 +280,7 @@ final class FightEndService
             FightEndUiEnum::None,
             $this->healerQuest->ratLootSpeech($player),
             FightEndUiEnum::HealerRatLoot,
+            null,
         );
     }
 
@@ -291,6 +301,7 @@ final class FightEndService
             FightEndUiEnum::None,
             __('combat.flee') . "\n\n" . $this->blacksmithQuest->meetSpeech($player),
             FightEndUiEnum::BlacksmithMeet,
+            null,
         );
     }
 
@@ -306,6 +317,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 null,
                 FightEndUiEnum::None,
+                null,
             );
         }
 
@@ -317,6 +329,7 @@ final class FightEndService
             FightEndUiEnum::None,
             __('telegram.quest.blacksmith.fight_lose') . "\n\n" . $this->blacksmithQuest->retrySpeech($player),
             FightEndUiEnum::BlacksmithMeet,
+            null,
         );
     }
 
@@ -340,6 +353,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 $error . "\n\n" . $this->blacksmithQuest->meetSpeech($player),
                 FightEndUiEnum::BlacksmithMeet,
+                null,
             );
         }
 
@@ -351,6 +365,7 @@ final class FightEndService
             FightEndUiEnum::None,
             $this->blacksmithQuest->completeSpeech($player),
             FightEndUiEnum::BlacksmithComplete,
+            null,
         );
     }
 
@@ -367,6 +382,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 null,
                 FightEndUiEnum::None,
+                null,
             );
         }
 
@@ -379,6 +395,7 @@ final class FightEndService
             FightEndUiEnum::None,
             $this->overseerQuest->statsSpeech($player),
             FightEndUiEnum::OverseerStats,
+            null,
         );
     }
 
@@ -394,6 +411,7 @@ final class FightEndService
                 FightEndUiEnum::None,
                 null,
                 FightEndUiEnum::None,
+                null,
             );
         }
 
@@ -405,11 +423,13 @@ final class FightEndService
             FightEndUiEnum::None,
             __('telegram.quest.overseer.fight_lose') . "\n\n" . $this->overseerQuest->introSpeech(),
             FightEndUiEnum::Intro,
+            null,
         );
     }
 
     private function hallWin(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $reward = $this->config->trainingReward();
         $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
         $player = $this->characters->findByTgId($player->tg_id);
@@ -431,11 +451,13 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
     }
 
     private function hallFlee(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
         $player->current_stamina = $this->characters->clampStamina(
             $fight->player_stamina,
@@ -451,11 +473,13 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
     }
 
-    private function hallLose(Character $player, string $text): FightEndResult
+    private function hallLose(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $player->current_hp = 0;
         $player->last_hp_update = now();
         $player->current_stamina = 0;
@@ -469,11 +493,13 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
     }
 
     private function trainingFlee(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $broken = $this->fightWear->handleAfterLose($player, $fight->pierce_count);
         $player = $this->characters->findByTgId($player->tg_id);
         $brokeSuffix = $this->brokenGearSuffix($broken);
@@ -492,11 +518,13 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
     }
 
     private function trainingWin(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $broken = $this->fightWear->handleAfterWin($player, $fight->pierce_count);
         $player = $this->characters->findByTgId($player->tg_id);
         $brokeSuffix = $this->brokenGearSuffix($broken);
@@ -521,11 +549,13 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
     }
 
     private function trainingLose(Character $player, Fight $fight, string $text): FightEndResult
     {
+        $logText = $this->fightLogText($fight);
         $broken = $this->fightWear->handleAfterLose($player, $fight->pierce_count);
         $gemBroken = $this->breakGems->handle($player);
         $player = $this->characters->findByTgId($player->tg_id);
@@ -543,19 +573,8 @@ final class FightEndService
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
+            $logText,
         );
-    }
-
-    /**
-     * @param  list<string>  $names
-     */
-    private function dropSuffix(array $names): string
-    {
-        if ($names === []) {
-            return '';
-        }
-
-        return __('combat.drop', ['names' => TelegramHtml::escapeJoin($names, ', ')]);
     }
 
     /**
@@ -580,5 +599,26 @@ final class FightEndService
         }
 
         return __('combat.gems_broke', ['names' => TelegramHtml::escapeJoin($broken, ', ')]);
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function dropSuffix(array $names): string
+    {
+        if ($names === []) {
+            return '';
+        }
+
+        return __('combat.drop', ['names' => TelegramHtml::escapeJoin($names, ', ')]);
+    }
+
+    private function fightLogText(Fight $fight): string
+    {
+        if (empty($fight->log)) {
+            return __('combat.report_log_empty');
+        }
+
+        return implode("\n", $fight->log);
     }
 }

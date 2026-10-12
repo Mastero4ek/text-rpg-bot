@@ -272,7 +272,10 @@ describe('positive fight flow', function (): void {
             ->and(bag()->potionCountByProfile($p->tg_id, ProfileEnum::HEAL))->toBe(0)
             ->and($fight->tg_message_id)->toBe(1)
             ->and($fight->tg_reply_kind)->toBe('zones_def')
-            ->and(implode("\n", $fight->log))->not->toContain('пьёт зелье');
+            ->and(implode("\n", $fight->log))->toContain(__('combat.drink_potion', [
+                'name' => '<b>FlowPotion [' . $p->level . ']</b>',
+                'heal' => $heal,
+            ]));
 
         Http::assertSent(function (Request $request) use ($hpAfter): bool {
             if (! str_contains($request->url(), '/editMessageCaption')) {

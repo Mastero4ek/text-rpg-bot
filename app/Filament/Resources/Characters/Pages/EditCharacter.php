@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Characters\Pages;
 
 use App\Actions\Character\CharacterDeleteAction;
+use App\Actions\Character\CharacterSyncSkinMediaAction;
+use App\Enums\SkinEnum;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Characters\CharacterResource;
+use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
+use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Models\Character;
 use App\Services\CharacterService;
 use Filament\Actions\DeleteAction;
@@ -58,6 +63,10 @@ final class EditCharacter extends EditRecord
     {
         $this->getRecord()->refresh();
         $this->fillForm();
+
+        $this->dispatch('character-quest-screen-changed')->to(LoadoutRelationManager::class);
+        $this->dispatch('character-quest-screen-changed')->to(BackpackRelationManager::class);
+        $this->dispatch('character-quest-screen-changed')->to(BagRelationManager::class);
     }
 
     protected function getHeaderActions(): array
@@ -145,6 +154,7 @@ final class EditCharacter extends EditRecord
 
         $characters = app(CharacterService::class);
         $oldExp = $record->exp;
+        $skinBefore = $record->skin;
 
         $record->fill($data);
 
@@ -163,7 +173,35 @@ final class EditCharacter extends EditRecord
 
         $record->save();
 
-        return $record;
+        $skinChanged = $skinBefore !== $record->skin;
+
+        if (
+            $record->skin instanceof SkinEnum
+            && ($skinChanged || ! $record->hasMedia('image'))
+        ) {
+            app(CharacterSyncSkinMediaAction::class)->handle($record);
+        }
+
+        return $record->fresh() ?? $record;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $record = $this->getRecord();
+
+        if (
+            $record instanceof Character
+            && $record->skin instanceof SkinEnum
+            && ! $record->hasMedia('image')
+        ) {
+            app(CharacterSyncSkinMediaAction::class)->handle($record);
+        }
+
+        return $data;
     }
 
     private static function recordLabel(Character $record): string

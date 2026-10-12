@@ -11,6 +11,11 @@ return [
     'poll_timeout' => 25,
     'registration_rest_image' => resource_path('images/telegram/location/registration_rest.png'),
     'registration_up_image' => resource_path('images/telegram/location/registration_up.png'),
+    'character_skin_images' => [
+        'mobile' => resource_path('images/telegram/character/mobile.png'),
+        'heavy' => resource_path('images/telegram/character/heavy.png'),
+        'ward' => resource_path('images/telegram/character/ward.png'),
+    ],
     'overseer_image' => resource_path('images/telegram/npc/overseer.png'),
     'overseer_tavern_image' => resource_path('images/telegram/npc/overseer_tavern.png'),
     'healer_image' => resource_path('images/telegram/npc/healer.png'),

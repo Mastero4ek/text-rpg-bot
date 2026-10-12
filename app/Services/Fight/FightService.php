@@ -144,6 +144,37 @@ final class FightService
         return $fight;
     }
 
+    /**
+     * @param  list<string>  $lines
+     */
+    public function appendLogLines(Fight $fight, array $lines): Fight
+    {
+        if (empty($lines)) {
+            return $fight;
+        }
+
+        $combined = $fight->log;
+        $header = __('combat.log_round', [
+            'round' => max(1, $fight->turn_seq),
+        ]);
+
+        if (! in_array($header, $combined, true)) {
+            if (! empty($combined)) {
+                $combined[] = '';
+            }
+
+            $combined[] = $header;
+        }
+
+        foreach ($lines as $line) {
+            $combined[] = $line;
+        }
+
+        $fight->log = $combined;
+
+        return $fight;
+    }
+
     private function createFight(
         Character $character,
         Enemy $enemy,

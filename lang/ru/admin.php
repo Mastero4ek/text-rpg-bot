@@ -71,6 +71,7 @@ return [
         'location' => 'Локация',
         'city' => 'Город',
         'birth_city' => 'Город рождения',
+        'skin' => 'Облик',
         'birth_characters' => 'Персонажи',
         'cities' => 'Города',
         'forest' => 'Лес',
@@ -425,9 +426,15 @@ return [
     'progress_steps' => [
         'SPLASH' => 'Старт',
         'SET_NICK' => 'Ник',
+        'SET_SKIN' => 'Облик',
         'SET_CITY' => 'Город',
         'ARRIVED' => 'Прибытие',
         'DONE' => 'Готов',
+    ],
+    'skins' => [
+        'mobile' => 'Лёгкий шаг',
+        'heavy' => 'Крепкий стан',
+        'ward' => 'Знак на шее',
     ],
     'quest_phases' => [
         'Overseer' => 'Смотритель',
@@ -450,6 +457,7 @@ return [
         'chapter1' => [
             'registration_splash' => 'Старт',
             'registration_set_nick' => 'Ник',
+            'registration_set_skin' => 'Облик',
             'registration_set_city' => 'Город',
             'overseer_gates' => 'Ворота',
             'overseer_tavern' => 'В таверне (пропуск первой встречи)',
@@ -506,7 +514,7 @@ return [
         'character_identity' => 'Идентичность',
         'character_progress' => 'Квестовый прогресс',
         'character_state' => 'Состояние',
-        'character_stats' => 'Характеристики',
+        'character_stats' => 'Статы',
         'backpack_catalog_combat' => 'Характеристики',
         'backpack_catalog_durability' => 'Прочность и камни',
         'backpack_catalog_economy' => 'Экономика',
@@ -543,6 +551,7 @@ return [
         'gem_mf' => 'Единственное MF-поле камня по типу. Целое ≥ 1. Остальные MF скрыты и = 0.',
         'gem_slots' => 'Число слотов под камни. Любой тип из каталога gems. 0/пусто — нельзя вставить. Бижу/зелья не сокетятся.',
         'image' => 'Изображение. Один файл: jpeg / png / webp. Без файла — плейсхолдер.',
+        'skin' => 'Облик персонажа. При выборе/смене копирует арт в изображение Spatie (можно заменить upload’ом).',
         'quest_screen' => 'Снимок экрана + пуш в Telegram. Save не меняет квест — только «Применить». Вперёд — награды/предметы милестоунов; назад — отъём.',
         'power_pct' => 'Множитель боевых чисел зеркала. 100 = как игрок, 130 = ×1.3 с округлением вниз.',
         'reward_exp_pct' => 'Процент от exp_base (settings.combat.pveRewards + уровень игрока).',

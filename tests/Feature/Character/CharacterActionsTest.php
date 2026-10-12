@@ -12,6 +12,7 @@ use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Actions\Registration\SetLocationAction;
 use App\Enums\ProgressStepEnum;
+use App\Enums\SkinEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character;
 use App\Models\User;
@@ -68,6 +69,7 @@ it('set location notifies admin in database', function (): void {
     $admin = User::factory()->create();
     $p = characters()->createDraft(1204);
     $p->username = 'NotifyHero';
+    $p->skin = SkinEnum::Mobile;
     $p->progress_step = ProgressStepEnum::SET_CITY;
     $p->save();
 

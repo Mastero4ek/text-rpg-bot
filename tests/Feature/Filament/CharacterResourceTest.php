@@ -128,6 +128,49 @@ it('applies quest screen, clears fight and pushes telegram panel', function (): 
     });
 });
 
+it('applies registration splash and clears quest inventory on edit page', function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 43]]),
+    ]);
+
+    $character = cityArrived(1512, 'QuestRegBack');
+    $character->tg_chat_id = 1512;
+    $character->tg_message_id = 43;
+    $character->save();
+
+    app(App\Actions\Character\CharacterApplyQuestScreenAction::class)->handle(
+        $character,
+        App\Enums\Quest\QuestChapterEnum::Chapter1,
+        Chapter1ScreenEnum::Chapter1Done->value,
+    );
+
+    $mailId = gameConfig()->quest()['rewards']['BlacksmithQuest']['mail_catalog_id'];
+    $knuckleId = gameConfig()->quest()['rewards']['BruiserQuest']['knuckle_catalog_id'];
+    $potionIds = gameConfig()->quest()['rewards']['HealerQuest']['potion_catalog_ids'];
+
+    expect(backpack()->owns($character->tg_id, $knuckleId))->toBeTrue();
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm([
+            'quest_screen_1' => Chapter1ScreenEnum::RegistrationSplash->value,
+        ])
+        ->callAction(TestAction::make('applyQuestScreen_1')->schemaComponent('characterQuestScreenActions_1'))
+        ->assertDispatched('character-quest-screen-changed');
+
+    expect(backpack()->owns($character->tg_id, $mailId))->toBeFalse()
+        ->and(backpack()->owns($character->tg_id, $knuckleId))->toBeFalse();
+
+    foreach ($potionIds as $potionId) {
+        expect(App\Models\Bag\BagItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('catalog_id', $potionId)
+            ->whereNull('backpack_item_id')
+            ->exists())->toBeFalse();
+    }
+});
+
 it('does not mutate quest flags on ordinary save', function (): void {
     $character = cityHealerPhase(1511, 'QuestSaveHero');
 
@@ -179,7 +222,7 @@ it('resets stats from edit form action', function (): void {
     livewire(EditCharacter::class, [
         'record' => $character->getKey(),
     ])
-        ->callAction(TestAction::make('resetStats')->schemaComponent('characterIdentityActions'));
+        ->callAction(TestAction::make('resetStats')->schemaComponent('characterStatsActions'));
 
     $fresh = $character->fresh();
 

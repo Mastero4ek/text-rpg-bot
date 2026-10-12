@@ -17,6 +17,7 @@ return new class extends Migration
         Schema::create('characters', function (Blueprint $table) {
             $table->unsignedBigInteger('tg_id')->primary();
             $table->string('username')->nullable();
+            $table->string('skin')->nullable();
             $table->foreignId('birth_city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->foreignId('city_id')->nullable()->constrained('cities')->restrictOnDelete();
             $table->string('progress_step')->default(ProgressStepEnum::SPLASH->value);

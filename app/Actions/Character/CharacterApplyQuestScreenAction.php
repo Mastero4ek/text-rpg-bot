@@ -6,6 +6,7 @@ namespace App\Actions\Character;
 
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Quest\QuestChapterEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use App\Quests\QuestChapterRegistry;
@@ -59,7 +60,18 @@ final class CharacterApplyQuestScreenAction
             $module->applySnapshot($locked, $screen);
             $locked->save();
 
-            return ActionResult::ok($locked->fresh());
+            $fresh = $locked->fresh();
+
+            if (
+                $fresh instanceof Character
+                && $fresh->skin instanceof SkinEnum
+                && ! $fresh->hasMedia('image')
+            ) {
+                app(CharacterSyncSkinMediaAction::class)->handle($fresh);
+                $fresh = $fresh->fresh();
+            }
+
+            return ActionResult::ok($fresh);
         });
     }
 }

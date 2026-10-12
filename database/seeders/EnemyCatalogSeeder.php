@@ -134,10 +134,10 @@ final class EnemyCatalogSeeder extends Seeder
                 'mf_anti_dodge' => null,
                 'mf_crit' => null,
                 'mf_anti_crit' => null,
-                'power_pct' => 85,
-                'reward_exp_pct' => 0,
-                'reward_silver_min' => 0,
-                'reward_silver_max' => 0,
+                'power_pct' => 75,
+                'reward_exp_pct' => 20,
+                'reward_silver_min' => 6,
+                'reward_silver_max' => 14,
                 'sort_order' => 2,
                 'drops' => [
                     [

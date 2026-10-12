@@ -9,6 +9,7 @@ use App\Models\Bag\BagItem;
 use App\Models\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
+use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
@@ -21,6 +22,7 @@ final class Chapter1ScreenRewardGranter
         private readonly BagService $bag,
         private readonly CharacterService $characters,
         private readonly GameConfig $config,
+        private readonly LoadoutService $loadout,
     ) {}
 
     public function sync(Character $character, ?Chapter1ScreenEnum $from, Chapter1ScreenEnum $to): void
@@ -32,15 +34,13 @@ final class Chapter1ScreenRewardGranter
             for ($milestone = $fromRank + 1; $milestone <= $toRank; $milestone++) {
                 $this->grantMilestone($character, $milestone);
             }
-
-            return;
-        }
-
-        if ($toRank < $fromRank) {
+        } elseif ($toRank < $fromRank) {
             for ($milestone = $fromRank; $milestone > $toRank; $milestone--) {
                 $this->revokeMilestone($character, $milestone);
             }
         }
+
+        $this->ensureCumulativeItems($character, $to);
     }
 
     public function rank(?Chapter1ScreenEnum $screen): int
@@ -52,6 +52,7 @@ final class Chapter1ScreenRewardGranter
         return match ($screen) {
             Chapter1ScreenEnum::RegistrationSplash,
             Chapter1ScreenEnum::RegistrationSetNick,
+            Chapter1ScreenEnum::RegistrationSetSkin,
             Chapter1ScreenEnum::RegistrationSetCity,
             Chapter1ScreenEnum::OverseerGates,
             Chapter1ScreenEnum::OverseerTavern,
@@ -70,6 +71,52 @@ final class Chapter1ScreenRewardGranter
             Chapter1ScreenEnum::BuyerTurnIn => 5,
             Chapter1ScreenEnum::Chapter1Done => 6,
         };
+    }
+
+    private function ensureCumulativeItems(Character $character, Chapter1ScreenEnum $to): void
+    {
+        $quest = $this->config->quest();
+
+        if (! array_key_exists('rewards', $quest) || ! is_array($quest['rewards'])) {
+            throw new RuntimeException('quest.rewards missing.');
+        }
+
+        $rewards = $quest['rewards'];
+        $rank = $this->rank($to);
+
+        if ($rank >= 2) {
+            $this->grantHealerPotions($character, $rewards);
+        } else {
+            $this->stripHealerPotions($character, $rewards);
+        }
+
+        if ($rank >= 3) {
+            $this->grantMail($character, $rewards);
+        } else {
+            $this->stripBlacksmithGear($character, $rewards);
+        }
+
+        // Контракт Скупщика списывает амулет → есть только на buyer_meet (rank 3).
+        if ($to === Chapter1ScreenEnum::BuyerMeet) {
+            $this->grantAmulet($character, $rewards);
+        } else {
+            $this->stripAmulet($character, $rewards);
+        }
+
+        if ($rank >= 5) {
+            $this->grantKnuckle($character, $rewards);
+        } else {
+            $this->stripKnuckle($character, $rewards);
+        }
+
+        if ($to === Chapter1ScreenEnum::BuyerTurnIn) {
+            $this->grantPurse($character, $rewards);
+        } else {
+            $this->stripPurse($character, $rewards);
+        }
+
+        // live: grant+сразу remove; в инвентаре не живёт
+        $this->stripRatTail($character, $rewards);
     }
 
     private function grantMilestone(Character $character, int $milestone): void
@@ -135,6 +182,243 @@ final class Chapter1ScreenRewardGranter
         if ($milestone === 5) {
             $this->stripBruiserLoot($character, $rewards);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function grantHealerPotions(Character $character, array $rewards): void
+    {
+        if (! array_key_exists('HealerQuest', $rewards) || ! is_array($rewards['HealerQuest'])) {
+            throw new RuntimeException('quest.rewards.HealerQuest missing.');
+        }
+
+        $healer = $rewards['HealerQuest'];
+
+        if (! array_key_exists('potion_catalog_ids', $healer) || ! is_array($healer['potion_catalog_ids'])) {
+            return;
+        }
+
+        foreach ($healer['potion_catalog_ids'] as $catalogId) {
+            if (! is_string($catalogId) || $catalogId === '') {
+                continue;
+            }
+
+            if ($this->ownsLooseBagCatalog($character->tg_id, $catalogId)) {
+                continue;
+            }
+
+            $this->bag->addPotion($character->tg_id, $catalogId);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function grantMail(Character $character, array $rewards): void
+    {
+        $mailId = $this->blacksmithCatalogId($rewards, 'mail_catalog_id');
+
+        if (! $this->backpack->owns($character->tg_id, $mailId)) {
+            $this->backpack->addItem($character->tg_id, $mailId);
+        }
+
+        $this->equipMailIfUnequipped($character, $mailId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function grantAmulet(Character $character, array $rewards): void
+    {
+        $amuletId = $this->blacksmithCatalogId($rewards, 'amulet_catalog_id');
+
+        if ($this->backpack->owns($character->tg_id, $amuletId)) {
+            return;
+        }
+
+        $this->backpack->addItem($character->tg_id, $amuletId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function stripAmulet(Character $character, array $rewards): void
+    {
+        $this->stripBackpackCatalog($character->tg_id, $this->blacksmithCatalogId($rewards, 'amulet_catalog_id'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function blacksmithCatalogId(array $rewards, string $key): string
+    {
+        if (! array_key_exists('BlacksmithQuest', $rewards) || ! is_array($rewards['BlacksmithQuest'])) {
+            throw new RuntimeException('quest.rewards.BlacksmithQuest missing.');
+        }
+
+        $row = $rewards['BlacksmithQuest'];
+
+        if (! array_key_exists($key, $row) || ! is_string($row[$key]) || $row[$key] === '') {
+            throw new RuntimeException('BlacksmithQuest.' . $key . ' missing.');
+        }
+
+        return $row[$key];
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function grantKnuckle(Character $character, array $rewards): void
+    {
+        if (! array_key_exists('BruiserQuest', $rewards) || ! is_array($rewards['BruiserQuest'])) {
+            throw new RuntimeException('quest.rewards.BruiserQuest missing.');
+        }
+
+        $row = $rewards['BruiserQuest'];
+
+        if (! array_key_exists('knuckle_catalog_id', $row) || ! is_string($row['knuckle_catalog_id']) || $row['knuckle_catalog_id'] === '') {
+            return;
+        }
+
+        if ($this->backpack->owns($character->tg_id, $row['knuckle_catalog_id'])) {
+            return;
+        }
+
+        $this->backpack->addItem($character->tg_id, $row['knuckle_catalog_id']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function grantPurse(Character $character, array $rewards): void
+    {
+        $purseId = $this->purseCatalogId($rewards);
+
+        if ($this->bag->ownsQuestItem($character->tg_id, $purseId)) {
+            return;
+        }
+
+        $this->bag->addQuestItem($character->tg_id, $purseId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function stripKnuckle(Character $character, array $rewards): void
+    {
+        if (! array_key_exists('BruiserQuest', $rewards) || ! is_array($rewards['BruiserQuest'])) {
+            throw new RuntimeException('quest.rewards.BruiserQuest missing.');
+        }
+
+        $row = $rewards['BruiserQuest'];
+
+        if (! array_key_exists('knuckle_catalog_id', $row) || ! is_string($row['knuckle_catalog_id']) || $row['knuckle_catalog_id'] === '') {
+            return;
+        }
+
+        $this->stripBackpackCatalog($character->tg_id, $row['knuckle_catalog_id']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function stripPurse(Character $character, array $rewards): void
+    {
+        $purseId = $this->purseCatalogId($rewards);
+
+        if (! $this->bag->ownsQuestItem($character->tg_id, $purseId)) {
+            return;
+        }
+
+        $this->bag->removeQuestItem($character->tg_id, $purseId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function stripRatTail(Character $character, array $rewards): void
+    {
+        if (! array_key_exists('HealerQuest', $rewards) || ! is_array($rewards['HealerQuest'])) {
+            throw new RuntimeException('quest.rewards.HealerQuest missing.');
+        }
+
+        $healer = $rewards['HealerQuest'];
+
+        if (! array_key_exists('debt', $healer) || ! is_array($healer['debt'])) {
+            return;
+        }
+
+        $debt = $healer['debt'];
+
+        if (! array_key_exists('rat_tail_catalog_id', $debt) || ! is_string($debt['rat_tail_catalog_id']) || $debt['rat_tail_catalog_id'] === '') {
+            return;
+        }
+
+        $tailId = $debt['rat_tail_catalog_id'];
+
+        if (! $this->bag->ownsQuestItem($character->tg_id, $tailId)) {
+            return;
+        }
+
+        $this->bag->removeQuestItem($character->tg_id, $tailId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rewards
+     */
+    private function purseCatalogId(array $rewards): string
+    {
+        if (! array_key_exists('BruiserQuest', $rewards) || ! is_array($rewards['BruiserQuest'])) {
+            throw new RuntimeException('quest.rewards.BruiserQuest missing.');
+        }
+
+        $row = $rewards['BruiserQuest'];
+
+        if (! array_key_exists('purse_catalog_id', $row) || ! is_string($row['purse_catalog_id']) || $row['purse_catalog_id'] === '') {
+            throw new RuntimeException('BruiserQuest.purse_catalog_id missing.');
+        }
+
+        return $row['purse_catalog_id'];
+    }
+
+    private function equipMailIfUnequipped(Character $character, string $mailId): void
+    {
+        if (! $this->backpack->owns($character->tg_id, $mailId)) {
+            return;
+        }
+
+        $item = BackpackItem::query()
+            ->where('tg_id', $character->tg_id)
+            ->where('catalog_id', $mailId)
+            ->first();
+
+        if (! $item instanceof BackpackItem) {
+            return;
+        }
+
+        $worn = LoadoutSlot::query()
+            ->where('backpack_item_id', $item->id)
+            ->exists();
+
+        if ($worn) {
+            return;
+        }
+
+        $equip = $this->loadout->equipByItemId($character, $mailId);
+
+        if (! $equip->ok) {
+            throw new RuntimeException('Chapter1 admin mail equip failed.');
+        }
+    }
+
+    private function ownsLooseBagCatalog(int $tgId, string $catalogId): bool
+    {
+        return BagItem::query()
+            ->where('tg_id', $tgId)
+            ->where('catalog_id', $catalogId)
+            ->whereNull('backpack_item_id')
+            ->exists();
     }
 
     /**

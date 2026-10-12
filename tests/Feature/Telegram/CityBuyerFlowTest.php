@@ -32,7 +32,7 @@ it('opens chest with gem rows', function (): void {
 
     assertCityEditHas(mb_trim(__('telegram.npc.buyer.chest')));
     assertCityEditMarkupHas('city:buyer:buy:ruby_0');
-    assertCityEditHas('🪙 · ');
+    assertCityEditHas('🪙 -');
     assertCityEditMarkupHas('city:buyer');
 });
 

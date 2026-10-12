@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Characters\Schemas;
 use App\Actions\Character\CharacterPushQuestScreenAction;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Enums\Quest\QuestChapterEnum;
+use App\Enums\SkinEnum;
 use App\Models\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use App\Quests\QuestChapterRegistry;
@@ -104,6 +105,12 @@ final class CharacterForm
                                             }
                                         };
                                     }),
+                                Select::make('skin')
+                                    ->label(__('admin.labels.skin'))
+                                    ->options(SkinEnum::class)
+                                    ->native(false)
+                                    ->nullable()
+                                    ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.skin')),
                                 Select::make('birth_city_id')
                                     ->label(__('admin.labels.birth_city'))
                                     ->relationship('birthCity', 'name')
@@ -118,104 +125,116 @@ final class CharacterForm
                                     ->preload(),
                             ])
                                 ->columns(2),
-                            Group::make([
-                                TextInput::make('exp')
-                                    ->label(__('admin.labels.exp'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('level')
-                                    ->label(__('admin.labels.level'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('stat_points')
-                                    ->label(__('admin.labels.stat_points'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                            ])
-                                ->columns(4),
-                            Group::make([
-                                TextInput::make('strength')
-                                    ->label(__('admin.labels.strength'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('agility')
-                                    ->label(__('admin.labels.agility'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('instinct')
-                                    ->label(__('admin.labels.instinct'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('vitality')
-                                    ->label(__('admin.labels.vitality'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                            ])
-                                ->columns(4),
-                            Group::make([
-                                TextInput::make('current_hp')
-                                    ->label(__('admin.labels.current_hp'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('max_hp')
-                                    ->label(__('admin.labels.max_hp'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('current_stamina')
-                                    ->label(__('admin.labels.current_stamina'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                                TextInput::make('max_stamina')
-                                    ->label(__('admin.labels.max_stamina'))
-                                    ->numeric()
-                                    ->required()
-                                    ->minValue(0),
-                            ])
-                                ->columns(4),
-                            Actions::make([
-                                Action::make('resetStats')
-                                    ->label(__('admin.actions.reset_stats.label'))
-                                    ->color(Color::Red)
-                                    ->requiresConfirmation()
-                                    ->modalHeading(__('admin.actions.reset_stats.modal_heading'))
-                                    ->modalSubmitActionLabel(__('admin.actions.reset_stats.modal_submit'))
-                                    ->visible(fn (?Character $record, string $operation): bool => $operation === 'edit' && $record instanceof Character && ! $record->trashed())
-                                    ->action(function (Character $record, mixed $livewire): void {
-                                        app(CharacterResetStatsAction::class)->handle($record);
-
-                                        if (is_object($livewire) && method_exists($livewire, 'refreshFormData')) {
-                                            $livewire->refreshFormData([
-                                                'strength',
-                                                'agility',
-                                                'instinct',
-                                                'vitality',
-                                                'stat_points',
-                                                'current_hp',
-                                                'max_hp',
-                                                'current_stamina',
-                                                'max_stamina',
-                                            ]);
-                                        }
-
-                                        Notification::make()
-                                            ->title(__('admin.actions.reset_stats.notification'))
-                                            ->success()
-                                            ->send();
-                                    }),
-                            ])
-                                ->key('characterIdentityActions')
-                                ->alignment(Alignment::Start),
                         ]),
+                    ]),
+                Section::make(__('admin.sections.character_stats'))
+                    ->icon(Heroicon::OutlinedChartBar)
+                    ->columns(7)
+                    ->columnSpanFull()
+                    ->collapsed()
+                    ->collapsible()
+                    ->schema([
+                        Group::make([
+                            TextInput::make('exp')
+                                ->label(__('admin.labels.exp'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('level')
+                                ->label(__('admin.labels.level'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('stat_points')
+                                ->label(__('admin.labels.stat_points'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                        ])
+                            ->columns(7)
+                            ->columnSpanFull(),
+                        Group::make([
+                            TextInput::make('strength')
+                                ->label(__('admin.labels.strength'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('agility')
+                                ->label(__('admin.labels.agility'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('instinct')
+                                ->label(__('admin.labels.instinct'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('vitality')
+                                ->label(__('admin.labels.vitality'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                        ])
+                            ->columns(7)
+                            ->columnSpanFull(),
+                        Group::make([
+                            TextInput::make('current_hp')
+                                ->label(__('admin.labels.current_hp'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('max_hp')
+                                ->label(__('admin.labels.max_hp'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('current_stamina')
+                                ->label(__('admin.labels.current_stamina'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                            TextInput::make('max_stamina')
+                                ->label(__('admin.labels.max_stamina'))
+                                ->numeric()
+                                ->required()
+                                ->minValue(0),
+                        ])
+                            ->columns(7)
+                            ->columnSpanFull(),
+                        Actions::make([
+                            Action::make('resetStats')
+                                ->label(__('admin.actions.reset_stats.label'))
+                                ->color(Color::Red)
+                                ->requiresConfirmation()
+                                ->modalHeading(__('admin.actions.reset_stats.modal_heading'))
+                                ->modalSubmitActionLabel(__('admin.actions.reset_stats.modal_submit'))
+                                ->visible(fn (?Character $record, string $operation): bool => $operation === 'edit' && $record instanceof Character && ! $record->trashed())
+                                ->action(function (Character $record, mixed $livewire): void {
+                                    app(CharacterResetStatsAction::class)->handle($record);
+
+                                    if (is_object($livewire) && method_exists($livewire, 'refreshFormData')) {
+                                        $livewire->refreshFormData([
+                                            'strength',
+                                            'agility',
+                                            'instinct',
+                                            'vitality',
+                                            'stat_points',
+                                            'current_hp',
+                                            'max_hp',
+                                            'current_stamina',
+                                            'max_stamina',
+                                        ]);
+                                    }
+
+                                    Notification::make()
+                                        ->title(__('admin.actions.reset_stats.notification'))
+                                        ->success()
+                                        ->send();
+                                }),
+                        ])
+                            ->key('characterStatsActions')
+                            ->alignment(Alignment::Start)
+                            ->columnSpanFull(),
                     ]),
                 Section::make(__('admin.sections.character_progress'))
                     ->icon(Heroicon::OutlinedMap)

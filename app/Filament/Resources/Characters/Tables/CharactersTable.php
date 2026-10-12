@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Characters\Tables;
 use App\Actions\Character\CharacterDeleteAction;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
+use App\Filament\Support\CharacterSkinArt;
 use App\Models\Character;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
@@ -38,7 +39,10 @@ final class CharactersTable
         return $table
             ->defaultSort('updated_at', 'desc')
             ->columns([
-                self::appearanceColumn(),
+                self::appearanceColumn()
+                    ->defaultImageUrl(function (Character $record): ?string {
+                        return CharacterSkinArt::url($record->skin);
+                    }),
                 TextColumn::make('username')
                     ->label(__('admin.labels.username'))
                     ->searchable(['username', 'tg_id'])
@@ -56,6 +60,12 @@ final class CharactersTable
                     ->numeric()
                     ->alignCenter()
                     ->sortable(),
+                TextColumn::make('skin')
+                    ->label(__('admin.labels.skin'))
+                    ->badge()
+                    ->alignCenter()
+                    ->sortable()
+                    ->placeholder('-'),
                 TextColumn::make('quest_phase')
                     ->label(__('admin.labels.quest_phase'))
                     ->badge()
