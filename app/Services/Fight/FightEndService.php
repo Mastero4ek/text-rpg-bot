@@ -6,11 +6,14 @@ namespace App\Services\Fight;
 
 use App\Actions\Backpack\BackpackApplyFightWearAction;
 use App\Actions\Bag\BagGemBreakOnLoseAction;
+use App\Actions\DailyContract\DailyContractMarkReadyAction;
 use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\FightKindEnum;
-use App\Models\Character;
+use App\Enums\NpcEnum;
+use App\Models\Character\Character;
+use App\Models\Character\CharacterDailyContract;
 use App\Models\Fight;
 use App\Quests\BlacksmithQuest;
 use App\Quests\BruiserQuest;
@@ -33,6 +36,7 @@ final class FightEndService
         private readonly EnemyApplyWinLootAction $winLoot,
         private readonly HealerQuest $healerQuest,
         private readonly OverseerQuest $overseerQuest,
+        private readonly DailyContractMarkReadyAction $dailyMarkReady,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
     ) {}
@@ -57,6 +61,10 @@ final class FightEndService
             return $this->healerRatWin($player, $text);
         }
 
+        if ($fight->kind === FightKindEnum::QUEST_DAILY) {
+            return $this->dailyWin($player, $fight, $text);
+        }
+
         if ($fight->hall) {
             return $this->hallWin($player, $fight, $text);
         }
@@ -78,6 +86,10 @@ final class FightEndService
 
         if ($fight->kind === FightKindEnum::QUEST_HEALER) {
             return $this->healerRatFlee($player, $fight, $text);
+        }
+
+        if ($fight->kind === FightKindEnum::QUEST_DAILY) {
+            return $this->trainingFlee($player, $fight, $text);
         }
 
         if ($fight->hall) {
@@ -107,11 +119,52 @@ final class FightEndService
             return $this->healerRatLose($player, $text);
         }
 
+        if ($fight->kind === FightKindEnum::QUEST_DAILY) {
+            return $this->trainingLose($player, $fight, $text);
+        }
+
         if ($fight->hall) {
             return $this->hallLose($player, $fight, $text);
         }
 
         return $this->trainingLose($player, $fight, $text);
+    }
+
+    private function dailyWin(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $logText = $this->fightLogText($fight);
+        $broken = $this->fightWear->handleAfterWin($player, $fight->pierce_count);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $brokeSuffix = $this->brokenGearSuffix($broken);
+        $this->dailyMarkReady->handle($player, $fight);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+
+        $issuer = NpcEnum::Buyer;
+        $fight->loadMissing('dailyContract');
+
+        if ($fight->dailyContract instanceof CharacterDailyContract) {
+            $issuer = $fight->dailyContract->issuer_npc;
+        }
+
+        $this->clearFight->handle($player->tg_id);
+
+        return new FightEndResult(
+            $player,
+            $text . "\n\n" . __('telegram.daily.win_ready', [
+                'npc' => __('telegram.daily.npc.' . $issuer->value),
+            ]) . $brokeSuffix,
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+            $logText,
+        );
     }
 
     private function bruiserFlee(Character $player, Fight $fight, string $text): FightEndResult

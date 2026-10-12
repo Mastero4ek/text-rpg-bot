@@ -12,7 +12,7 @@ use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Resources\Characters\Schemas\CharacterForm;
 use App\Filament\Resources\Characters\Tables\CharactersTable;
-use App\Models\Character;
+use App\Models\Character\Character;
 use BackedEnum;
 use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Resources\Resource;

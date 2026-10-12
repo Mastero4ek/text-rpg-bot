@@ -7,7 +7,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Quests\BuyerQuest;
 use App\Quests\Chapter1\Chapter1ScreenEnum;

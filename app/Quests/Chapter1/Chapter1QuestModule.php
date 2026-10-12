@@ -8,7 +8,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\BuyerQuest;
 use App\Quests\QuestChapterModuleContract;
 use App\Support\ActionResult;

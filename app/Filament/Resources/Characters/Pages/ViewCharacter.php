@@ -7,7 +7,7 @@ namespace App\Filament\Resources\Characters\Pages;
 use App\Actions\Character\CharacterSyncSkinMediaAction;
 use App\Enums\SkinEnum;
 use App\Filament\Resources\Characters\CharacterResource;
-use App\Models\Character;
+use App\Models\Character\Character;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 use Livewire\Attributes\On;

@@ -31,5 +31,14 @@ it('parses list callback state and rejects foreign prefixes', function (): void 
         ->and(PaginatedListKeyboard::listState('city:buyer:sell:list:bag:1', 'city:buyer:chest'))
         ->toBeNull()
         ->and(PaginatedListKeyboard::listState('city:buyer:chest', 'city:buyer:chest'))
+        ->toBeNull()
+        ->and(PaginatedListKeyboard::listState('city:buyer:chest:listpage:1:3', 'city:buyer:chest'))
+        ->toBeNull();
+});
+
+it('parses page toast callback state', function (): void {
+    expect(PaginatedListKeyboard::pageToastState('city:buyer:chest:listpage:1:3'))
+        ->toBe(['page' => 1, 'pages' => 3])
+        ->and(PaginatedListKeyboard::pageToastState('city:buyer:chest:list:all:1'))
         ->toBeNull();
 });

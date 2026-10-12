@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Quests\BuyerQuest;

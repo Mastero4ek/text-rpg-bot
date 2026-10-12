@@ -20,7 +20,7 @@ use App\Filament\Support\EquipmentTypeProfileFilters;
 use App\Filament\Tables\Columns\AppearanceImageColumn;
 use App\Models\Backpack\BackpackCatalog;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Shop\ShopCatalog;

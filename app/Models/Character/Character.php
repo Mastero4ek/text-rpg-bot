@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Models\Character;
 
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\ProgressStepEnum;
@@ -12,6 +12,9 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Enums\SkinEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
+use App\Models\City;
+use App\Models\Fight;
+use App\Models\LoadoutSlot;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;

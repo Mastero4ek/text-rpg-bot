@@ -7,7 +7,7 @@ namespace App\Actions\Healer;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;

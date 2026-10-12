@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Bruiser;
 
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\CharacterService;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;

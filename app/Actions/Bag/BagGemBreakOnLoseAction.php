@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Bag;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Bag\BagService;
 
 final class BagGemBreakOnLoseAction

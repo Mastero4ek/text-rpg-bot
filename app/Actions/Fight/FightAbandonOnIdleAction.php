@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Fight;
 
 use App\Enums\Fight\FightKindEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Quests\BlacksmithQuest;
 use App\Quests\OverseerQuest;

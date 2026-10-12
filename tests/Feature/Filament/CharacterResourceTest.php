@@ -6,7 +6,7 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Models\User;
 use App\Quests\Chapter1\Chapter1ScreenEnum;

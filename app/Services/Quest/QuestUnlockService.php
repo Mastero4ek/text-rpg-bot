@@ -6,7 +6,7 @@ namespace App\Services\Quest;
 
 use App\Enums\Quest\LocationEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramHtml;
@@ -28,6 +28,9 @@ final class QuestUnlockService
             LocationEnum::Training => true,
             LocationEnum::Portal => $character->unlock_portal === true,
             LocationEnum::Forest => $character->unlock_forest === true,
+            LocationEnum::Swamp,
+            LocationEnum::Ruins,
+            LocationEnum::Port => false,
             LocationEnum::Board => $character->unlock_board === true,
             LocationEnum::Lists,
             LocationEnum::Arena => ! $character->healer_debt_open && $character->unlock_arena === true,

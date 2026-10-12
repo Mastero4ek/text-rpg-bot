@@ -100,6 +100,7 @@ final class TelegramKeyboards
             'city:forest',
             'city:gates',
             null,
+            count($items),
         );
     }
 

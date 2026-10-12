@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('kind')->default(FightKindEnum::PVE->value);
             $table->boolean('tutorial');
             $table->boolean('hall')->default(false);
+            $table->unsignedBigInteger('daily_contract_id')->nullable();
             $table->string('return_to')->nullable();
             $table->integer('player_hp');
             $table->integer('player_max_hp');

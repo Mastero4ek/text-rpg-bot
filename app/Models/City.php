@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Backpack\BackpackCatalog;
 use App\Models\Bag\BagCatalog;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use Carbon\CarbonInterface;
 use Database\Factories\CityFactory;
@@ -35,6 +36,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property bool $has_quest_board
  * @property bool $has_portal
  * @property bool $has_forest
+ * @property bool $has_swamp
+ * @property bool $has_ruins
+ * @property bool $has_port
  * @property bool $has_fights_list
  * @property bool $has_training_room
  * @property CarbonInterface|null $created_at
@@ -55,6 +59,9 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'has_quest_board',
     'has_portal',
     'has_forest',
+    'has_swamp',
+    'has_ruins',
+    'has_port',
     'has_fights_list',
     'has_training_room',
 ])]
@@ -172,6 +179,45 @@ final class City extends Model implements HasMedia
     /**
      * @return BelongsToMany<EnemyCatalog, $this>
      */
+    public function portEnemyCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EnemyCatalog::class,
+            'city_port_enemy_catalog',
+            'city_id',
+            'enemy_catalog_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<EnemyCatalog, $this>
+     */
+    public function ruinsEnemyCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EnemyCatalog::class,
+            'city_ruins_enemy_catalog',
+            'city_id',
+            'enemy_catalog_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<EnemyCatalog, $this>
+     */
+    public function swampEnemyCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EnemyCatalog::class,
+            'city_swamp_enemy_catalog',
+            'city_id',
+            'enemy_catalog_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<EnemyCatalog, $this>
+     */
     public function trainingEnemyCatalog(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -180,6 +226,11 @@ final class City extends Model implements HasMedia
             'city_id',
             'enemy_catalog_id',
         );
+    }
+
+    public function hasAnyPveZone(): bool
+    {
+        return $this->has_forest || $this->has_swamp || $this->has_ruins || $this->has_port;
     }
 
     public function isReferencedByCharacters(): bool
@@ -216,6 +267,9 @@ final class City extends Model implements HasMedia
                 'has_quest_board',
                 'has_portal',
                 'has_forest',
+                'has_swamp',
+                'has_ruins',
+                'has_port',
                 'has_fights_list',
                 'has_training_room',
             ] as $flag) {
@@ -256,6 +310,9 @@ final class City extends Model implements HasMedia
             'has_quest_board' => 'boolean',
             'has_portal' => 'boolean',
             'has_forest' => 'boolean',
+            'has_swamp' => 'boolean',
+            'has_ruins' => 'boolean',
+            'has_port' => 'boolean',
             'has_fights_list' => 'boolean',
             'has_training_room' => 'boolean',
         ];

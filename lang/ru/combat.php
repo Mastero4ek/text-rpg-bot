@@ -13,6 +13,7 @@ return [
         'QUEST_BLACKSMITH' => 'Квест Кузнеца',
         'QUEST_BRUISER' => 'Квест Громилы',
         'QUEST_HEALER' => 'Квест Лекаря',
+        'QUEST_DAILY' => 'Ежедневный контракт',
     ],
     'stances' => [
         'ATTACK' => 'Атака',

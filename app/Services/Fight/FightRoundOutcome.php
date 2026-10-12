@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Fight;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 
 final readonly class FightRoundOutcome

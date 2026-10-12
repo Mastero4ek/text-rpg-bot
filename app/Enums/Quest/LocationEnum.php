@@ -10,6 +10,9 @@ enum LocationEnum: string
     case Tavern = 'tavern';
     case Portal = 'portal';
     case Forest = 'forest';
+    case Swamp = 'swamp';
+    case Ruins = 'ruins';
+    case Port = 'port';
     case Board = 'board';
     case Lists = 'lists';
     case Training = 'training';

@@ -6,7 +6,7 @@ namespace App\Actions\Character;
 
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Fight\FightService;
 use Illuminate\Support\Facades\DB;
 

@@ -7,7 +7,7 @@ namespace App\Filament\Resources\CityCatalog\Tables;
 use App\Actions\Character\CharacterDeleteAction;
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Filament\Resources\Characters\CharacterResource;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\GameConfig;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;

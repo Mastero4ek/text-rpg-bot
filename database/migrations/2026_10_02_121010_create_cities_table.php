@@ -25,6 +25,9 @@ return new class extends Migration
             $table->boolean('has_quest_board')->default(false);
             $table->boolean('has_portal')->default(false);
             $table->boolean('has_forest')->default(false);
+            $table->boolean('has_swamp')->default(false);
+            $table->boolean('has_ruins')->default(false);
+            $table->boolean('has_port')->default(false);
             $table->boolean('has_fights_list')->default(false);
             $table->boolean('has_training_room')->default(false);
             $table->timestamps();

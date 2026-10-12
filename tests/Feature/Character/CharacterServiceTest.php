@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 
 it('createDraft from settings.character.start', function (): void {
     $cfg = gameConfig()->character()['start'];

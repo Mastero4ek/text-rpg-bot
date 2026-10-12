@@ -7,7 +7,7 @@ namespace App\Models\Backpack;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Equipment\TypeEnum;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;

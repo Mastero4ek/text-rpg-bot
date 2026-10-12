@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Blacksmith;
 
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\CharacterService;
 use App\Services\EnemyService;

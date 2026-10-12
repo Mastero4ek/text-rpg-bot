@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
@@ -16,6 +16,7 @@ use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Handlers\BlacksmithHandler;
 use App\Telegram\Handlers\BuyerHandler;
 use App\Telegram\Handlers\CityHandler;
+use App\Telegram\Handlers\DailyContractHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
@@ -24,6 +25,7 @@ use App\Telegram\Handlers\OverseerHandler;
 use App\Telegram\Handlers\QuestHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
+use App\Telegram\Keyboards\PaginatedListKeyboard;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -46,6 +48,7 @@ final class UpdateProcessor
         private readonly HealerHandler $healer,
         private readonly BuyerHandler $buyer,
         private readonly OverseerHandler $overseer,
+        private readonly DailyContractHandler $daily,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
     ) {}
@@ -129,6 +132,16 @@ final class UpdateProcessor
     private function routeCallback(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $data = $update->callbackData();
+        $pageToast = PaginatedListKeyboard::pageToastState($data);
+
+        if ($pageToast !== null) {
+            $responder->answerCallbackToast(__('telegram.btn.page_toast', [
+                'page' => $pageToast['page'],
+                'pages' => $pageToast['pages'],
+            ]));
+
+            return;
+        }
 
         if (
             $data === 'ob:rise'
@@ -142,6 +155,12 @@ final class UpdateProcessor
 
         if (str_starts_with($data, 'quest:')) {
             $this->quest->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'daily:')) {
+            $this->daily->handleCallback($update, $responder);
 
             return;
         }

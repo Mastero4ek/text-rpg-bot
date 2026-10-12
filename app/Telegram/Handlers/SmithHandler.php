@@ -10,7 +10,7 @@ use App\Actions\Backpack\BackpackRepairVipAction;
 use App\Actions\Bag\BagGemBuyAction;
 use App\Actions\Bag\BagGemSocketAction;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\RepairService;
 use App\Services\Bag\BagCatalog;

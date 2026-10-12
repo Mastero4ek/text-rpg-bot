@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;

@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Enemy\EnemyKindEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\LoadoutService;
 use App\Support\Enemy;

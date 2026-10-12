@@ -25,7 +25,7 @@ it('blocks grant when bag cannot accept qty', function (): void {
     $p->save();
     $p = grantGem($p, 'ruby_0', 2);
 
-    expect(fn (): App\Models\Character => grantGem($p, 'emerald_0', 1))
+    expect(fn (): App\Models\Character\Character => grantGem($p, 'emerald_0', 1))
         ->toThrow(RuntimeException::class, __('errors.bag_full'));
 });
 

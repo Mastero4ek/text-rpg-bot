@@ -6,7 +6,7 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Enums\Quest\OverseerTrainStepEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Quests\BlacksmithQuest;
 use App\Quests\BruiserQuest;

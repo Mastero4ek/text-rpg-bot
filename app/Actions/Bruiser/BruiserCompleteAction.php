@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Bruiser;
 
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Backpack\BackpackService;
 use App\Services\Bag\BagService;

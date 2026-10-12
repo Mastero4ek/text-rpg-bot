@@ -100,6 +100,18 @@ final class GameConfig
     /**
      * @return array<string, mixed>
      */
+    public function dailyContracts(): array
+    {
+        if (! array_key_exists('daily_contracts', $this->settings) || ! is_array($this->settings['daily_contracts'])) {
+            throw new RuntimeException('settings.daily_contracts missing.');
+        }
+
+        return $this->settings['daily_contracts'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function loadJson(string $filename): array
     {
         $path = resource_path('configs/' . $filename);

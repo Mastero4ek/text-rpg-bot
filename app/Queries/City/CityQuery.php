@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Queries\City;
 
 use App\Enums\Bag\BagKindEnum;
+use App\Enums\City\PveZoneEnum;
 use App\Models\Backpack\BackpackCatalog;
 use App\Models\Bag\BagCatalog;
 use App\Models\City;
@@ -145,16 +146,30 @@ final class CityQuery
     /**
      * @return Collection<int, EnemyCatalog>
      */
+    public function catalogsForZone(int $cityId, PveZoneEnum $zone): Collection
+    {
+        return $this->pveCatalogs($cityId, $this->zoneRelation($zone));
+    }
+
+    /**
+     * @return Collection<int, EnemyCatalog>
+     */
     public function forestCatalogs(int $cityId): Collection
     {
-        return EnemyCatalog::query()
-            ->where('enabled', true)
-            ->whereHas('cities', function (Builder $query) use ($cityId): void {
-                $query->whereKey($cityId);
-            })
-            ->orderBy('sort_order')
-            ->orderBy('catalog_id')
-            ->get();
+        return $this->catalogsForZone($cityId, PveZoneEnum::Forest);
+    }
+
+    public function findZoneForCatalog(int $cityId, string $catalogId): ?PveZoneEnum
+    {
+        foreach (PveZoneEnum::cases() as $zone) {
+            foreach ($this->catalogsForZone($cityId, $zone) as $row) {
+                if ($row->catalog_id === $catalogId) {
+                    return $zone;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -188,5 +203,30 @@ final class CityQuery
             ->orderBy('name')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * @return Collection<int, EnemyCatalog>
+     */
+    private function pveCatalogs(int $cityId, string $relation): Collection
+    {
+        return EnemyCatalog::query()
+            ->where('enabled', true)
+            ->whereHas($relation, function (Builder $query) use ($cityId): void {
+                $query->whereKey($cityId);
+            })
+            ->orderBy('sort_order')
+            ->orderBy('catalog_id')
+            ->get();
+    }
+
+    private function zoneRelation(PveZoneEnum $zone): string
+    {
+        return match ($zone) {
+            PveZoneEnum::Forest => 'cities',
+            PveZoneEnum::Swamp => 'swampCities',
+            PveZoneEnum::Ruins => 'ruinsCities',
+            PveZoneEnum::Port => 'portCities',
+        };
     }
 }

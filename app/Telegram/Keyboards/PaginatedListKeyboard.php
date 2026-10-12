@@ -26,12 +26,14 @@ final class PaginatedListKeyboard
         string $listCallbackPrefix,
         string $backCallback,
         ?array $extraFooter,
+        int $totalCount,
     ): array {
         $itemCount = count($items);
         $safePage = self::clampedPage($page, $itemCount);
         $rows = [];
+        $showChrome = $totalCount > 0;
 
-        if (! empty($filters)) {
+        if ($showChrome && ! empty($filters)) {
             $filterRow = [];
 
             foreach ($filters as $filter) {
@@ -59,15 +61,21 @@ final class PaginatedListKeyboard
             foreach ($slice as $item) {
                 $rows[] = [self::cb($item['text'], $item['callback_data'])];
             }
+
+            $pages = self::pageCount($itemCount);
+            $prevPage = $safePage - 1;
+            $nextPage = $safePage + 1;
+            $pageLabel = __('telegram.btn.page_current', [
+                'page' => $safePage,
+                'pages' => $pages,
+            ]);
+
+            $rows[] = [
+                self::cb(__('telegram.btn.page_prev'), $listCallbackPrefix . ':list:' . $activeFilter . ':' . $prevPage),
+                self::cb($pageLabel, $listCallbackPrefix . ':listpage:' . $safePage . ':' . $pages),
+                self::cb(__('telegram.btn.page_next'), $listCallbackPrefix . ':list:' . $activeFilter . ':' . $nextPage),
+            ];
         }
-
-        $prevPage = $safePage - 1;
-        $nextPage = $safePage + 1;
-
-        $rows[] = [
-            self::cb(__('telegram.btn.page_prev'), $listCallbackPrefix . ':list:' . $activeFilter . ':' . $prevPage),
-            self::cb(__('telegram.btn.page_next'), $listCallbackPrefix . ':list:' . $activeFilter . ':' . $nextPage),
-        ];
 
         if ($extraFooter !== null) {
             if (array_key_exists('style', $extraFooter)) {
@@ -121,6 +129,21 @@ final class PaginatedListKeyboard
         }
 
         return (int) ceil($itemCount / self::PER_PAGE);
+    }
+
+    /**
+     * @return array{page: int, pages: int}|null
+     */
+    public static function pageToastState(string $data): ?array
+    {
+        if (preg_match('/:listpage:(\d+):(\d+)$/', $data, $m) !== 1) {
+            return null;
+        }
+
+        return [
+            'page' => (int) $m[1],
+            'pages' => (int) $m[2],
+        ];
     }
 
     /**

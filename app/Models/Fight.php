@@ -10,6 +10,8 @@ use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
+use App\Models\Character\Character;
+use App\Models\Character\CharacterDailyContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,7 +22,9 @@ use Illuminate\Support\Carbon;
  * @property FightKindEnum $kind
  * @property bool $tutorial
  * @property bool $hall
+ * @property int|null $daily_contract_id
  * @property FightReturnEnum|null $return_to
+ * @property-read CharacterDailyContract|null $dailyContract
  * @property int $player_hp
  * @property int $player_max_hp
  * @property int $player_stamina
@@ -48,6 +52,7 @@ use Illuminate\Support\Carbon;
     'kind',
     'tutorial',
     'hall',
+    'daily_contract_id',
     'return_to',
     'player_hp',
     'player_max_hp',
@@ -90,6 +95,14 @@ final class Fight extends Model
     }
 
     /**
+     * @return BelongsTo<CharacterDailyContract, $this>
+     */
+    public function dailyContract(): BelongsTo
+    {
+        return $this->belongsTo(CharacterDailyContract::class, 'daily_contract_id');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -99,6 +112,7 @@ final class Fight extends Model
             'kind' => FightKindEnum::class,
             'tutorial' => 'boolean',
             'hall' => 'boolean',
+            'daily_contract_id' => 'integer',
             'return_to' => FightReturnEnum::class,
             'player_hp' => 'integer',
             'player_max_hp' => 'integer',

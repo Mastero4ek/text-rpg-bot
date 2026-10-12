@@ -6,7 +6,7 @@ namespace App\Quests\Chapter1;
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\BlacksmithQuest;
 use App\Quests\BruiserQuest;
 use App\Quests\BuyerQuest;

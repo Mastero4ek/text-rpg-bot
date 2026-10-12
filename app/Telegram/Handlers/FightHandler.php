@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Telegram\Handlers;
 
+use App\Enums\City\PveZoneEnum;
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Fight\FightEndUiEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
@@ -19,6 +20,7 @@ use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
 use App\Services\Fight\FightTurnService;
+use App\Services\Quest\QuestUnlockService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
@@ -38,6 +40,7 @@ final class FightHandler
         private readonly FightPanelService $panel,
         private readonly CityQuery $cityQuery,
         private readonly CityHandler $city,
+        private readonly QuestUnlockService $questUnlocks,
         private readonly TelegramPlayerGate $gate,
         private readonly TelegramClient $telegram,
     ) {}
@@ -335,19 +338,27 @@ final class FightHandler
 
         $city = City::query()->find($player->city_id);
 
-        if (! $city instanceof City || ! $city->has_forest) {
+        if (! $city instanceof City || ! $city->hasAnyPveZone()) {
             $responder->edit(__('telegram.location.error.no_forest'), CityKeyboard::backToGates());
 
             return;
         }
 
-        $catalog = null;
+        $zone = $this->cityQuery->findZoneForCatalog($city->id, $catalogId);
 
-        foreach ($this->cityQuery->forestCatalogs($city->id) as $row) {
-            if ($row->catalog_id === $catalogId) {
-                $catalog = $row;
-            }
+        if (! $zone instanceof PveZoneEnum) {
+            $responder->edit(__('telegram.location.error.enemy_not_found'), CityKeyboard::backToGates());
+
+            return;
         }
+
+        if (! $this->questUnlocks->canOpen($player, $zone->location())) {
+            $responder->edit($this->questUnlocks->fogText($player), CityKeyboard::backToGates());
+
+            return;
+        }
+
+        $catalog = EnemyCatalog::query()->find($catalogId);
 
         if (! $catalog instanceof EnemyCatalog) {
             $responder->edit(__('telegram.location.error.enemy_not_found'), CityKeyboard::backToGates());
@@ -356,7 +367,7 @@ final class FightHandler
         }
 
         $enemy = $this->enemies->makeFromCatalog($catalog, $player);
-        $fight = $this->fights->createTraining($player, $enemy);
+        $fight = $this->fights->createTrainingIn($player, $enemy, $zone->fightReturn());
         $this->panel->open($responder, $fight, $player, $catalog->localImagePath());
     }
 }

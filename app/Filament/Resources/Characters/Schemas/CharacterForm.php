@@ -8,7 +8,7 @@ use App\Actions\Character\CharacterPushQuestScreenAction;
 use App\Actions\Character\CharacterResetStatsAction;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use App\Quests\QuestChapterRegistry;
 use App\Services\CharacterService;

@@ -6,11 +6,14 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\City\CityPortalAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
+use App\Enums\City\PveZoneEnum;
+use App\Enums\DailyContract\DailyContractTypeEnum;
 use App\Enums\Enemy\EnemyKindEnum;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Quest\LocationEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
+use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Queries\City\CityQuery;
@@ -19,6 +22,7 @@ use App\Quests\BruiserQuest;
 use App\Quests\BuyerQuest;
 use App\Quests\HealerQuest;
 use App\Services\CityMenuService;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
@@ -31,6 +35,7 @@ use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
+use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Throwable;
 
@@ -46,6 +51,7 @@ final class CityHandler
         private readonly BlacksmithQuest $blacksmithQuest,
         private readonly BruiserQuest $bruiserQuest,
         private readonly BuyerQuest $buyerQuest,
+        private readonly DailyContractService $dailyContracts,
         private readonly HealerQuest $healerQuest,
         private readonly QuestUnlockService $questUnlocks,
         private readonly RegistrationService $registrationService,
@@ -56,19 +62,28 @@ final class CityHandler
     {
         $data = $update->callbackData();
         $boardState = PaginatedListKeyboard::listState($data, 'city:board');
-        $forestState = PaginatedListKeyboard::listState($data, 'city:forest');
+        $pveZone = $this->pveZoneFromCallback($data);
+        $pveState = null;
+
+        if ($pveZone instanceof PveZoneEnum) {
+            $pveState = PaginatedListKeyboard::listState($data, $pveZone->callbackRoot());
+
+            if ($pveState === null && $data === $pveZone->callbackRoot()) {
+                $pveState = ['filter' => 'all', 'page' => 1];
+            }
+        }
+
         $fightsState = PaginatedListKeyboard::listState($data, 'city:fights');
         $trainingState = PaginatedListKeyboard::listState($data, 'city:training');
         $portalState = PaginatedListKeyboard::listState($data, 'portal');
 
         if (
             $boardState !== null
-            || $forestState !== null
+            || $pveState !== null
             || $fightsState !== null
             || $trainingState !== null
             || $portalState !== null
             || $data === 'city:board'
-            || $data === 'city:forest'
             || $data === 'city:fights'
             || $data === 'city:training'
             || $data === 'city:portal'
@@ -101,22 +116,12 @@ final class CityHandler
                 return;
             }
 
-            if ($forestState !== null) {
-                if ($this->showFogIfLocked($responder, $player, LocationEnum::Forest)) {
+            if ($pveZone instanceof PveZoneEnum && $pveState !== null) {
+                if ($this->showFogIfLocked($responder, $player, $pveZone->location())) {
                     return;
                 }
 
-                $this->forest($responder, $player, $forestState['filter'], $forestState['page']);
-
-                return;
-            }
-
-            if ($data === 'city:forest') {
-                if ($this->showFogIfLocked($responder, $player, LocationEnum::Forest)) {
-                    return;
-                }
-
-                $this->forest($responder, $player, 'all', 1);
+                $this->pveZone($responder, $player, $pveZone, $pveState['filter'], $pveState['page']);
 
                 return;
             }
@@ -394,7 +399,12 @@ final class CityHandler
 
     public function openForest(TelegramResponder $responder, Character $player): void
     {
-        $this->forest($responder, $player, 'all', 1);
+        $this->pveZone($responder, $player, PveZoneEnum::Forest, 'all', 1);
+    }
+
+    public function openPveZone(TelegramResponder $responder, Character $player, PveZoneEnum $zone): void
+    {
+        $this->pveZone($responder, $player, $zone, 'all', 1);
     }
 
     public function openTrainingPick(TelegramResponder $responder, Character $player): void
@@ -419,7 +429,13 @@ final class CityHandler
             return;
         }
 
-        $this->sendForest($responder, $player);
+        $zone = PveZoneEnum::tryFromFightReturn($returnTo);
+
+        if (! $zone instanceof PveZoneEnum) {
+            return;
+        }
+
+        $this->sendPveZone($responder, $player, $zone);
     }
 
     private function homePanelImagePath(Character $player): ?string
@@ -587,13 +603,65 @@ final class CityHandler
             return;
         }
 
-        $filter = $this->boardFilter($filter);
-        $markup = CityKeyboard::boardList([], $filter, $page);
+        if (! $player->unlock_board) {
+            $responder->answerCallback();
+            $this->editLocationGate(
+                $responder,
+                __('telegram.daily.error.board_locked'),
+                CityKeyboard::backToCity(),
+            );
+
+            return;
+        }
 
         $responder->answerCallback();
-        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
 
-        $text = __('telegram.location.board_empty');
+        $filter = $this->boardFilter($filter);
+        $items = [];
+        $totalCount = 0;
+
+        if ($player->quest_phase === QuestPhaseEnum::Done) {
+            $this->dailyContracts->ensureOffers($player, $city);
+            $allOffers = $this->dailyContracts->offeredForBoard($player, $city, 'all');
+            $totalCount = $allOffers->count();
+
+            if ($filter === 'all') {
+                $offers = $allOffers;
+            } else {
+                $offers = $this->dailyContracts->offeredForBoard($player, $city, $filter);
+            }
+
+            foreach ($offers as $contract) {
+                if ($contract->type === DailyContractTypeEnum::Delivery) {
+                    $items[] = [
+                        'text' => $this->dailyDeliveryRowText($contract),
+                        'callback_data' => 'daily:offer:' . $contract->id,
+                    ];
+
+                    continue;
+                }
+
+                $items[] = [
+                    'text' => $this->dailyHuntRowText($contract),
+                    'callback_data' => 'daily:offer:' . $contract->id,
+                ];
+            }
+        }
+
+        $markup = CityKeyboard::boardList($items, $filter, $page, $totalCount);
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
+        $flash = $edge && ! empty($items);
+
+        if ($edge || empty($items)) {
+            $text = __('telegram.location.board_empty');
+        } else {
+            $text = __('telegram.location.board');
+        }
+
+        if ($flash) {
+            app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+        }
+
         $boardImage = config('bot.city_quest_board_image');
 
         if (is_string($boardImage) && $boardImage !== '' && is_file($boardImage)) {
@@ -616,6 +684,99 @@ final class CityHandler
             $responder->chatId(),
             $responder->messageId(),
         );
+    }
+
+    private function dailyDeliveryRowText(CharacterDailyContract $contract): string
+    {
+        $itemName = $contract->bag_catalog_id ?? '';
+
+        if (
+            array_key_exists('item_name', $contract->params)
+            && is_string($contract->params['item_name'])
+            && $contract->params['item_name'] !== ''
+        ) {
+            $itemName = $contract->params['item_name'];
+        }
+
+        if ($itemName === '') {
+            throw new RuntimeException('Delivery board row missing item name.');
+        }
+
+        $cityName = '';
+
+        if (
+            array_key_exists('city_name', $contract->params)
+            && is_string($contract->params['city_name'])
+            && $contract->params['city_name'] !== ''
+        ) {
+            $cityName = $contract->params['city_name'];
+        } else {
+            $contract->loadMissing('targetCity');
+
+            if ($contract->targetCity instanceof City) {
+                $cityName = $contract->targetCity->name;
+            }
+        }
+
+        if ($cityName === '') {
+            return __('telegram.daily.row_delivery', [
+                'silver' => $contract->reward_silver,
+                'exp' => $contract->reward_exp,
+                'item' => $itemName,
+            ]);
+        }
+
+        return __('telegram.daily.row_delivery_city', [
+            'silver' => $contract->reward_silver,
+            'exp' => $contract->reward_exp,
+            'item' => $itemName,
+            'city' => $cityName,
+            'npc' => $this->dailyIssuerLabel($contract),
+        ]);
+    }
+
+    private function dailyHuntRowText(CharacterDailyContract $contract): string
+    {
+        return __('telegram.daily.row', [
+            'silver' => $contract->reward_silver,
+            'exp' => $contract->reward_exp,
+            'monster' => $this->dailyMonsterName($contract),
+            'zone' => $this->dailyHuntZoneName($contract),
+            'npc' => $this->dailyIssuerLabel($contract),
+        ]);
+    }
+
+    private function dailyHuntZoneName(CharacterDailyContract $contract): string
+    {
+        $zoneKey = 'forest';
+
+        if (
+            array_key_exists('zone', $contract->params)
+            && is_string($contract->params['zone'])
+            && $contract->params['zone'] !== ''
+        ) {
+            $zoneKey = $contract->params['zone'];
+        }
+
+        return __('telegram.daily.zone_name.' . $zoneKey);
+    }
+
+    private function dailyIssuerLabel(CharacterDailyContract $contract): string
+    {
+        return __('telegram.daily.npc.' . $contract->issuer_npc->value);
+    }
+
+    private function dailyMonsterName(CharacterDailyContract $contract): string
+    {
+        if (array_key_exists('monster_name', $contract->params) && is_string($contract->params['monster_name'])) {
+            return $contract->params['monster_name'];
+        }
+
+        if (! is_string($contract->enemy_catalog_id) || $contract->enemy_catalog_id === '') {
+            throw new RuntimeException('Hunt board row missing monster name.');
+        }
+
+        return $contract->enemy_catalog_id;
     }
 
     private function boardFilter(string $filter): string
@@ -659,9 +820,14 @@ final class CityHandler
         );
     }
 
-    private function forest(TelegramResponder $responder, Character $player, string $filter, int $page): void
-    {
-        if ($this->blacksmithQuest->awaitsHelp($player)) {
+    private function pveZone(
+        TelegramResponder $responder,
+        Character $player,
+        PveZoneEnum $zone,
+        string $filter,
+        int $page,
+    ): void {
+        if ($zone === PveZoneEnum::Forest && $this->blacksmithQuest->awaitsHelp($player)) {
             $responder->answerCallback();
             $this->editBlacksmithQuestPanel(
                 $responder,
@@ -673,13 +839,13 @@ final class CityHandler
             return;
         }
 
-        $panel = $this->forestPanel($player, $filter, $page);
+        $panel = $this->pveZonePanel($player, $zone, $filter, $page);
 
         if ($panel === null) {
             $responder->answerCallback();
             $this->editLocationGate(
                 $responder,
-                __('telegram.location.error.no_forest'),
+                __($zone->emptyErrorKey()),
                 CityKeyboard::backToGates(),
             );
 
@@ -698,48 +864,81 @@ final class CityHandler
         }
 
         $responder->answerCallback();
-        $this->showListPanel($responder, $player, $panel, __('telegram.location.forest_empty'), __('telegram.location.forest'));
+        $this->showListPanel(
+            $responder,
+            $player,
+            $panel,
+            __($zone->emptyLocationKey()),
+            __($zone->locationTextKey()),
+        );
     }
 
     /**
      * @return array{text: string, markup: array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}, image: string|null, flash: bool}|null
      */
-    private function forestPanel(Character $player, string $filter, int $page): ?array
+    private function pveZonePanel(Character $player, PveZoneEnum $zone, string $filter, int $page): ?array
     {
         $city = $this->cityMenu->currentCity($player);
 
-        if (! $city instanceof City || ! $city->has_forest) {
+        if (! $city instanceof City || ! $zone->cityHas($city)) {
             return null;
         }
 
         $filter = $this->enemyFilter($filter);
-        $buttons = $this->enemyButtons($this->cityQuery->forestCatalogs($city->id), $player, $filter);
-        $edge = PaginatedListKeyboard::isOutOfRange($page, count($buttons));
-        $flash = $edge && ! empty($buttons);
+        $items = [];
+        $huntCatalogIds = [];
 
-        if ($edge || empty($buttons)) {
-            $text = __('telegram.location.forest_empty');
-        } else {
-            $text = __('telegram.location.forest');
+        foreach ($this->dailyContracts->acceptedForCity($player, $city) as $contract) {
+            if (! $this->dailyContractInZone($contract, $zone)) {
+                continue;
+            }
+
+            $huntCatalogIds[$contract->enemy_catalog_id] = true;
+            $items[] = [
+                'text' => __('telegram.daily.hunt_row', [
+                    'monster' => $this->dailyMonsterName($contract),
+                ]),
+                'callback_data' => 'daily:hunt:' . $contract->id,
+            ];
         }
 
-        $forestImage = config('bot.city_forest_image');
+        foreach ($this->enemyButtons($this->cityQuery->catalogsForZone($city->id, $zone), $player, $filter) as $enemy) {
+            if (isset($huntCatalogIds[$enemy['catalog_id']])) {
+                continue;
+            }
 
-        if (! is_string($forestImage) || $forestImage === '' || ! is_file($forestImage)) {
-            $forestImage = null;
+            $items[] = [
+                'text' => $enemy['text'],
+                'callback_data' => 'fight:start:' . $enemy['catalog_id'],
+            ];
+        }
+
+        $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
+        $flash = $edge && ! empty($items);
+
+        if ($edge || empty($items)) {
+            $text = __($zone->emptyLocationKey());
+        } else {
+            $text = __($zone->locationTextKey());
+        }
+
+        $image = config($zone->imageConfigKey());
+
+        if (! is_string($image) || $image === '' || ! is_file($image)) {
+            $image = null;
         }
 
         return [
             'text' => $text,
-            'markup' => TelegramKeyboards::fightPick($buttons, $filter, $page),
-            'image' => $forestImage,
+            'markup' => CityKeyboard::pveZonePick($items, $filter, $page, $zone->callbackRoot()),
+            'image' => $image,
             'flash' => $flash,
         ];
     }
 
-    private function sendForest(TelegramResponder $responder, Character $player): void
+    private function sendPveZone(TelegramResponder $responder, Character $player, PveZoneEnum $zone): void
     {
-        if ($this->blacksmithQuest->awaitsHelp($player)) {
+        if ($zone === PveZoneEnum::Forest && $this->blacksmithQuest->awaitsHelp($player)) {
             $this->sendCityPanel(
                 $responder,
                 $player,
@@ -751,13 +950,13 @@ final class CityHandler
             return;
         }
 
-        $panel = $this->forestPanel($player, 'all', 1);
+        $panel = $this->pveZonePanel($player, $zone, 'all', 1);
 
         if ($panel === null) {
             $this->sendCityPanel(
                 $responder,
                 $player,
-                __('telegram.location.error.no_forest'),
+                __($zone->emptyErrorKey()),
                 CityKeyboard::backToGates(),
                 null,
             );
@@ -772,6 +971,34 @@ final class CityHandler
             $panel['markup'],
             $panel['image'],
         );
+    }
+
+    private function dailyContractInZone(CharacterDailyContract $contract, PveZoneEnum $zone): bool
+    {
+        $zoneKey = 'forest';
+
+        if (
+            array_key_exists('zone', $contract->params)
+            && is_string($contract->params['zone'])
+            && $contract->params['zone'] !== ''
+        ) {
+            $zoneKey = $contract->params['zone'];
+        }
+
+        return $zoneKey === $zone->value;
+    }
+
+    private function pveZoneFromCallback(string $data): ?PveZoneEnum
+    {
+        foreach (PveZoneEnum::cases() as $zone) {
+            $root = $zone->callbackRoot();
+
+            if ($data === $root || str_starts_with($data, $root . ':')) {
+                return $zone;
+            }
+        }
+
+        return null;
     }
 
     private function gates(TelegramResponder $responder, Character $player): void
@@ -791,7 +1018,7 @@ final class CityHandler
 
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
 
-        if (! $city->has_portal && ! $city->has_forest) {
+        if (! $city->has_portal && ! $city->hasAnyPveZone()) {
             $text = __('telegram.location.gates_empty');
         } else {
             $text = __('telegram.location.gates');
@@ -863,8 +1090,9 @@ final class CityHandler
 
         $filter = $this->portalFilter($filter);
         $targets = $this->portalTargetList($player, $filter);
+        $totalCount = count($this->portalTargetList($player, 'all'));
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($targets));
-        $markup = CityKeyboard::portalTargets($targets, $filter, $page);
+        $markup = CityKeyboard::portalTargets($targets, $filter, $page, $totalCount);
 
         $responder->answerCallback();
 
@@ -1397,7 +1625,9 @@ final class CityHandler
      */
     private function fogBackMarkup(LocationEnum $location): array
     {
-        if ($location === LocationEnum::Portal || $location === LocationEnum::Forest) {
+        if (
+            in_array($location, [LocationEnum::Portal, LocationEnum::Forest, LocationEnum::Swamp, LocationEnum::Ruins, LocationEnum::Port], true)
+        ) {
             return CityKeyboard::backToGates();
         }
 

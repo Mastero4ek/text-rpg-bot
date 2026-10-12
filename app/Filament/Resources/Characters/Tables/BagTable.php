@@ -16,7 +16,7 @@ use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Support\BackpackEquipPreviewHtml;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagCatalog;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use Carbon\CarbonInterface;

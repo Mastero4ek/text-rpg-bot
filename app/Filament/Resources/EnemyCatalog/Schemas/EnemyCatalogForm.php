@@ -98,6 +98,12 @@ final class EnemyCatalogForm
                     ->schema([
                         CityCatalogField::makeForest()
                             ->columnSpan(2),
+                        CityCatalogField::makeSwamp()
+                            ->columnSpan(2),
+                        CityCatalogField::makeRuins()
+                            ->columnSpan(2),
+                        CityCatalogField::makePort()
+                            ->columnSpan(2),
                         CityCatalogField::makeTraining()
                             ->columnSpan(2),
                     ]),

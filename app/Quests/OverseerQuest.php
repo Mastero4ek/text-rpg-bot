@@ -15,7 +15,7 @@ use App\Actions\Overseer\OverseerSubmitStatsAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\Fight;
 use App\Services\Fight\FightService;

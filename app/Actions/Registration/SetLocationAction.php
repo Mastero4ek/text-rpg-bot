@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Registration;
 
 use App\Filament\Resources\Characters\CharacterResource;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\User;
 use App\Services\Registration\RegistrationService;

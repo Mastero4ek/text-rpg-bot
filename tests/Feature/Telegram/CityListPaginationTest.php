@@ -47,6 +47,7 @@ describe('buyer chest', function (): void {
         assertCityEditMarkupHas('city:buyer:chest:list:charms:1');
         assertCityEditMarkupHas('city:buyer:chest:list:all:0');
         assertCityEditMarkupHas('city:buyer:chest:list:all:2');
+        assertCityEditMarkupHas('city:buyer:chest:listpage:1:');
         assertCityEditMarkupHas('"style":"primary"');
         assertCityEditMarkupHas('"style":"danger"');
         assertCityEditMarkupHas('city:buyer:buy:ruby_0');
@@ -68,7 +69,7 @@ describe('buyer chest', function (): void {
         assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:buyer:buy:'));
     });
 
-    it('keeps filters and pagination on empty chest', function (): void {
+    it('shows only back on completely empty chest', function (): void {
         $player = cityDone(10103, 'ListChestEmpty', City::KEY_ANKRAT);
         $city = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
         $city->bagCatalog()->sync([]);
@@ -77,10 +78,12 @@ describe('buyer chest', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:buyer:chest');
 
         assertCityEditHas(mb_trim(__('telegram.npc.buyer.empty')));
-        assertCityEditMarkupHas('city:buyer:chest:list:all:1');
-        assertCityEditMarkupHas('city:buyer:chest:list:all:0');
-        assertCityEditMarkupHas('city:buyer:chest:list:all:2');
         assertCityEditMarkupHas('"style":"danger"');
+        assertCityEditMarkupHas('city:buyer');
+        assertTelegramMarkupBody(function (string $body): bool {
+            return ! str_contains($body, 'city:buyer:chest:list:')
+                && ! str_contains($body, 'city:buyer:chest:listpage:');
+        });
     });
 
     it('edits chest panel with page edge copy and keeps list chrome', function (): void {
@@ -162,6 +165,7 @@ describe('buyer chest', function (): void {
             'city:buyer:sell',
             'city:buyer',
             null,
+            count($items),
         );
 
         $rows = $markup['inline_keyboard'];
@@ -171,9 +175,33 @@ describe('buyer chest', function (): void {
             ->and($rows[0][1]['style'])->toBe('primary')
             ->and($rows[1][0]['callback_data'])->toBe('item:6')
             ->and($rows[2][0]['callback_data'])->toBe('city:buyer:sell:list:bag:1')
-            ->and($rows[2][1]['callback_data'])->toBe('city:buyer:sell:list:bag:3')
+            ->and($rows[2][1]['callback_data'])->toBe('city:buyer:sell:listpage:2:2')
+            ->and($rows[2][1]['text'])->toBe('2/2')
+            ->and($rows[2][2]['callback_data'])->toBe('city:buyer:sell:list:bag:3')
             ->and($rows[3][0]['style'])->toBe('danger')
             ->and($rows[3][0]['callback_data'])->toBe('city:buyer');
+    });
+
+    it('hides filters and pagination when total count is zero', function (): void {
+        $markup = PaginatedListKeyboard::markup(
+            [],
+            [
+                ['id' => 'all', 'label' => 'Все'],
+                ['id' => 'bag', 'label' => 'Сумка'],
+            ],
+            'all',
+            1,
+            'city:buyer:sell',
+            'city:buyer',
+            null,
+            0,
+        );
+
+        $rows = $markup['inline_keyboard'];
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0][0]['callback_data'])->toBe('city:buyer')
+            ->and($rows[0][0]['style'])->toBe('danger');
     });
 });
 
@@ -212,7 +240,7 @@ describe('buyer sell', function (): void {
         });
     });
 
-    it('shows sell empty copy with chrome when filter has no rows', function (): void {
+    it('shows sell empty copy with filters but without pagination when filter has no rows', function (): void {
         $player = cityDone(10113, 'ListSellEmptyBp');
         bag()->addPotion($player->tg_id, 'heal_0');
 
@@ -220,8 +248,12 @@ describe('buyer sell', function (): void {
 
         assertCityEditHas(mb_trim(__('telegram.npc.buyer.sell_empty')));
         assertCityEditMarkupHas('city:buyer:sell:list:bp:1');
-        assertCityEditMarkupHas('city:buyer:sell:list:bp:0');
-        assertCityEditMarkupHas('city:buyer:sell:list:bp:2');
+        assertCityEditMarkupHas('city:buyer:sell:list:all:1');
+        assertTelegramMarkupBody(function (string $body): bool {
+            return ! str_contains($body, 'city:buyer:sell:list:bp:0')
+                && ! str_contains($body, 'city:buyer:sell:list:bp:2')
+                && ! str_contains($body, 'city:buyer:sell:listpage:');
+        });
     });
 });
 
@@ -286,7 +318,7 @@ describe('healer potions', function (): void {
         });
     });
 
-    it('keeps filters on empty potion shelf', function (): void {
+    it('shows only back on completely empty potion shelf', function (): void {
         $player = cityDone(10132, 'ListHealerEmpty', City::KEY_ANKRAT);
         $city = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
         $city->bagCatalog()->sync([]);
@@ -295,9 +327,12 @@ describe('healer potions', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:healer:potions');
 
         assertCityEditHas(mb_trim(__('telegram.npc.healer.potions_empty')));
-        assertCityEditMarkupHas('city:healer:potions:list:all:1');
-        assertCityEditMarkupHas('city:healer:potions:list:heal:1');
         assertCityEditMarkupHas('"style":"danger"');
+        assertCityEditMarkupHas('city:healer');
+        assertTelegramMarkupBody(function (string $body): bool {
+            return ! str_contains($body, 'city:healer:potions:list:')
+                && ! str_contains($body, 'city:healer:potions:listpage:');
+        });
     });
 });
 
@@ -317,15 +352,19 @@ describe('portal', function (): void {
         });
     });
 
-    it('shows portal empty copy when free filter has no targets', function (): void {
+    it('shows portal empty copy with filters but without pagination when free filter has no targets', function (): void {
         $player = cityDone(10142, 'ListPortalEmptyFree');
 
         cityFlowCallback($player->tg_id, 9, 'portal:list:free:1');
 
         assertCityEditHas(mb_trim(__('telegram.location.portal_empty')));
         assertCityEditMarkupHas('portal:list:free:1');
-        assertCityEditMarkupHas('portal:list:free:0');
-        assertCityEditMarkupHas('portal:list:free:2');
+        assertCityEditMarkupHas('portal:list:all:1');
+        assertTelegramMarkupBody(function (string $body): bool {
+            return ! str_contains($body, 'portal:list:free:0')
+                && ! str_contains($body, 'portal:list:free:2')
+                && ! str_contains($body, 'portal:listpage:');
+        });
     });
 });
 
@@ -337,6 +376,7 @@ describe('forest and training', function (): void {
 
         assertCityEditMarkupHas('city:forest:list:all:0');
         assertCityEditMarkupHas('city:forest:list:all:2');
+        assertCityEditMarkupHas('city:forest:listpage:1:');
         assertCityEditMarkupHas('"style":"danger"');
         assertTelegramMarkupBody(function (string $body): bool {
             return ! str_contains($body, 'city:forest:list:fixed:')
@@ -353,6 +393,7 @@ describe('forest and training', function (): void {
 
         assertCityEditMarkupHas('city:training:list:all:0');
         assertCityEditMarkupHas('city:training:list:all:2');
+        assertCityEditMarkupHas('city:training:listpage:1:');
         assertCityEditMarkupHas('"style":"danger"');
         assertTelegramMarkupBody(function (string $body): bool {
             return ! str_contains($body, 'city:training:list:fixed:')
@@ -373,6 +414,7 @@ describe('forest and training', function (): void {
         assertCityEditHas(mb_trim(__('telegram.location.forest_empty')));
         assertCityEditMarkupHas('city:forest:list:all:0');
         assertCityEditMarkupHas('city:forest:list:all:2');
+        assertCityEditMarkupHas('city:forest:listpage:1:');
         assertCityEditMarkupHas('"style":"danger"');
     });
 });

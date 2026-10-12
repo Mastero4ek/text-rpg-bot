@@ -7,7 +7,7 @@ namespace App\Services\Fight;
 use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Services\CharacterService;
 use App\Support\Enemy;
@@ -63,7 +63,31 @@ final class FightService
 
     public function createTraining(Character $character, Enemy $enemy): Fight
     {
-        return $this->createFight($character, $enemy, FightKindEnum::PVE, false, false, FightReturnEnum::Forest);
+        return $this->createTrainingIn($character, $enemy, FightReturnEnum::Forest);
+    }
+
+    public function createTrainingIn(Character $character, Enemy $enemy, FightReturnEnum $returnTo): Fight
+    {
+        return $this->createFight($character, $enemy, FightKindEnum::PVE, false, false, $returnTo);
+    }
+
+    public function createDailyQuest(
+        Character $character,
+        Enemy $enemy,
+        int $dailyContractId,
+        FightReturnEnum $returnTo,
+    ): Fight {
+        $fight = $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::QUEST_DAILY,
+            false,
+            false,
+            $returnTo,
+        );
+        $fight->daily_contract_id = $dailyContractId;
+
+        return $this->save($fight);
     }
 
     public function createTutorial(Character $character, Enemy $enemy): Fight

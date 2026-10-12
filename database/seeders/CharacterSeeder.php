@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Enums\ProgressStepEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;

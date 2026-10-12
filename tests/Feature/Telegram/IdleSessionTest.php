@@ -7,7 +7,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Jobs\IdleSessionResetJob;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\CharacterService;
 use App\Services\Telegram\IdleSessionService;

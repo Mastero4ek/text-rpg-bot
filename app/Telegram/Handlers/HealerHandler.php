@@ -9,12 +9,14 @@ use App\Actions\City\CityHealerHealAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Models\Character;
+use App\Enums\NpcEnum;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Quests\HealerQuest;
 use App\Services\Bag\BagCatalog;
 use App\Services\CityMenuService;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\GameConfig;
 use App\Support\PotionDef;
 use App\Support\Telegram\TelegramHtml;
@@ -35,6 +37,7 @@ final class HealerHandler
         private readonly CityHealerHealAction $healer,
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
+        private readonly DailyContractService $dailyContracts,
         private readonly GameConfig $config,
         private readonly HealerQuest $healerQuest,
         private readonly TelegramPlayerGate $gate,
@@ -172,7 +175,12 @@ final class HealerHandler
             __('telegram.npc.healer.bought_potion', [
                 'name' => TelegramHtml::escape($res->potion->name),
             ]),
-            CityKeyboard::healerPotions($this->healerPotionRows($res->character, 'all'), 'all', 1),
+            CityKeyboard::healerPotions(
+                $this->healerPotionRows($res->character, 'all'),
+                'all',
+                1,
+                count($this->healerPotionRows($res->character, 'all')),
+            ),
         );
     }
 
@@ -199,7 +207,7 @@ final class HealerHandler
 
         $potions = $this->healerPotionRows($player, 'all');
 
-        return CityKeyboard::healerPotions($potions, 'all', 1);
+        return CityKeyboard::healerPotions($potions, 'all', 1, count($potions));
     }
 
     /**
@@ -250,9 +258,16 @@ final class HealerHandler
         }
 
         $filter = $this->potionFilter($filter);
-        $potions = $this->healerPotionRows($player, $filter);
+        $allPotions = $this->healerPotionRows($player, 'all');
+
+        if ($filter === 'all') {
+            $potions = $allPotions;
+        } else {
+            $potions = $this->healerPotionRows($player, $filter);
+        }
+
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($potions));
-        $markup = CityKeyboard::healerPotions($potions, $filter, $page);
+        $markup = CityKeyboard::healerPotions($potions, $filter, $page, count($allPotions));
 
         $responder->answerCallback();
 
@@ -334,10 +349,14 @@ final class HealerHandler
             return;
         }
 
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Healer)
+            ->isNotEmpty();
+
         $this->editHealerPanel(
             $responder,
             __('telegram.npc.healer.offer', ['gold' => $this->goldCost()]),
-            CityKeyboard::healerOffer(),
+            CityKeyboard::healerOfferWithDaily($hasDaily),
         );
     }
 }

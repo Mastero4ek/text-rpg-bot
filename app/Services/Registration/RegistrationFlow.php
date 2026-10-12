@@ -6,7 +6,7 @@ namespace App\Services\Registration;
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramResponder;

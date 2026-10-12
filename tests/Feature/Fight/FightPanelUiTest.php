@@ -28,6 +28,8 @@ it('starts forest fight with single photo panel and inline keyboard', function (
     $p->username = 'PanelHero';
     $p->level = 4;
     $p = placeInCity($p, City::KEY_ANKRAT);
+    unlockQuestCity($p);
+    $p = $p->fresh();
 
     $update = fightPanelCallback($p->tg_id, 'fight:start:forest_bandit');
     app(FightHandler::class)->handleCallback(

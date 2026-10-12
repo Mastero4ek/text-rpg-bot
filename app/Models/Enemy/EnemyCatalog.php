@@ -166,6 +166,45 @@ final class EnemyCatalog extends Model implements HasMedia
     /**
      * @return BelongsToMany<City, $this>
      */
+    public function portCities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_port_enemy_catalog',
+            'enemy_catalog_id',
+            'city_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function ruinsCities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_ruins_enemy_catalog',
+            'enemy_catalog_id',
+            'city_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<City, $this>
+     */
+    public function swampCities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            City::class,
+            'city_swamp_enemy_catalog',
+            'enemy_catalog_id',
+            'city_id',
+        );
+    }
+
+    /**
+     * @return BelongsToMany<City, $this>
+     */
     public function trainingCities(): BelongsToMany
     {
         return $this->belongsToMany(

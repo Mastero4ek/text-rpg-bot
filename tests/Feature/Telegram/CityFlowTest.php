@@ -186,21 +186,22 @@ it('opens gates and arena from ordinary home', function (): void {
     cityFlowCallback($player->tg_id, 11, 'city:arena');
     assertCityEditHas(mb_trim(__('telegram.location.fights_empty')));
     assertCityEditHas('arena.png');
-    assertCityEditMarkupHas('city:fights:list:all:0');
     assertCityEditMarkupHas('city:lists');
 });
 
-it('shows board stub from root', function (): void {
+it('shows daily board offers from root when quest done', function (): void {
     $player = cityDone(9608, 'BoardHero');
 
     cityFlowCallback($player->tg_id, 9, 'city:board');
 
-    assertCityEditHas(mb_trim(__('telegram.location.board_empty')));
+    assertCityEditHas(mb_trim(__('telegram.location.board')));
+    assertCityEditMarkupHas('daily:offer:');
     assertCityEditMarkupHas('city:board:list:all:1');
     assertCityEditMarkupHas('city:board:list:orders:1');
     assertCityEditMarkupHas('city:board:list:asks:1');
     assertCityEditMarkupHas('city:board:list:all:0');
     assertCityEditMarkupHas('city:board:list:all:2');
+    assertCityEditMarkupHas('city:board:listpage:1:');
     assertCityEditMarkupHas('city:home');
     assertCityEditMarkupHas('"style":"danger"');
     assertCityEditMarkupHas('"style":"primary"');
@@ -213,10 +214,17 @@ it('shows fights stub without creating a fight', function (): void {
 
     expect(fights()->exists($player->tg_id))->toBeFalse();
     assertCityEditHas(mb_trim(__('telegram.location.fights_empty')));
-    assertCityEditMarkupHas('city:fights:list:all:0');
-    assertCityEditMarkupHas('city:fights:list:all:2');
     assertCityEditMarkupHas('city:lists');
     assertCityEditMarkupHas('"style":"danger"');
+    Http::assertSent(function (Request $request): bool {
+        $body = urldecode($request->body());
+
+        return (str_contains($request->url(), '/editMessageMedia')
+            || str_contains($request->url(), '/editMessageCaption')
+            || str_contains($request->url(), '/editMessageText'))
+            && ! str_contains($body, 'city:fights:list:')
+            && ! str_contains($body, 'city:fights:listpage:');
+    });
 });
 
 it('blocks city callbacks during registration nick step', function (): void {
@@ -278,6 +286,9 @@ it('shows gates empty when city has neither portal nor forest', function (): voi
         'enabled' => true,
         'has_portal' => false,
         'has_forest' => false,
+        'has_swamp' => false,
+        'has_ruins' => false,
+        'has_port' => false,
     ]);
 
     $player = characters()->createDraft(9614);

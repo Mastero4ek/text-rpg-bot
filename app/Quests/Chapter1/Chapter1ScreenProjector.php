@@ -9,7 +9,7 @@ use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Enums\SkinEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 
 final class Chapter1ScreenProjector
 {

@@ -6,7 +6,7 @@ namespace App\Actions\Buyer;
 
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
 use App\Services\CharacterService;

@@ -14,7 +14,7 @@ use App\Actions\Registration\SetLocationAction;
 use App\Enums\ProgressStepEnum;
 use App\Enums\SkinEnum;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
 

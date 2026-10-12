@@ -7,7 +7,7 @@ namespace App\Quests;
 use App\Actions\Buyer\BuyerAcceptContractAction;
 use App\Actions\Buyer\BuyerTurnInPurseAction;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Bag\BagService;
 use App\Services\GameConfig;

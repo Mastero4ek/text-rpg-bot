@@ -6,7 +6,7 @@ namespace App\Filament\Resources\Characters\RelationManagers;
 
 use App\Actions\Character\CharacterSetBackpackMaxRowsAction;
 use App\Filament\Resources\Characters\Tables\BackpackTable;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Backpack\BackpackService;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;

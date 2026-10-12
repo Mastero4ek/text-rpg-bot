@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Bag\BagCatalog;
 use App\Support\Combat\Fighter;
 use App\Support\Combat\HitResult;

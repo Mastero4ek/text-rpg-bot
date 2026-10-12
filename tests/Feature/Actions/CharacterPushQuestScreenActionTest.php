@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Actions\Character\CharacterPushQuestScreenAction;
 use App\Enums\Quest\QuestChapterEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;

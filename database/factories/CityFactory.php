@@ -32,6 +32,9 @@ final class CityFactory extends Factory
             'has_quest_board' => true,
             'has_portal' => true,
             'has_forest' => true,
+            'has_swamp' => true,
+            'has_ruins' => true,
+            'has_port' => true,
             'has_fights_list' => true,
             'has_training_room' => true,
         ];

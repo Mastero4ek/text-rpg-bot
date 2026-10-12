@@ -6,7 +6,7 @@ namespace App\Actions\Enemy;
 
 use App\Enums\Bag\BagKindEnum;
 use App\Models\Bag\BagCatalog;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\CombatService;

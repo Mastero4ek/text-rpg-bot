@@ -8,7 +8,7 @@ use App\Actions\Blacksmith\BlacksmithCompleteAction;
 use App\Actions\Blacksmith\BlacksmithResetAfterLoseAction;
 use App\Actions\Blacksmith\BlacksmithStartBagFightAction;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\Fight;
 use App\Services\Fight\FightService;

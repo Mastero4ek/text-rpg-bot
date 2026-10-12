@@ -19,7 +19,7 @@ use App\Filament\Support\BackpackDurabilityText;
 use App\Filament\Support\BackpackEquipPreviewHtml;
 use App\Filament\Support\GemSocketSlots;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Shop\ShopCatalog;

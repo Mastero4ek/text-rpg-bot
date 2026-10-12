@@ -10,12 +10,14 @@ use App\Actions\City\CityBlacksmithBuyAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\TypeEnum;
+use App\Enums\NpcEnum;
 use App\Models\Backpack\BackpackItem;
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\Backpack\RepairService;
 use App\Services\CityMenuService;
+use App\Services\DailyContract\DailyContractService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -33,6 +35,7 @@ final class BlacksmithHandler
         private readonly CityBlacksmithBuyAction $buyItem,
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
+        private readonly DailyContractService $dailyContracts,
         private readonly RepairService $repairs,
         private readonly ShopCatalog $shopCatalog,
         private readonly TelegramPlayerGate $gate,
@@ -161,7 +164,12 @@ final class BlacksmithHandler
             __('telegram.npc.blacksmith.bought', [
                 'name' => TelegramHtml::escape($this->shopCatalog->findItem($catalogId)->itemName),
             ]),
-            CityKeyboard::blacksmithGear($this->blacksmithGearRows($res->character, 'wpn'), 'wpn', 1),
+            CityKeyboard::blacksmithGear(
+                $this->blacksmithGearRows($res->character, 'wpn'),
+                'wpn',
+                1,
+                count($this->blacksmithGearRows($res->character, 'all')),
+            ),
         );
     }
 
@@ -219,8 +227,9 @@ final class BlacksmithHandler
 
         $filter = $this->gearFilter($filter);
         $items = $this->blacksmithGearRows($player, $filter);
+        $totalCount = count($this->blacksmithGearRows($player, 'all'));
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
-        $markup = CityKeyboard::blacksmithGear($items, $filter, $page);
+        $markup = CityKeyboard::blacksmithGear($items, $filter, $page, $totalCount);
 
         $responder->answerCallback();
 
@@ -257,7 +266,12 @@ final class BlacksmithHandler
 
         $items = $this->blacksmithGearRows($player, 'wpn');
 
-        return CityKeyboard::blacksmithGear($items, 'wpn', 1);
+        return CityKeyboard::blacksmithGear(
+            $items,
+            'wpn',
+            1,
+            count($this->blacksmithGearRows($player, 'all')),
+        );
     }
 
     /**
@@ -344,6 +358,7 @@ final class BlacksmithHandler
 
         $filter = $this->gearFilter($filter);
         $items = $this->blacksmithRepairRows($player, $filter);
+        $totalCount = count($this->blacksmithRepairRows($player, 'all'));
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
 
         if (empty($items)) {
@@ -354,7 +369,7 @@ final class BlacksmithHandler
             ]);
         }
 
-        $markup = CityKeyboard::blacksmithRepair($items, $filter, $page, $repairAllBtn);
+        $markup = CityKeyboard::blacksmithRepair($items, $filter, $page, $repairAllBtn, $totalCount);
 
         $responder->answerCallback();
 
@@ -436,6 +451,7 @@ final class BlacksmithHandler
             __('telegram.npc.blacksmith.repair_all_btn', [
                 'price' => $this->repairs->repairAllGoldCost($player),
             ]),
+            count($this->blacksmithRepairRows($player, 'all')),
         );
     }
 
@@ -488,6 +504,7 @@ final class BlacksmithHandler
                 __('telegram.npc.blacksmith.repair_all_btn', [
                     'price' => $this->repairs->repairAllGoldCost($res->character),
                 ]),
+                count($this->blacksmithRepairRows($res->character, 'all')),
             ),
         );
     }
@@ -553,10 +570,14 @@ final class BlacksmithHandler
             return;
         }
 
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Blacksmith)
+            ->isNotEmpty();
+
         $this->editBlacksmithPanel(
             $responder,
             __('telegram.npc.blacksmith.offer'),
-            CityKeyboard::blacksmith(),
+            CityKeyboard::blacksmithWithDaily($hasDaily),
         );
     }
 

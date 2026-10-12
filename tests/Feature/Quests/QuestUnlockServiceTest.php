@@ -38,6 +38,9 @@ it('sets quest_phase Overseer after registration and fogs locked locations for A
         ->and($unlocks->canOpen($player, LocationEnum::Lists))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Portal))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Forest))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Swamp))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Ruins))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Port))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Board))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Arena))->toBeFalse();
 
@@ -53,6 +56,9 @@ it('sets quest_phase Overseer after registration and fogs locked locations for A
     assertCityEditMarkupHas('🔒');
     assertCityEditMarkupHas('city:portal');
     assertCityEditMarkupHas('city:forest');
+    assertCityEditMarkupHas('city:swamp');
+    assertCityEditMarkupHas('city:ruins');
+    assertCityEditMarkupHas('city:port');
 
     cityFlowCallback($player->tg_id, 9, 'city:portal');
     assertCityEditHas($cityEscaped);
@@ -61,13 +67,16 @@ it('sets quest_phase Overseer after registration and fogs locked locations for A
     cityFlowCallback($player->tg_id, 10, 'city:forest');
     assertCityEditHas($cityEscaped);
 
-    cityFlowCallback($player->tg_id, 11, 'city:board');
+    cityFlowCallback($player->tg_id, 11, 'city:swamp');
     assertCityEditHas($cityEscaped);
 
-    cityFlowCallback($player->tg_id, 12, 'city:lists');
+    cityFlowCallback($player->tg_id, 12, 'city:board');
     assertCityEditHas($cityEscaped);
 
-    cityFlowCallback($player->tg_id, 13, 'city:arena');
+    cityFlowCallback($player->tg_id, 13, 'city:lists');
+    assertCityEditHas($cityEscaped);
+
+    cityFlowCallback($player->tg_id, 14, 'city:arena');
     assertCityEditHas($cityEscaped);
 })->with([
     [City::KEY_ANKRAT, 9701],

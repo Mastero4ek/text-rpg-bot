@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\City;
 
-use App\Models\Character;
+use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\Backpack\BackpackService;

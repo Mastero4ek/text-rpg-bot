@@ -68,8 +68,8 @@ final class CityCatalogForm
                                 ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.city_enabled')),
                         ]),
                     ]),
-                Section::make(__('admin.sections.city_services'))
-                    ->icon(Heroicon::OutlinedMapPin)
+                Section::make(__('admin.sections.city_npcs'))
+                    ->icon(Heroicon::OutlinedUserGroup)
                     ->columns(2)
                     ->columnSpanFull()
                     ->collapsed()
@@ -79,12 +79,24 @@ final class CityCatalogForm
                             Toggle::make('has_healer')->label(__('admin.labels.has_healer')),
                             Toggle::make('has_buyer')->label(__('admin.labels.has_buyer')),
                             Toggle::make('has_overseer')->label(__('admin.labels.has_overseer')),
+                        ])->columns(2),
+                    ]),
+                Section::make(__('admin.sections.city_locations'))
+                    ->icon(Heroicon::OutlinedMapPin)
+                    ->columns(2)
+                    ->columnSpanFull()
+                    ->collapsed()
+                    ->schema([
+                        Group::make([
                             Toggle::make('has_quest_board')->label(__('admin.labels.has_quest_board')),
                             Toggle::make('has_portal')->label(__('admin.labels.has_portal')),
                             Toggle::make('has_forest')->label(__('admin.labels.has_forest')),
+                            Toggle::make('has_swamp')->label(__('admin.labels.has_swamp')),
+                            Toggle::make('has_ruins')->label(__('admin.labels.has_ruins')),
+                            Toggle::make('has_port')->label(__('admin.labels.has_port')),
                             Toggle::make('has_fights_list')->label(__('admin.labels.has_fights_list')),
                             Toggle::make('has_training_room')->label(__('admin.labels.has_training_room')),
-                        ])->columns(3),
+                        ])->columns(2),
                     ]),
                 Section::make(__('admin.sections.city_economy'))
                     ->icon(Heroicon::OutlinedBanknotes)
