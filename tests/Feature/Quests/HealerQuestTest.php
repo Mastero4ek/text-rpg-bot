@@ -16,20 +16,23 @@ beforeEach(function (): void {
     ]);
 });
 
-it('shows healer panel on portal during healer phase', function (): void {
+it('shows healer panel on ruins during healer phase', function (): void {
     $player = cityHealerPhase(98101, 'HealerMeet');
     $city = City::query()->findOrFail($player->city_id);
 
     expect(app(HealerQuest::class)->awaitsPotion($player))->toBeTrue();
 
-    cityFlowCallback($player->tg_id, 9, 'city:portal');
+    cityFlowCallback($player->tg_id, 9, 'city:ruins');
 
     assertCityEditHas(TelegramHtml::escape($city->name));
     assertCityEditMarkupHas('quest:healer:take');
     assertCityEditMarkupHas(__('telegram.quest.healer.btn.take'));
 
     Http::assertNotSent(function ($request): bool {
-        return str_contains((string) $request->body(), 'portal:list:');
+        $body = (string) $request->body();
+
+        return str_contains($body, 'city:ruins:list:')
+            || str_contains($body, __('telegram.location.ruins'));
     });
 });
 
@@ -53,20 +56,24 @@ it('gives heal and stamina potions with rewards and unlocks forest', function ()
         ->and(app(HealerQuest::class)->awaitsPotion($player))->toBeFalse();
 });
 
-it('locks portal travel list after complete until quest chain finale', function (): void {
+it('keeps portal fog after healer complete until quest chain finale', function (): void {
     $player = cityHealerPhase(98103, 'HealerTravel');
+    $player->loadMissing('city');
+    $cityEscaped = TelegramHtml::escape($player->city->name);
     expect(app(HealerGivePotionAction::class)->handle($player)->ok)->toBeTrue();
 
     cityFlowCallback($player->tg_id, 9, 'city:portal');
 
-    assertCityEditHas(mb_trim(__('telegram.location.portal_locked')));
+    expect($player->fresh()->unlock_portal)->toBeFalse();
+    assertCityEditHas($cityEscaped);
     assertCityEditMarkupHas('city:gates');
     Http::assertNotSent(function ($request): bool {
         $body = (string) $request->body();
 
         return str_contains($body, 'quest:healer:take')
             || str_contains($body, 'portal:list:')
-            || str_contains($body, __('telegram.location.portal_title'));
+            || str_contains($body, __('telegram.location.portal_title'))
+            || str_contains($body, __('telegram.location.portal_locked'));
     });
 });
 
@@ -85,14 +92,14 @@ it('rejects double take and wrong phase', function (): void {
         ->and(bag()->potionCountByProfile($wrong->tg_id, ProfileEnum::STAMINA))->toBe(0);
 });
 
-it('keeps fog on portal without unlock', function (): void {
+it('keeps fog on ruins without unlock', function (): void {
     $player = cityArrivedSkipped(98106, 'HealerFog');
     $player->loadMissing('city');
     $cityEscaped = TelegramHtml::escape($player->city->name);
 
-    cityFlowCallback($player->tg_id, 9, 'city:portal');
+    cityFlowCallback($player->tg_id, 9, 'city:ruins');
 
-    expect($player->fresh()->unlock_portal)->toBeFalse();
+    expect($player->fresh()->unlock_ruins)->toBeFalse();
     assertCityEditHas($cityEscaped);
 });
 
@@ -132,7 +139,7 @@ it('keeps potions in bag after telegram take without consume', function (): void
     assertCityEditMarkupHas(__('telegram.quest.healer.btn.to_city'));
 });
 
-it('opens city hub before visiting healer portal', function (): void {
+it('opens city hub before visiting healer ruins', function (): void {
     $player = cityHealerPhase(98109, 'HealerHub');
 
     cityFlowCallback($player->tg_id, 9, 'city:home');
@@ -147,10 +154,10 @@ it('opens city hub before visiting healer portal', function (): void {
     });
 });
 
-it('soft-locks city callbacks after healer portal until potion is taken', function (): void {
+it('soft-locks city callbacks after healer ruins until potion is taken', function (): void {
     $player = cityHealerPhase(98110, 'HealerLock');
 
-    cityFlowCallback($player->tg_id, 9, 'city:portal');
+    cityFlowCallback($player->tg_id, 9, 'city:ruins');
     expect($player->fresh()->healer_meet_open)->toBeTrue();
 
     cityFlowCallback($player->tg_id, 9, 'city:home');

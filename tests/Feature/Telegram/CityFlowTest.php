@@ -322,6 +322,8 @@ it('shows tavern empty when no npc flags and no skip', function (): void {
         'has_blacksmith' => false,
         'has_buyer' => false,
         'has_overseer' => false,
+        'has_barkeeper' => false,
+        'has_bruiser' => false,
     ]);
 
     $player = characters()->createDraft(9617);

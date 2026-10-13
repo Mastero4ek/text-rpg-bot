@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\City\PveZoneEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Enums\Quest\LocationEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
@@ -176,10 +177,13 @@ final class CityMenuService
         }
 
         if ($this->cityFullyOpen($character)) {
-            return $city->has_healer
-                || $city->has_blacksmith
-                || $city->has_buyer
-                || $city->has_overseer;
+            $hidden = $this->npcPlacement->tavernHiddenByDelivery($character);
+
+            return ($city->has_barkeeper && ! in_array('barkeeper', $hidden, true))
+                || ($city->has_healer && ! in_array('healer', $hidden, true))
+                || ($city->has_blacksmith && ! in_array('blacksmith', $hidden, true))
+                || ($city->has_buyer && ! in_array('buyer', $hidden, true))
+                || ($city->has_overseer && ! in_array('overseer', $hidden, true));
         }
 
         return $this->npcPlacement->isOverseerAtTavern($character)
@@ -200,7 +204,11 @@ final class CityMenuService
         }
 
         if ($this->cityFullyOpen($character)) {
-            return CityKeyboard::tavern($city, $this->dailyContracts->turnInableIssuerKeys($character, $city));
+            return CityKeyboard::tavern(
+                $city,
+                $this->dailyContracts->turnInableIssuerKeys($character, $city),
+                $this->npcPlacement->tavernHiddenByDelivery($character),
+            );
         }
 
         $npcKeys = [];
@@ -222,6 +230,80 @@ final class CityMenuService
         }
 
         return CityKeyboard::tavernQuest($city, $npcKeys);
+    }
+
+    public function deliveryNpcLabel(Character $character, City $city, NpcEnum $issuer): string
+    {
+        $label = __('telegram.btn.' . $issuer->value);
+        $ready = $this->dailyContracts->turnInableForIssuer($character, $city, $issuer);
+
+        if ($ready->isEmpty()) {
+            return $label;
+        }
+
+        return __('telegram.daily.npc_mark', ['name' => $label]);
+    }
+
+    /**
+     * @return list<array{text: string, callback_data: string}>
+     */
+    public function deliveryNpcRowsForZone(Character $character, City $city, PveZoneEnum $zone): array
+    {
+        $rows = [];
+
+        if (
+            $zone === PveZoneEnum::Ruins
+            && $this->npcPlacement->isHealerAtRuins($character)
+            && $city->has_healer
+        ) {
+            $rows[] = [
+                'text' => $this->deliveryNpcLabel($character, $city, NpcEnum::Healer),
+                'callback_data' => 'city:healer',
+            ];
+        }
+
+        if (
+            $zone === PveZoneEnum::Forest
+            && $this->npcPlacement->isBlacksmithAtForest($character)
+            && $city->has_blacksmith
+        ) {
+            $rows[] = [
+                'text' => $this->deliveryNpcLabel($character, $city, NpcEnum::Blacksmith),
+                'callback_data' => 'city:blacksmith',
+            ];
+        }
+
+        if (
+            $zone === PveZoneEnum::Port
+            && $this->npcPlacement->isBruiserAtPort($character)
+            && $city->has_bruiser
+        ) {
+            $rows[] = [
+                'text' => $this->deliveryNpcLabel($character, $city, NpcEnum::Bruiser),
+                'callback_data' => 'city:bruiser',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<array{text: string, callback_data: string}>
+     */
+    public function deliveryNpcRowsForBoard(Character $character, City $city): array
+    {
+        if (! $this->npcPlacement->isBuyerAtBoard($character) || ! $city->has_buyer) {
+            return [];
+        }
+
+        if ($character->quest_phase !== QuestPhaseEnum::Done && ! $character->city_unlocked_full) {
+            return [];
+        }
+
+        return [[
+            'text' => $this->deliveryNpcLabel($character, $city, NpcEnum::Buyer),
+            'callback_data' => 'city:buyer',
+        ]];
     }
 
     private function cityFullyOpen(Character $character): bool

@@ -67,7 +67,8 @@ it('completes accept train pipeline with rewards and portal unlock', function ()
     expect($player->exp)->toBe(30)
         ->and($player->silver)->toBe(25)
         ->and($player->stat_points)->toBe(0)
-        ->and($player->unlock_portal)->toBeTrue()
+        ->and($player->unlock_ruins)->toBeTrue()
+        ->and($player->unlock_portal)->toBeFalse()
         ->and($player->overseer_trained)->toBeTrue()
         ->and($player->overseer_at_tavern)->toBeTrue()
         ->and($player->overseer_train_step)->toBeNull()
@@ -84,6 +85,7 @@ it('skip opens hub then tavern train reaches same complete', function (): void {
     $player->refresh();
     expect($player->overseer_at_tavern)->toBeTrue()
         ->and($player->exp)->toBe(0)
+        ->and($player->unlock_ruins)->toBeFalse()
         ->and($player->unlock_portal)->toBeFalse()
         ->and(app(OverseerQuest::class)->awaitsMeet($player))->toBeFalse();
 
@@ -105,7 +107,8 @@ it('skip opens hub then tavern train reaches same complete', function (): void {
     $player->refresh();
     expect($player->exp)->toBe(30)
         ->and($player->stat_points)->toBe(0)
-        ->and($player->unlock_portal)->toBeTrue()
+        ->and($player->unlock_ruins)->toBeTrue()
+        ->and($player->unlock_portal)->toBeFalse()
         ->and($player->quest_phase)->toBe(QuestPhaseEnum::Healer);
 });
 
@@ -140,14 +143,18 @@ it('rejects overseer callbacks after complete', function (): void {
         ->and(app(OverseerAgreeTrainingAction::class)->handle($player->fresh())->ok)->toBeFalse();
 });
 
-it('keeps fog on portal before complete', function (): void {
+it('keeps fog on portal and ruins before complete', function (): void {
     $player = cityArrivedSkipped(98006, 'FogHero');
     $player->loadMissing('city');
     $cityEscaped = TelegramHtml::escape($player->city->name);
 
     cityFlowCallback($player->tg_id, 9, 'city:portal');
 
-    expect($player->fresh()->unlock_portal)->toBeFalse();
+    expect($player->fresh()->unlock_portal)->toBeFalse()
+        ->and($player->fresh()->unlock_ruins)->toBeFalse();
+    assertCityEditHas($cityEscaped);
+
+    cityFlowCallback($player->tg_id, 10, 'city:ruins');
     assertCityEditHas($cityEscaped);
 });
 
@@ -169,7 +176,8 @@ it('auto-completes overseer quest on last telegram stat spend', function (): voi
     expect($player->stat_points)->toBe(0)
         ->and($player->exp)->toBe(30)
         ->and($player->overseer_trained)->toBeTrue()
-        ->and($player->unlock_portal)->toBeTrue()
+        ->and($player->unlock_ruins)->toBeTrue()
+        ->and($player->unlock_portal)->toBeFalse()
         ->and($player->quest_phase)->toBe(QuestPhaseEnum::Healer)
         ->and($player->overseer_train_step)->toBeNull();
 
@@ -237,5 +245,6 @@ it('resets training to intro after tutorial lose without quest exp', function ()
         ->and($player->exp)->toBe(0)
         ->and($player->quest_phase)->toBe(QuestPhaseEnum::Overseer)
         ->and($player->unlock_portal)->toBeFalse()
+        ->and($player->unlock_ruins)->toBeFalse()
         ->and($player->current_hp)->toBe(characters()->maxHp($player));
 });

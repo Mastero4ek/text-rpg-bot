@@ -46,6 +46,9 @@ it('lists views and creates a city', function (): void {
             'has_blacksmith' => true,
             'has_healer' => true,
             'has_buyer' => false,
+            'has_overseer' => true,
+            'has_bruiser' => true,
+            'has_barkeeper' => true,
             'has_quest_board' => true,
             'has_portal' => true,
             'has_fights_list' => true,
@@ -55,8 +58,31 @@ it('lists views and creates a city', function (): void {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(City::query()->where('name', 'Дубрава')->firstOrFail()->key)->toBe('dubrava')
-        ->and(City::query()->where('name', 'Дубрава')->firstOrFail()->has_blacksmith)->toBeTrue();
+    $created = City::query()->where('name', 'Дубрава')->firstOrFail();
+
+    expect($created->key)->toBe('dubrava')
+        ->and($created->has_blacksmith)->toBeTrue()
+        ->and($created->has_bruiser)->toBeTrue()
+        ->and($created->has_barkeeper)->toBeTrue();
+});
+
+it('persists bruiser and barkeeper flags on edit', function (): void {
+    $city = City::query()->where('key', City::KEY_ANKRAT)->firstOrFail();
+
+    livewire(EditCityCatalog::class, [
+        'record' => $city->getKey(),
+    ])
+        ->fillForm([
+            'has_bruiser' => false,
+            'has_barkeeper' => false,
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $city->refresh();
+
+    expect($city->has_bruiser)->toBeFalse()
+        ->and($city->has_barkeeper)->toBeFalse();
 });
 
 it('rejects duplicate city name', function (): void {

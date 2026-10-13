@@ -23,7 +23,7 @@ final class HealerOpenMeetAction
 
             if (
                 $locked->quest_phase !== QuestPhaseEnum::Healer
-                || ! $locked->unlock_portal
+                || ! $locked->unlock_ruins
                 || $locked->healer_at_tavern
             ) {
                 return ActionResult::fail(__('telegram.quest.healer.error.wrong_phase'));

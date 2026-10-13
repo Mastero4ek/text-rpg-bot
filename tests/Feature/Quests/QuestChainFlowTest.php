@@ -218,17 +218,21 @@ it('keeps fog on locked locations mid chain', function (): void {
     $unlocks = app(QuestUnlockService::class);
 
     expect($unlocks->canOpen($player, LocationEnum::Portal))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Ruins))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Forest))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Board))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Lists))->toBeFalse();
 
     $player = runOverseerTrain($player);
-    expect($unlocks->canOpen($player, LocationEnum::Portal))->toBeTrue()
+    expect($unlocks->canOpen($player, LocationEnum::Ruins))->toBeTrue()
+        ->and($unlocks->canOpen($player, LocationEnum::Portal))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Forest))->toBeFalse();
 
     $player = runHealerGrant($player);
-    expect($unlocks->canOpen($player, LocationEnum::Forest))->toBeTrue()
-        ->and($unlocks->canOpen($player, LocationEnum::Board))->toBeFalse();
+    expect($unlocks->canOpen($player, LocationEnum::Ruins))->toBeTrue()
+        ->and($unlocks->canOpen($player, LocationEnum::Forest))->toBeTrue()
+        ->and($unlocks->canOpen($player, LocationEnum::Board))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Portal))->toBeFalse();
 });
 
 it('does not duplicate rewards on repeated completes', function (): void {

@@ -9,7 +9,8 @@ use App\Actions\City\CityHealerHealAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\ProfileEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
+use App\Models\Bag\BagCatalog as BagCatalogModel;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
@@ -18,6 +19,7 @@ use App\Services\Bag\BagCatalog;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
 use App\Services\GameConfig;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Support\PotionDef;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -40,6 +42,7 @@ final class HealerHandler
         private readonly DailyContractService $dailyContracts,
         private readonly GameConfig $config,
         private readonly HealerQuest $healerQuest,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -87,7 +90,13 @@ final class HealerHandler
             return;
         }
 
-        if (preg_match('/^city:healer:potion:(.+)$/', $data, $m) === 1) {
+        if (preg_match('/^city:healer:potion:view:(.+)$/', $data, $m) === 1) {
+            $this->healerPotionView($responder, $player, $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^city:healer:potion:buy:(.+)$/', $data, $m) === 1) {
             $this->healerBuyPotion($responder, $player, $m[1]);
         }
     }
@@ -164,7 +173,7 @@ final class HealerHandler
             $this->editHealerPanel(
                 $responder,
                 TelegramResponder::errorMessage($res->error),
-                $this->healerPotionErrorMarkup($player, $res->error),
+                $this->healerPotionErrorMarkup($player, $res->error, $catalogId),
             );
 
             return;
@@ -199,15 +208,57 @@ final class HealerHandler
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    private function healerPotionErrorMarkup(Character $player, ?string $error): array
+    private function healerPotionErrorMarkup(Character $player, ?string $error, string $catalogId): array
     {
         if ($error === __('errors.city_unavailable') || $error === __('telegram.npc.healer.error.no_healer')) {
             return CityKeyboard::backToTavern();
         }
 
-        $potions = $this->healerPotionRows($player, 'all');
+        if ($error === __('telegram.npc.healer.error.potion_unavailable')) {
+            $potions = $this->healerPotionRows($player, 'all');
 
-        return CityKeyboard::healerPotions($potions, 'all', 1, count($potions));
+            return CityKeyboard::healerPotions($potions, 'all', 1, count($potions));
+        }
+
+        return CityKeyboard::healerPotionCard($catalogId);
+    }
+
+    private function healerPotionCardText(PotionDef $potion): string
+    {
+        $description = $potion->description;
+
+        if ($description === null || $description === '') {
+            throw new RuntimeException('Healer potion card missing description: ' . $potion->catalogId);
+        }
+
+        return __('telegram.npc.healer.potion_card', [
+            'name' => TelegramHtml::escape($potion->name),
+            'description' => TelegramHtml::escape($description),
+            'effect_mark' => $this->potionEffectMark($potion->profile),
+            'effect' => $potion->effectValue,
+            'mark' => $this->currencyMark($potion->currency),
+            'price' => $potion->price,
+        ]);
+    }
+
+    private function potionEffectMark(ProfileEnum $profile): string
+    {
+        if ($profile === ProfileEnum::STAMINA) {
+            return '💚';
+        }
+
+        return '❤️';
+    }
+
+    private function healerPotionImagePath(string $catalogId): ?string
+    {
+        $model = BagCatalogModel::query()->find($catalogId);
+
+        if (! $model instanceof BagCatalogModel) {
+            return null;
+        }
+
+        return $model->localImagePath();
     }
 
     /**
@@ -232,14 +283,54 @@ final class HealerHandler
             $rows[] = [
                 'text' => __('telegram.npc.healer.potion_row', [
                     'name' => $potion->name,
-                    'price' => $potion->price,
-                    'mark' => $this->currencyMark($potion->currency),
                 ]),
                 'catalog_id' => $potion->catalogId,
             ];
         }
 
         return $rows;
+    }
+
+    private function healerPotionView(TelegramResponder $responder, Character $player, string $catalogId): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_healer) {
+            $this->editHealerPanel(
+                $responder,
+                __('telegram.npc.healer.error.no_healer'),
+                CityKeyboard::backToTavern(),
+            );
+
+            return;
+        }
+
+        if (! $this->cityQuery->bagInCityShop($city->id, $catalogId) || ! $this->bagCatalog->hasPotion($catalogId)) {
+            $potions = $this->healerPotionRows($player, 'all');
+            $this->editHealerPanel(
+                $responder,
+                __('telegram.npc.healer.error.potion_unavailable'),
+                CityKeyboard::healerPotions($potions, 'all', 1, count($potions)),
+            );
+
+            return;
+        }
+
+        $potion = $this->bagCatalog->findPotion($catalogId);
+        $text = $this->healerPotionCardText($potion);
+        $markup = CityKeyboard::healerPotionCard($catalogId);
+        $imagePath = $this->healerPotionImagePath($catalogId);
+
+        if (is_string($imagePath)) {
+            try {
+                $responder->editPhoto($imagePath, $text, $markup);
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $this->editHealerPanel($responder, $text, $markup);
     }
 
     private function healerPotions(TelegramResponder $responder, Character $player, string $filter, int $page): void
@@ -339,11 +430,13 @@ final class HealerHandler
 
         $city = $this->cityMenu->currentCity($player);
 
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Healer);
+
         if (! $city instanceof City || ! $city->has_healer) {
             $this->editHealerPanel(
                 $responder,
                 __('telegram.npc.healer.error.no_healer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -356,7 +449,7 @@ final class HealerHandler
         $this->editHealerPanel(
             $responder,
             __('telegram.npc.healer.offer', ['gold' => $this->goldCost()]),
-            CityKeyboard::healerOfferWithDaily($hasDaily),
+            CityKeyboard::healerOfferWithDaily($hasDaily, $back),
         );
     }
 }

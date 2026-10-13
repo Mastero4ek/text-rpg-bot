@@ -9,7 +9,7 @@ use App\Actions\City\CityBuyerSellAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Bag\BagKindEnum;
 use App\Enums\Economy\CurrencyEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Bag\BagItem;
 use App\Models\Character\Character;
@@ -21,6 +21,7 @@ use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -47,6 +48,7 @@ final class BuyerHandler
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
         private readonly DailyContractService $dailyContracts,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly ShopCatalog $shop,
         private readonly TelegramPlayerGate $gate,
     ) {}
@@ -311,11 +313,13 @@ final class BuyerHandler
     {
         $city = $this->cityMenu->currentCity($player);
 
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Buyer);
+
         if (! $city instanceof City || ! $city->has_buyer) {
             $this->editBuyerPanel(
                 $responder,
                 __('telegram.npc.buyer.error.no_buyer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -338,7 +342,7 @@ final class BuyerHandler
         $this->editBuyerPanel(
             $responder,
             __('telegram.npc.buyer.offer'),
-            CityKeyboard::buyerOfferWithDaily($hasDailyReady),
+            CityKeyboard::buyerOfferWithDaily($hasDailyReady, $back),
         );
     }
 

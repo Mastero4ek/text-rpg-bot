@@ -24,6 +24,7 @@ it('sets quest_phase Overseer after registration and fogs locked locations for A
     expect($player->progress_step)->toBe(ProgressStepEnum::ARRIVED)
         ->and($player->quest_phase)->toBe(QuestPhaseEnum::Overseer)
         ->and($player->unlock_portal)->toBeFalse()
+        ->and($player->unlock_ruins)->toBeFalse()
         ->and($player->unlock_forest)->toBeFalse()
         ->and($player->unlock_board)->toBeFalse()
         ->and($player->unlock_arena)->toBeFalse()
@@ -83,12 +84,13 @@ it('sets quest_phase Overseer after registration and fogs locked locations for A
     [City::KEY_ELDWOOD, 9702],
 ]);
 
-it('keeps fog on portal and forest in mid phases without unlock flags', function (): void {
+it('keeps fog on portal forest and ruins in mid phases without unlock flags', function (): void {
     $player = cityArrivedSkipped(9720, 'MidFog');
     $player->progress_step = ProgressStepEnum::DONE;
     $player->overseer_trained = true;
     $player->quest_phase = QuestPhaseEnum::Healer;
     $player->unlock_portal = false;
+    $player->unlock_ruins = false;
     $player->unlock_forest = false;
     $player->save();
     $player->loadMissing('city');
@@ -97,13 +99,18 @@ it('keeps fog on portal and forest in mid phases without unlock flags', function
     $cityEscaped = TelegramHtml::escape($player->city->name);
 
     expect($unlocks->canOpen($player, LocationEnum::Portal))->toBeFalse()
+        ->and($unlocks->canOpen($player, LocationEnum::Ruins))->toBeFalse()
         ->and($unlocks->canOpen($player, LocationEnum::Forest))->toBeFalse();
 
     cityFlowCallback($player->tg_id, 9, 'city:portal');
     assertCityEditHas($cityEscaped);
     assertCityEditMarkupHas('city:gates');
 
-    cityFlowCallback($player->tg_id, 10, 'city:forest');
+    cityFlowCallback($player->tg_id, 10, 'city:ruins');
+    assertCityEditHas($cityEscaped);
+    assertCityEditMarkupHas('city:gates');
+
+    cityFlowCallback($player->tg_id, 11, 'city:forest');
     assertCityEditHas($cityEscaped);
     assertCityEditMarkupHas('city:gates');
 });

@@ -9,6 +9,7 @@ use App\Models\Character\Character;
 use App\Services\Bag\BagService;
 use App\Services\CharacterService;
 use App\Services\GameConfig;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -19,6 +20,7 @@ final class BruiserBluffAction
         private readonly BagService $bag,
         private readonly CharacterService $characters,
         private readonly GameConfig $config,
+        private readonly QuestNpcPlacement $npcPlacement,
     ) {}
 
     public function handle(Character $character): ActionResult
@@ -28,6 +30,10 @@ final class BruiserBluffAction
 
             if (! $locked instanceof Character) {
                 throw new RuntimeException('Character missing for BruiserBluff.');
+            }
+
+            if (! $this->npcPlacement->cityHasBruiser($locked)) {
+                return ActionResult::fail(__('telegram.quest.bruiser.error.no_bruiser'));
             }
 
             if (

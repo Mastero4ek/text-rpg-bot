@@ -11,6 +11,7 @@ pest()->extend(TestCase::class)
 
 pest()->beforeEach(function (): void {
     Illuminate\Support\Facades\Cache::flush();
+    Illuminate\Support\Facades\Storage::fake('public');
     $this->seed(Database\Seeders\BackpackCatalogSeeder::class);
     $this->seed(Database\Seeders\BagCatalogSeeder::class);
     $this->seed(Database\Seeders\EnemyCatalogSeeder::class);

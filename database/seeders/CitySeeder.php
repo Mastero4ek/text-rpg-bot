@@ -67,6 +67,8 @@ final class CitySeeder extends Seeder
                 'has_healer' => true,
                 'has_buyer' => true,
                 'has_overseer' => true,
+                'has_bruiser' => true,
+                'has_barkeeper' => true,
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
@@ -86,6 +88,8 @@ final class CitySeeder extends Seeder
                 'has_healer' => true,
                 'has_buyer' => true,
                 'has_overseer' => true,
+                'has_bruiser' => true,
+                'has_barkeeper' => true,
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
@@ -105,6 +109,8 @@ final class CitySeeder extends Seeder
                 'has_healer' => true,
                 'has_buyer' => true,
                 'has_overseer' => true,
+                'has_bruiser' => true,
+                'has_barkeeper' => true,
                 'has_quest_board' => true,
                 'has_portal' => true,
                 'has_forest' => true,
@@ -180,13 +186,15 @@ final class CitySeeder extends Seeder
             $trainingIds[] = $city->id;
         }
 
-        $soldier = EnemyCatalog::query()->find(EnemyCatalog::TUTORIAL_CATALOG_ID);
+        foreach ([EnemyCatalog::TUTORIAL_CATALOG_ID, EnemyCatalog::BRUISER_CATALOG_ID] as $catalogId) {
+            $catalog = EnemyCatalog::query()->find($catalogId);
 
-        if (! $soldier instanceof EnemyCatalog) {
-            return;
+            if (! $catalog instanceof EnemyCatalog) {
+                continue;
+            }
+
+            $catalog->trainingCities()->sync($trainingIds);
         }
-
-        $soldier->trainingCities()->sync($trainingIds);
     }
 
     private function attachShopCatalog(): void

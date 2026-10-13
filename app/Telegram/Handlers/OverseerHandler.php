@@ -6,19 +6,23 @@ namespace App\Telegram\Handlers;
 
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
-use App\Enums\NpcEnum;
+use App\Enums\DailyContract\DailyContractTypeEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Enums\ProgressStepEnum;
 use App\Models\Character\Character;
+use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Quests\OverseerQuest;
 use App\Services\CharacterService;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
+use RuntimeException;
 use Throwable;
 
 final class OverseerHandler
@@ -31,6 +35,7 @@ final class OverseerHandler
         private readonly CityMenuService $cityMenu,
         private readonly DailyContractService $dailyContracts,
         private readonly OverseerQuest $overseerQuest,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -68,6 +73,127 @@ final class OverseerHandler
     }
 
     /**
+     * Hub entry intercept when an accepted delivery parks the overseer on the city square.
+     *
+     * @return bool true when the overseer panel replaced the hub
+     */
+    public function interceptCityEntry(TelegramResponder $responder, Character $player): bool
+    {
+        $panel = $this->cityEntryPanel($player);
+
+        if ($panel === null) {
+            return false;
+        }
+
+        $this->editOverseerDeliveryPanel($responder, $panel['text'], $panel['markup']);
+
+        return true;
+    }
+
+    /**
+     * New-message hub intercept (portal arrival).
+     *
+     * @return int|null message id when intercepted
+     */
+    public function sendCityEntryIntercept(TelegramResponder $responder, Character $player): ?int
+    {
+        $panel = $this->cityEntryPanel($player);
+
+        if ($panel === null) {
+            return null;
+        }
+
+        $image = config('bot.overseer_image');
+
+        if (is_string($image) && $image !== '' && is_file($image)) {
+            try {
+                return $responder->replyPhoto($image, $panel['text'], $panel['markup']);
+            } catch (Throwable) {
+            }
+        }
+
+        return $responder->reply($panel['text'], $panel['markup']);
+    }
+
+    /**
+     * @return array{text: string, markup: array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}}|null
+     */
+    private function cityEntryPanel(Character $player): ?array
+    {
+        if (! $this->npcPlacement->isOverseerAtHub($player)) {
+            return null;
+        }
+
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_overseer) {
+            return null;
+        }
+
+        $ready = $this->dailyContracts->turnInableForIssuer($player, $city, NpcEnum::Overseer);
+
+        if ($ready->isEmpty()) {
+            $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Overseer);
+
+            return [
+                'text' => $this->statsPanelText($player),
+                'markup' => CityKeyboard::overseerWithDaily(false, $player->stat_points, $back),
+            ];
+        }
+
+        $contract = $ready->firstOrFail();
+
+        return [
+            'text' => __('telegram.daily.turnin_list', [
+                'target' => $this->deliveryTurnInTarget($contract),
+                'silver' => $contract->reward_silver,
+                'exp' => $contract->reward_exp,
+            ]),
+            'markup' => CityKeyboard::dailyNpcTurnIn(
+                NpcEnum::Overseer,
+                $contract->id,
+                $this->npcPlacement->npcLaterCallback($player, NpcEnum::Overseer),
+            ),
+        ];
+    }
+
+    private function deliveryTurnInTarget(CharacterDailyContract $contract): string
+    {
+        if (
+            $contract->type === DailyContractTypeEnum::Delivery
+            && array_key_exists('item_name', $contract->params)
+            && is_string($contract->params['item_name'])
+        ) {
+            return $contract->params['item_name'];
+        }
+
+        if (is_string($contract->bag_catalog_id) && $contract->bag_catalog_id !== '') {
+            return $contract->bag_catalog_id;
+        }
+
+        throw new RuntimeException('Overseer delivery turn-in missing item name.');
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function editOverseerDeliveryPanel(TelegramResponder $responder, string $text, array $markup): void
+    {
+        $overseerImage = config('bot.overseer_image');
+
+        if (is_string($overseerImage) && $overseerImage !== '' && is_file($overseerImage)) {
+            try {
+                $responder->editPhoto($overseerImage, $text, $markup);
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $responder->edit($text, $markup);
+    }
+
+    /**
      * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
      */
     private function editOverseerPanel(TelegramResponder $responder, string $text, array $markup): void
@@ -89,12 +215,13 @@ final class OverseerHandler
     private function overseerScreen(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Overseer);
 
         if (! $city instanceof City || ! $city->has_overseer) {
             $this->editOverseerPanel(
                 $responder,
                 __('telegram.npc.overseer.error.no_overseer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -127,19 +254,20 @@ final class OverseerHandler
         $this->editOverseerPanel(
             $responder,
             $this->statsPanelText($player),
-            CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points, $back),
         );
     }
 
     private function resetConfirm(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Overseer);
 
         if (! $city instanceof City || ! $city->has_overseer) {
             $this->editOverseerPanel(
                 $responder,
                 __('telegram.npc.overseer.error.no_overseer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -174,12 +302,13 @@ final class OverseerHandler
     private function resetStats(TelegramResponder $responder, Character $player): void
     {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Overseer);
 
         if (! $city instanceof City || ! $city->has_overseer) {
             $this->editOverseerPanel(
                 $responder,
                 __('telegram.npc.overseer.error.no_overseer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -220,19 +349,20 @@ final class OverseerHandler
         $this->editOverseerPanel(
             $responder,
             $this->resetDoneText($res->character),
-            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points, $back),
         );
     }
 
     private function spendStat(TelegramResponder $responder, Character $player, string $stat): void
     {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Overseer);
 
         if (! $city instanceof City || ! $city->has_overseer) {
             $this->editOverseerPanel(
                 $responder,
                 __('telegram.npc.overseer.error.no_overseer'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -254,7 +384,7 @@ final class OverseerHandler
             $this->editOverseerPanel(
                 $responder,
                 TelegramResponder::errorMessage($res->error),
-                CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points),
+                CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points, $back),
             );
 
             return;
@@ -263,7 +393,7 @@ final class OverseerHandler
         $this->editOverseerPanel(
             $responder,
             $this->statsPanelText($res->character),
-            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points),
+            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points, $back),
         );
     }
 

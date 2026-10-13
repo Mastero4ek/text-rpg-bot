@@ -38,7 +38,7 @@ final class HealerGivePotionAction
                 return ActionResult::fail(__('telegram.quest.healer.error.already_done'));
             }
 
-            if (! $locked->unlock_portal) {
+            if (! $locked->unlock_ruins) {
                 return ActionResult::fail(__('telegram.quest.healer.error.wrong_phase'));
             }
 

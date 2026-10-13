@@ -66,15 +66,37 @@ it('shows not enough gold error on heal callback', function (): void {
     assertCityEditMarkupHas('city:healer');
 });
 
-it('lists city potions on shelf screen', function (): void {
+it('lists city potions on shelf screen without prices', function (): void {
     $player = cityDone(9705, 'HealerShelf');
 
     cityFlowCallback($player->tg_id, 9, 'city:healer:potions');
 
     assertCityEditHas(mb_trim(__('telegram.npc.healer.potions')));
-    assertCityEditMarkupHas('city:healer:potion:heal_0');
-    assertCityEditMarkupHas('city:healer:potion:stamina_0');
-    assertCityEditHas('🪙 -15 · ');
+    assertCityEditMarkupHas('city:healer:potion:view:heal_0');
+    assertCityEditMarkupHas('city:healer:potion:view:stamina_0');
+    assertTelegramMarkupBody(function (string $body): bool {
+        return ! str_contains($body, '🪙 -');
+    });
+});
+
+it('opens potion card with description price and buy row', function (): void {
+    $player = cityDone(9710, 'HealerCard');
+    $potion = bagCatalog()->findPotion('heal_0');
+
+    cityFlowCallback($player->tg_id, 9, 'city:healer:potion:view:heal_0');
+
+    assertCityEditHas(mb_trim(__('telegram.npc.healer.potion_card', [
+        'name' => $potion->name,
+        'description' => $potion->description,
+        'effect_mark' => '❤️',
+        'effect' => $potion->effectValue,
+        'mark' => '🪙',
+        'price' => $potion->price,
+    ])));
+    assertCityEditMarkupHas('city:healer:potions');
+    assertCityEditMarkupHas('city:healer:potion:buy:heal_0');
+    assertCityEditMarkupHas('"style":"danger"');
+    assertCityEditMarkupHas('"style":"success"');
 });
 
 it('buys potion through telegram and keeps shelf markup', function (): void {
@@ -83,13 +105,13 @@ it('buys potion through telegram and keeps shelf markup', function (): void {
     $player->silver = $price;
     $player->save();
 
-    cityFlowCallback($player->tg_id, 9, 'city:healer:potion:heal_0');
+    cityFlowCallback($player->tg_id, 9, 'city:healer:potion:buy:heal_0');
 
     expect(bag()->potionCountByProfile($player->tg_id, ProfileEnum::HEAL))->toBe(1);
     assertCityEditHas(mb_trim(__('telegram.npc.healer.bought_potion', [
         'name' => bagCatalog()->findPotion('heal_0')->name,
     ])));
-    assertCityEditMarkupHas('city:healer:potion:heal_0');
+    assertCityEditMarkupHas('city:healer:potion:view:heal_0');
 });
 
 it('shows not enough silver narrative on potion buy', function (): void {
@@ -97,10 +119,10 @@ it('shows not enough silver narrative on potion buy', function (): void {
     $player->silver = 0;
     $player->save();
 
-    cityFlowCallback($player->tg_id, 9, 'city:healer:potion:heal_0');
+    cityFlowCallback($player->tg_id, 9, 'city:healer:potion:buy:heal_0');
 
     assertCityEditHas(mb_trim(__('telegram.npc.healer.error.not_enough_silver')));
-    assertCityEditMarkupHas('city:healer:potion:heal_0');
+    assertCityEditMarkupHas('city:healer:potion:buy:heal_0');
 });
 
 it('shows no healer error with back to tavern when flag is off', function (): void {

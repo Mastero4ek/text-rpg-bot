@@ -238,6 +238,7 @@ final class QuestHandler
             $responder,
             $this->bruiserQuest->meetSpeech($player),
             TelegramKeyboards::bruiserArrive(),
+            $this->bruiserQuest->panelImagePath(),
         );
     }
 
@@ -252,6 +253,7 @@ final class QuestHandler
                 $responder,
                 $this->healerQuest->ratLootSpeech($player),
                 TelegramKeyboards::healerRatLoot(),
+                $this->healerQuest->ratTailPanelImagePath(),
             );
 
             return;
@@ -261,6 +263,7 @@ final class QuestHandler
             $responder,
             $this->healerQuest->debtSpeech($player),
             TelegramKeyboards::healerDebt(),
+            $this->healerQuest->tavernPanelImagePath(),
         );
     }
 
@@ -341,6 +344,7 @@ final class QuestHandler
                 $responder,
                 $this->bruiserQuest->talkSpeech($player),
                 TelegramKeyboards::bruiserTalk(),
+                $this->bruiserQuest->panelImagePath(),
             );
 
             return;
@@ -357,6 +361,7 @@ final class QuestHandler
                 $responder,
                 $this->bruiserQuest->threatSpeech($player),
                 TelegramKeyboards::bruiserThreat(),
+                $this->bruiserQuest->panelImagePath(),
             );
 
             return;
@@ -429,6 +434,7 @@ final class QuestHandler
                 $responder,
                 $this->healerQuest->debtWorkSpeech($player),
                 TelegramKeyboards::healerDebtWork(),
+                $this->healerQuest->tavernPanelImagePath(),
             );
 
             return;
@@ -455,6 +461,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::bruiserTalk(),
+                    $this->bruiserQuest->panelImagePath(),
                 );
             }
 
@@ -465,33 +472,40 @@ final class QuestHandler
             $responder,
             $this->bruiserQuest->bluffSpeech($res->character),
             TelegramKeyboards::bruiserComplete(),
+            $this->bruiserQuest->pursePanelImagePath(),
         );
     }
 
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
     private function editBruiserPanel(
         TelegramResponder $responder,
         string $text,
         array $markup,
+        ?string $image,
     ): void {
-        $image = $this->bruiserQuest->panelImagePath();
+        if ($image !== null) {
+            try {
+                $responder->editPhoto($image, $text, $markup);
 
-        try {
-            $responder->editPhoto($image, $text, $markup);
-
-            return;
-        } catch (Throwable) {
+                return;
+            } catch (Throwable) {
+            }
         }
 
         $responder->edit($text, $markup);
     }
 
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
     private function editHealerDebtPanel(
         TelegramResponder $responder,
         string $text,
         array $markup,
+        string $image,
     ): void {
-        $image = $this->healerQuest->tavernPanelImagePath();
-
         try {
             $responder->editPhoto($image, $text, $markup);
 
@@ -512,6 +526,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::healerDebt(),
+                    $this->healerQuest->tavernPanelImagePath(),
                 );
             }
 
@@ -522,6 +537,7 @@ final class QuestHandler
             $responder,
             $this->healerQuest->debtClosedSpeech($res->character),
             TelegramKeyboards::healerDebtClosed(),
+            $this->healerQuest->tavernPanelImagePath(),
         );
     }
 
@@ -535,6 +551,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::bruiserArrive(),
+                    $this->bruiserQuest->panelImagePath(),
                 );
             }
 
@@ -546,7 +563,7 @@ final class QuestHandler
             $responder,
             $fight,
             $res->character,
-            $this->bruiserQuest->panelImagePath(),
+            $this->bruiserQuest->fightImagePath(),
         );
     }
 
@@ -566,6 +583,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::healerDebtWork(),
+                    $this->healerQuest->tavernPanelImagePath(),
                 );
             }
 
@@ -594,6 +612,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::bruiserKnucklePending(),
+                    $this->bruiserQuest->knucklePanelImagePath(),
                 );
             }
 
@@ -604,6 +623,7 @@ final class QuestHandler
             $responder,
             __('telegram.quest.bruiser.knuckle_taken'),
             TelegramKeyboards::bruiserComplete(),
+            $this->bruiserQuest->knucklePanelImagePath(),
         );
     }
 
@@ -617,6 +637,7 @@ final class QuestHandler
                     $responder,
                     $res->error,
                     TelegramKeyboards::healerRatLoot(),
+                    $this->healerQuest->ratTailPanelImagePath(),
                 );
             }
 
@@ -627,6 +648,7 @@ final class QuestHandler
             $responder,
             $this->healerQuest->debtClosedSpeech($res->character),
             TelegramKeyboards::healerDebtClosed(),
+            $this->healerQuest->tavernPanelImagePath(),
         );
     }
 

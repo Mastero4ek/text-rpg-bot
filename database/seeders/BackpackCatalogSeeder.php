@@ -12,6 +12,7 @@ use App\Enums\Equipment\TypeEnum;
 use App\Models\Backpack\BackpackCatalog;
 use App\Services\Shop\ShopCatalog;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 final class BackpackCatalogSeeder extends Seeder
 {
@@ -25,7 +26,26 @@ final class BackpackCatalogSeeder extends Seeder
                 $row,
             );
 
+            $this->attachImage($catalog);
+        }
+    }
+
+    private function attachImage(BackpackCatalog $catalog): void
+    {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = resource_path('images/telegram/equipment/' . $catalog->catalog_id . '.' . $ext);
+
+            if (! is_file($path)) {
+                continue;
+            }
+
             $catalog->clearMediaCollection('image');
+            $catalog->addMedia($path)
+                ->preservingOriginal()
+                ->withProperties(['uuid' => (string) Str::uuid()])
+                ->toMediaCollection('image');
+
+            return;
         }
     }
 
@@ -194,7 +214,7 @@ final class BackpackCatalogSeeder extends Seeder
             [
                 'catalog_id' => 'worn_mail',
                 'name' => 'Потертая кольчуга',
-                'description' => 'Старая кольчуга. Запас HP и базовая броня груди.',
+                'description' => 'Старая кольчуга. Запас здоровья и базовая броня груди.',
                 'item_type' => TypeEnum::ARMOR,
                 'slot' => SlotEnum::ARMOR,
                 'profile' => ProfileEnum::HEAVY,
@@ -348,7 +368,7 @@ final class BackpackCatalogSeeder extends Seeder
             [
                 'catalog_id' => 'ancient_amulet',
                 'name' => 'Древний амулет',
-                'description' => 'Странная побрякушка. Запас HP. Скупщик за такое платит.',
+                'description' => 'Странная побрякушка. Запас здоровья. Скупщик за такое платит.',
                 'item_type' => TypeEnum::JEWELRY,
                 'slot' => SlotEnum::AMULET,
                 'profile' => ProfileEnum::VITAL,

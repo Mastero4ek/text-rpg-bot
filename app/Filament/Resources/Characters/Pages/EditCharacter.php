@@ -115,6 +115,7 @@ final class EditCharacter extends EditRecord
             'quest_phase',
             'progress_step',
             'unlock_portal',
+            'unlock_ruins',
             'unlock_forest',
             'unlock_board',
             'unlock_arena',

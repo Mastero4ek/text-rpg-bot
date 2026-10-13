@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property string $catalog_id
@@ -153,6 +154,23 @@ final class BackpackCatalog extends Model implements HasMedia
         return BackpackItem::query()
             ->where('catalog_id', $this->catalog_id)
             ->exists();
+    }
+
+    public function localImagePath(): ?string
+    {
+        $media = $this->getFirstMedia('image');
+
+        if (! $media instanceof Media) {
+            return null;
+        }
+
+        $imagePath = $media->getPath();
+
+        if (! is_file($imagePath)) {
+            return null;
+        }
+
+        return $imagePath;
     }
 
     public function registerMediaCollections(): void

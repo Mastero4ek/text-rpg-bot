@@ -11,7 +11,7 @@ use App\Actions\Enemy\EnemyApplyWinLootAction;
 use App\Actions\Fight\FightClearAction;
 use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\FightKindEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\Fight;

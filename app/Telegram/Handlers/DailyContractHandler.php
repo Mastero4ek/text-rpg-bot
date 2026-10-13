@@ -9,8 +9,9 @@ use App\Actions\DailyContract\DailyContractStartHuntAction;
 use App\Actions\DailyContract\DailyContractTurnInAction;
 use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\DailyContract\DailyContractTypeEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Models\Bag\BagCatalog;
 use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
@@ -20,6 +21,7 @@ use App\Services\CombatService;
 use App\Services\DailyContract\DailyContractService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -38,6 +40,7 @@ final class DailyContractHandler
         private readonly DailyContractTurnInAction $turnIn,
         private readonly FightPanelService $fightPanel,
         private readonly FightService $fights,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -69,14 +72,14 @@ final class DailyContractHandler
             return;
         }
 
-        if (preg_match('/^daily:(buyer|healer|blacksmith|overseer):list$/', $data, $m) === 1) {
+        if (preg_match('/^daily:(buyer|healer|blacksmith|overseer|barkeeper|bruiser):list$/', $data, $m) === 1) {
             $issuer = NpcEnum::from($m[1]);
             $this->issuerTurnInList($responder, $player, $issuer);
 
             return;
         }
 
-        if (preg_match('/^daily:(buyer|healer|blacksmith|overseer):turnin:(\d+)$/', $data, $m) === 1) {
+        if (preg_match('/^daily:(buyer|healer|blacksmith|overseer|barkeeper|bruiser):turnin:(\d+)$/', $data, $m) === 1) {
             $issuer = NpcEnum::from($m[1]);
             $this->issuerTurnIn($responder, $player, $issuer, (int) $m[2]);
         }
@@ -89,6 +92,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.daily.error.board_locked'),
                 CityKeyboard::backToCity(),
+                null,
             );
 
             return;
@@ -101,6 +105,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.location.error.city_unavailable'),
                 CityKeyboard::backToCity(),
+                null,
             );
 
             return;
@@ -114,6 +119,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.daily.error.not_found'),
                 CityKeyboard::boardBack(),
+                null,
             );
 
             return;
@@ -124,6 +130,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.daily.error.not_offered'),
                 CityKeyboard::boardBack(),
+                null,
             );
 
             return;
@@ -133,6 +140,7 @@ final class DailyContractHandler
             $responder,
             $this->cardText($contract),
             CityKeyboard::dailyOfferCard($contract->id),
+            $this->offerCardImagePath($contract),
         );
     }
 
@@ -143,6 +151,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.daily.error.board_locked'),
                 CityKeyboard::backToCity(),
+                null,
             );
 
             return;
@@ -155,6 +164,7 @@ final class DailyContractHandler
                 $responder,
                 __('telegram.location.error.city_unavailable'),
                 CityKeyboard::backToCity(),
+                null,
             );
 
             return;
@@ -169,7 +179,7 @@ final class DailyContractHandler
                 $error = __('telegram.daily.error.not_found');
             }
 
-            $this->editBoardPanel($responder, $error, CityKeyboard::boardBack());
+            $this->editBoardPanel($responder, $error, CityKeyboard::boardBack(), null);
 
             return;
         }
@@ -180,6 +190,7 @@ final class DailyContractHandler
             $responder,
             $this->acceptDoneText($contract),
             CityKeyboard::boardBack(),
+            null,
         );
     }
 
@@ -225,13 +236,14 @@ final class DailyContractHandler
     private function issuerTurnInList(TelegramResponder $responder, Character $player, NpcEnum $issuer): void
     {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, $issuer);
 
         if (! $city instanceof City || ! DailyContractService::cityHasIssuer($city, $issuer)) {
             $this->editIssuerPanel(
                 $responder,
                 $issuer,
                 __('telegram.npc.' . $issuer->value . '.error.no_' . $issuer->value),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -244,7 +256,7 @@ final class DailyContractHandler
                 $responder,
                 $issuer,
                 __('telegram.daily.error.not_ready'),
-                CityKeyboard::npcOfferWithDaily($issuer, false, $player->stat_points),
+                CityKeyboard::npcOfferWithDaily($issuer, false, $player->stat_points, $back),
             );
 
             return;
@@ -260,7 +272,11 @@ final class DailyContractHandler
                 'silver' => $contract->reward_silver,
                 'exp' => $contract->reward_exp,
             ]),
-            CityKeyboard::dailyNpcTurnIn($issuer, $contract->id),
+            CityKeyboard::dailyNpcTurnIn(
+                $issuer,
+                $contract->id,
+                $this->npcPlacement->npcLaterCallback($player, $issuer),
+            ),
         );
     }
 
@@ -271,13 +287,14 @@ final class DailyContractHandler
         int $contractId,
     ): void {
         $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, $issuer);
 
         if (! $city instanceof City || ! DailyContractService::cityHasIssuer($city, $issuer)) {
             $this->editIssuerPanel(
                 $responder,
                 $issuer,
                 __('telegram.npc.' . $issuer->value . '.error.no_' . $issuer->value),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -311,7 +328,26 @@ final class DailyContractHandler
             return;
         }
 
-        $ready = $this->dailyContracts->turnInableForIssuer($res->character ?? $player, $city, $issuer);
+        $panelChar = $res->character ?? $player;
+        $hubDeliveryDone = $issuer === NpcEnum::Overseer
+            && ! $this->npcPlacement->hasAcceptedDeliveryHere($panelChar, NpcEnum::Overseer);
+
+        if ($hubDeliveryDone) {
+            $this->editIssuerPanel(
+                $responder,
+                $issuer,
+                __('telegram.daily.turnin_done', [
+                    'silver' => $silver,
+                    'exp' => $exp,
+                ]),
+                CityKeyboard::toCityHub(),
+            );
+
+            return;
+        }
+
+        $backAfter = $this->npcPlacement->npcBackCallback($panelChar, $issuer);
+        $ready = $this->dailyContracts->turnInableForIssuer($panelChar, $city, $issuer);
 
         $this->editIssuerPanel(
             $responder,
@@ -323,7 +359,8 @@ final class DailyContractHandler
             CityKeyboard::npcOfferWithDaily(
                 $issuer,
                 $ready->isNotEmpty(),
-                ($res->character ?? $player)->stat_points,
+                $panelChar->stat_points,
+                $backAfter,
             ),
         );
     }
@@ -343,6 +380,7 @@ final class DailyContractHandler
             return __('telegram.daily.accept_done_delivery', [
                 'npc' => $this->issuerLabel($contract),
                 'city' => $this->deliveryCityName($contract),
+                'place' => $this->deliveryPlaceLabel($contract),
             ]);
         }
 
@@ -359,6 +397,7 @@ final class DailyContractHandler
                 'item' => $this->itemName($contract),
                 'city' => $this->deliveryCityName($contract),
                 'npc' => $this->issuerLabel($contract),
+                'place' => $this->deliveryPlaceLabel($contract),
                 'silver' => $contract->reward_silver,
                 'exp' => $contract->reward_exp,
             ]);
@@ -448,6 +487,11 @@ final class DailyContractHandler
         return __('telegram.daily.npc.' . $npc->value);
     }
 
+    private function deliveryPlaceLabel(CharacterDailyContract $contract): string
+    {
+        return __('telegram.daily.place.' . $contract->issuer_npc->deliverySpot()->value);
+    }
+
     private function monsterName(CharacterDailyContract $contract): string
     {
         if (array_key_exists('monster_name', $contract->params) && is_string($contract->params['monster_name'])) {
@@ -461,16 +505,49 @@ final class DailyContractHandler
         return 'enemy';
     }
 
+    private function offerCardImagePath(CharacterDailyContract $contract): ?string
+    {
+        if ($contract->type !== DailyContractTypeEnum::Delivery) {
+            return null;
+        }
+
+        $catalogId = $contract->bag_catalog_id;
+
+        if (! is_string($catalogId) || $catalogId === '') {
+            return null;
+        }
+
+        $catalog = BagCatalog::query()->find($catalogId);
+
+        if (! $catalog instanceof BagCatalog) {
+            return null;
+        }
+
+        return $catalog->localImagePath();
+    }
+
     /**
      * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
      */
-    private function editBoardPanel(TelegramResponder $responder, string $text, array $markup): void
-    {
-        $boardImage = config('bot.city_quest_board_image');
+    private function editBoardPanel(
+        TelegramResponder $responder,
+        string $text,
+        array $markup,
+        ?string $imagePath,
+    ): void {
+        $image = $imagePath;
 
-        if (is_string($boardImage) && $boardImage !== '' && is_file($boardImage)) {
+        if ($image === null) {
+            $boardImage = config('bot.city_quest_board_image');
+
+            if (is_string($boardImage) && $boardImage !== '' && is_file($boardImage)) {
+                $image = $boardImage;
+            }
+        }
+
+        if (is_string($image) && $image !== '' && is_file($image)) {
             try {
-                $responder->editPhoto($boardImage, $text, $markup);
+                $responder->editPhoto($image, $text, $markup);
 
                 return;
             } catch (Throwable) {
@@ -493,8 +570,9 @@ final class DailyContractHandler
             NpcEnum::Buyer => 'bot.buyer_tavern_image',
             NpcEnum::Healer => 'bot.healer_tavern_image',
             NpcEnum::Blacksmith => 'bot.blacksmith_tavern_image',
-            NpcEnum::Overseer => 'bot.overseer_tavern_image',
-            NpcEnum::Bruiser => 'bot.bruiser_image',
+            NpcEnum::Overseer => 'bot.overseer_image',
+            NpcEnum::Barkeeper => 'bot.barkeeper_tavern_image',
+            NpcEnum::Bruiser => 'bot.bruiser_port_image',
         };
 
         $image = config($imageKey);

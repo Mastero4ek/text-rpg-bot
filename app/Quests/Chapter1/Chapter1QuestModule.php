@@ -162,6 +162,7 @@ final class Chapter1QuestModule implements QuestChapterModuleContract
             'progress_step',
             'quest_phase',
             'unlock_portal',
+            'unlock_ruins',
             'unlock_forest',
             'unlock_board',
             'unlock_arena',

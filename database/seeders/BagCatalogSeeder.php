@@ -11,6 +11,7 @@ use App\Enums\Gem\GemTypeEnum;
 use App\Models\Bag\BagCatalog;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 final class BagCatalogSeeder extends Seeder
 {
@@ -24,10 +25,31 @@ final class BagCatalogSeeder extends Seeder
             $row['sort_order'] = $sort;
             $sort++;
 
-            BagCatalog::query()->updateOrCreate(
+            $catalog = BagCatalog::query()->updateOrCreate(
                 ['catalog_id' => $row['catalog_id']],
                 $row,
             );
+
+            $this->attachImage($catalog);
+        }
+    }
+
+    private function attachImage(BagCatalog $catalog): void
+    {
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $path = resource_path('images/telegram/resource/' . $catalog->catalog_id . '.' . $ext);
+
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $catalog->clearMediaCollection('image');
+            $catalog->addMedia($path)
+                ->preservingOriginal()
+                ->withProperties(['uuid' => (string) Str::uuid()])
+                ->toMediaCollection('image');
+
+            return;
         }
     }
 
@@ -101,7 +123,7 @@ final class BagCatalogSeeder extends Seeder
                 'catalog_id' => 'heal_0',
                 'kind' => BagKindEnum::POTION,
                 'name' => 'Зелье лечения',
-                'description' => 'Флакон красного зелья. Восстанавливает HP в бою.',
+                'description' => 'Флакон красного зелья. Восстанавливает здоровье в бою.',
                 'profile' => ProfileEnum::HEAL,
                 'effect_value' => 40,
                 'enabled' => true,
@@ -123,7 +145,7 @@ final class BagCatalogSeeder extends Seeder
                 'catalog_id' => 'buyer_purse',
                 'kind' => BagKindEnum::QUEST,
                 'name' => 'Кошель Скупщика',
-                'description' => 'Тяжёлый кожаный мешочек с долей Скупщика. Сдать ему в Таверне.',
+                'description' => 'Тяжёлый кожаный мешочек с долей Скупщика.',
                 'profile' => null,
                 'effect_value' => null,
                 'enabled' => true,
@@ -134,7 +156,7 @@ final class BagCatalogSeeder extends Seeder
                 'catalog_id' => 'rat_tail',
                 'kind' => BagKindEnum::QUEST,
                 'name' => 'Крысиный хвост',
-                'description' => 'Хвост болотной крысы из подвала Таверны. Нужен Лекарю.',
+                'description' => 'Хвост болотной крысы из подвала Таверны.',
                 'profile' => null,
                 'effect_value' => null,
                 'enabled' => true,
@@ -145,7 +167,7 @@ final class BagCatalogSeeder extends Seeder
                 'catalog_id' => 'daily_parcel',
                 'kind' => BagKindEnum::QUEST,
                 'name' => 'Свиток поручения',
-                'description' => 'Запечатанный свиток с городской доски. Сдать тому, чей знак на сургуче.',
+                'description' => 'Запечатанный свиток с городской доски.',
                 'profile' => null,
                 'effect_value' => null,
                 'enabled' => true,

@@ -120,7 +120,8 @@ it('applies quest screen, clears fight and pushes telegram panel', function (): 
 
     expect($fresh->quest_phase)->toBe(QuestPhaseEnum::Healer)
         ->and($fresh->healer_meet_open)->toBeTrue()
-        ->and($fresh->unlock_portal)->toBeTrue()
+        ->and($fresh->unlock_ruins)->toBeTrue()
+        ->and($fresh->unlock_portal)->toBeFalse()
         ->and(Fight::query()->whereKey($character->tg_id)->exists())->toBeFalse();
 
     Http::assertSent(function (Request $request): bool {
@@ -204,7 +205,8 @@ it('does not mutate quest flags on ordinary save', function (): void {
     expect($fresh->silver)->toBe($character->silver + 1)
         ->and($fresh->quest_phase)->toBe(QuestPhaseEnum::Healer)
         ->and($fresh->healer_meet_open)->toBeFalse()
-        ->and($fresh->unlock_portal)->toBeTrue()
+        ->and($fresh->unlock_ruins)->toBeTrue()
+        ->and($fresh->unlock_portal)->toBeFalse()
         ->and($fresh->city_unlocked_full)->toBeFalse();
 });
 
