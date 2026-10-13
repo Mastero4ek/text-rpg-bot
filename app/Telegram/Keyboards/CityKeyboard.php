@@ -359,7 +359,70 @@ final class CityKeyboard
     public static function barkeeperOfferWithDaily(bool $hasDailyReady, string $backCallback): array
     {
         return self::inline([
+            [self::cb(__('telegram.btn.lucky_barrel'), 'city:barkeeper:game')],
             self::dailyBackRow($hasDailyReady, 'daily:barkeeper:list', $backCallback),
+        ]);
+    }
+
+    /**
+     * @param  list<int>  $stakes
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function luckyBarrelStake(array $stakes): array
+    {
+        $stakeRow = [];
+
+        foreach ($stakes as $stake) {
+            $stakeRow[] = self::cb(
+                __('telegram.btn.lucky_barrel_stake', ['n' => $stake]),
+                'city:barkeeper:game:stake:' . $stake,
+            );
+        }
+
+        return self::inline([
+            $stakeRow,
+            [self::cbDanger(__('telegram.btn.back'), 'city:barkeeper')],
+        ]);
+    }
+
+    /**
+     * @param  list<int>  $openedBarrels
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function luckyBarrelPlay(array $openedBarrels, int $currentStep): array
+    {
+        $barrelRow = [];
+
+        for ($i = 1; $i <= 5; $i++) {
+            if (in_array($i, $openedBarrels, true)) {
+                $barrelRow[] = self::cb('❌', 'city:barkeeper:game:open:' . $i);
+            } else {
+                $barrelRow[] = self::cb('🛢️', 'city:barkeeper:game:open:' . $i);
+            }
+        }
+
+        $rows = [$barrelRow];
+
+        if ($currentStep >= 1) {
+            $rows[] = [
+                self::cbDanger(__('telegram.btn.back'), 'city:barkeeper:game:back'),
+                self::cbSuccess(__('telegram.btn.lucky_barrel_cash'), 'city:barkeeper:game:cash'),
+            ];
+        } else {
+            $rows[] = [self::cbDanger(__('telegram.btn.back'), 'city:barkeeper:game:back')];
+        }
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function luckyBarrelEnd(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.lucky_barrel_again'), 'city:barkeeper:game')],
+            [self::cbDanger(__('telegram.btn.back'), 'city:barkeeper')],
         ]);
     }
 

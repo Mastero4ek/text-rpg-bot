@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Telegram;
 
 use App\Actions\Fight\FightAbandonOnIdleAction;
+use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
 use App\Services\CharacterService;
@@ -21,6 +22,7 @@ final class IdleSessionService
         private readonly CityHandler $city,
         private readonly FightAbandonOnIdleAction $abandonFight,
         private readonly GameConfig $config,
+        private readonly LuckyBarrelForfeitAction $forfeitLuckyBarrel,
     ) {}
 
     public function actionAtMatches(Character $character, int $actionAtUnix): bool
@@ -39,6 +41,12 @@ final class IdleSessionService
         }
 
         $character = $this->abandonFight->handle($character);
+        $forfeit = $this->forfeitLuckyBarrel->handle($character);
+
+        if ($forfeit->character instanceof Character) {
+            $character = $forfeit->character;
+        }
+
         $this->city->sendIdleHomePanel($responder, $character);
         $this->touch($character);
     }

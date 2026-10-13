@@ -28,6 +28,7 @@ return [
     'bruiser_fight_image' => resource_path('images/telegram/npc/bruizer_fight.png'),
     'bruiser_port_image' => resource_path('images/telegram/npc/bruizer_port.png'),
     'barkeeper_tavern_image' => resource_path('images/telegram/npc/barkeeper_tavern.png'),
+    'lucky_barrels_image' => resource_path('images/telegram/location/lucky_barrels.png'),
     'city_gates_image' => resource_path('images/telegram/location/gates.png'),
     'city_forest_image' => resource_path('images/telegram/location/forest.png'),
     'city_swamp_image' => resource_path('images/telegram/location/swamp.png'),

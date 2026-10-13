@@ -32,13 +32,16 @@ it('puts barkeeper first in tavern when flag is on', function (): void {
     });
 });
 
-it('opens barkeeper stub offer with back to tavern', function (): void {
+it('opens barkeeper offer with game button and back to tavern', function (): void {
     $player = cityDone(99102, 'BarkeeperOffer');
 
     cityFlowCallback($player->tg_id, 9, 'city:barkeeper');
 
     assertCityEditHas(mb_trim(__('telegram.npc.barkeeper.offer')));
+    assertCityEditMarkupHas('city:barkeeper:game');
+    assertCityEditMarkupHas(__('telegram.btn.lucky_barrel'));
     assertCityEditMarkupHas('city:tavern');
+    assertCityEditHas('barkeeper_tavern.png');
     Http::assertNotSent(function ($request): bool {
         return str_contains((string) $request->body(), 'daily:barkeeper:list');
     });
@@ -85,7 +88,7 @@ it('marks barkeeper in tavern when delivery is turn-inable', function (): void {
     ]));
 });
 
-it('shows daily contracts on stub and completes barkeeper turn-in', function (): void {
+it('shows daily contracts beside game and completes barkeeper turn-in', function (): void {
     $player = dailyPlayer(99106, 'BarkeeperTurnIn');
     $board = dailyCity($player);
     $offer = dailyDeliveryOffer($player, NpcEnum::Barkeeper);
@@ -96,6 +99,7 @@ it('shows daily contracts on stub and completes barkeeper turn-in', function ():
 
     cityFlowCallback($player->tg_id, 9, 'city:barkeeper');
     assertCityEditMarkupHas('daily:barkeeper:list');
+    assertCityEditMarkupHas('city:barkeeper:game');
 
     cityFlowCallback($player->tg_id, 10, 'daily:barkeeper:list');
     assertCityEditMarkupHas('daily:barkeeper:turnin:' . $offer->id);

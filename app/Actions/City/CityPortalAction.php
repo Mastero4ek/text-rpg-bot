@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\City;
 
+use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Quest\QuestUnlockService;
@@ -14,6 +15,7 @@ use RuntimeException;
 final class CityPortalAction
 {
     public function __construct(
+        private readonly LuckyBarrelForfeitAction $forfeitLuckyBarrel,
         private readonly QuestUnlockService $questUnlocks,
     ) {}
 
@@ -55,6 +57,14 @@ final class CityPortalAction
 
             if (! $fresh instanceof Character) {
                 throw new RuntimeException('Character missing after portal.');
+            }
+
+            $this->forfeitLuckyBarrel->handle($fresh);
+
+            $fresh = Character::query()->find($character->tg_id);
+
+            if (! $fresh instanceof Character) {
+                throw new RuntimeException('Character missing after lucky barrel forfeit.');
             }
 
             $fresh->city_id = $target->id;
