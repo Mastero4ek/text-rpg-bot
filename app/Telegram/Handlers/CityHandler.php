@@ -26,9 +26,11 @@ use App\Services\DailyContract\DailyContractService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Services\Quest\QuestUnlockService;
 use App\Services\Registration\RegistrationService;
 use App\Support\LangVariant;
+use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
@@ -53,6 +55,7 @@ final class CityHandler
         private readonly BuyerQuest $buyerQuest,
         private readonly DailyContractService $dailyContracts,
         private readonly HealerQuest $healerQuest,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly QuestUnlockService $questUnlocks,
         private readonly RegistrationService $registrationService,
         private readonly TelegramPlayerGate $gate,
@@ -190,6 +193,12 @@ final class CityHandler
             return;
         }
 
+        if ($data === 'city:hub') {
+            $this->hub($responder, $player);
+
+            return;
+        }
+
         if ($data === 'city:lists') {
             if ($this->showFogIfLocked($responder, $player, LocationEnum::Lists)) {
                 return;
@@ -257,6 +266,17 @@ final class CityHandler
 
     public function home(TelegramResponder $responder, Character $player): void
     {
+        if ($this->npcPlacement->isOverseerAtHub($player)) {
+            app(OverseerHandler::class)->interceptCityEntry($responder, $player);
+
+            return;
+        }
+
+        $this->hub($responder, $player);
+    }
+
+    public function hub(TelegramResponder $responder, Character $player): void
+    {
         $text = $this->cityMenu->homeText($player);
         $markup = $this->cityMenu->homeMarkup($player);
         $imagePath = $this->homePanelImagePath($player);
@@ -275,6 +295,14 @@ final class CityHandler
 
     public function resumeHomePanel(TelegramResponder $responder, Character $player): int
     {
+        if ($this->npcPlacement->isOverseerAtHub($player)) {
+            app(OverseerHandler::class)->interceptCityEntry($responder, $player);
+
+            if ($player->tg_message_id !== null) {
+                return $player->tg_message_id;
+            }
+        }
+
         $text = $this->cityMenu->homeText($player);
         $markup = $this->cityMenu->homeMarkup($player);
         $imagePath = $this->homePanelImagePath($player);
@@ -466,6 +494,18 @@ final class CityHandler
         Character $player,
         string $text,
     ): int {
+        $interceptId = app(OverseerHandler::class)->sendCityEntryIntercept($responder, $player);
+
+        if (is_int($interceptId)) {
+            $this->registrationService->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $interceptId,
+            );
+
+            return $interceptId;
+        }
+
         $markup = $this->cityMenu->homeMarkup($player);
         $imagePath = $this->homePanelImagePath($player);
 
@@ -553,19 +593,20 @@ final class CityHandler
         Character $player,
         string $text,
         array $markup,
+        ?string $image,
     ): void {
-        $image = $this->bruiserQuest->panelImagePath();
+        if ($image !== null) {
+            try {
+                $responder->editPhoto($image, $text, $markup);
+                $this->registrationService->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
 
-        try {
-            $responder->editPhoto($image, $text, $markup);
-            $this->registrationService->rememberTelegramMessage(
-                $player,
-                $responder->chatId(),
-                $responder->messageId(),
-            );
-
-            return;
-        } catch (Throwable) {
+                return;
+            } catch (Throwable) {
+            }
         }
 
         $responder->edit($text, $markup);
@@ -648,7 +689,10 @@ final class CityHandler
             }
         }
 
-        $markup = CityKeyboard::boardList($items, $filter, $page, $totalCount);
+        $markup = CityKeyboard::withLeadingRows(
+            $this->cityMenu->deliveryNpcRowsForBoard($player, $city),
+            CityKeyboard::boardList($items, $filter, $page, $totalCount),
+        );
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($items));
         $flash = $edge && ! empty($items);
 
@@ -719,30 +763,20 @@ final class CityHandler
         }
 
         if ($cityName === '') {
-            return __('telegram.daily.row_delivery', [
-                'silver' => $contract->reward_silver,
-                'exp' => $contract->reward_exp,
-                'item' => $itemName,
-            ]);
+            throw new RuntimeException('Delivery board row missing city name.');
         }
 
-        return __('telegram.daily.row_delivery_city', [
-            'silver' => $contract->reward_silver,
-            'exp' => $contract->reward_exp,
+        return __('telegram.daily.row_delivery', [
             'item' => $itemName,
             'city' => $cityName,
-            'npc' => $this->dailyIssuerLabel($contract),
         ]);
     }
 
     private function dailyHuntRowText(CharacterDailyContract $contract): string
     {
         return __('telegram.daily.row', [
-            'silver' => $contract->reward_silver,
-            'exp' => $contract->reward_exp,
             'monster' => $this->dailyMonsterName($contract),
             'zone' => $this->dailyHuntZoneName($contract),
-            'npc' => $this->dailyIssuerLabel($contract),
         ]);
     }
 
@@ -759,11 +793,6 @@ final class CityHandler
         }
 
         return __('telegram.daily.zone_name.' . $zoneKey);
-    }
-
-    private function dailyIssuerLabel(CharacterDailyContract $contract): string
-    {
-        return __('telegram.daily.npc.' . $contract->issuer_npc->value);
     }
 
     private function dailyMonsterName(CharacterDailyContract $contract): string
@@ -834,6 +863,24 @@ final class CityHandler
                 $player,
                 $this->blacksmithQuest->meetSpeech($player),
                 TelegramKeyboards::blacksmithMeet(),
+            );
+
+            return;
+        }
+
+        if ($zone === PveZoneEnum::Ruins && $this->healerQuest->awaitsPotion($player)) {
+            $responder->answerCallback();
+            $opened = $this->healerQuest->openMeet($player);
+
+            if (! $opened->ok || ! $opened->character instanceof Character) {
+                return;
+            }
+
+            $this->editHealerQuestPanel(
+                $responder,
+                $opened->character,
+                $this->healerQuest->meetSpeech($opened->character),
+                TelegramKeyboards::healerMeet(),
             );
 
             return;
@@ -930,7 +977,10 @@ final class CityHandler
 
         return [
             'text' => $text,
-            'markup' => CityKeyboard::pveZonePick($items, $filter, $page, $zone->callbackRoot()),
+            'markup' => CityKeyboard::withLeadingRows(
+                $this->cityMenu->deliveryNpcRowsForZone($player, $city, $zone),
+                CityKeyboard::pveZonePick($items, $filter, $page, $zone->callbackRoot()),
+            ),
             'image' => $image,
             'flash' => $flash,
         ];
@@ -946,6 +996,22 @@ final class CityHandler
                 TelegramKeyboards::blacksmithMeet(),
                 $this->blacksmithQuest->panelImagePath(),
             );
+
+            return;
+        }
+
+        if ($zone === PveZoneEnum::Ruins && $this->healerQuest->awaitsPotion($player)) {
+            $opened = $this->healerQuest->openMeet($player);
+
+            if ($opened->ok && $opened->character instanceof Character) {
+                $this->sendCityPanel(
+                    $responder,
+                    $opened->character,
+                    $this->healerQuest->meetSpeech($opened->character),
+                    TelegramKeyboards::healerMeet(),
+                    $this->healerQuest->panelImagePath(),
+                );
+            }
 
             return;
         }
@@ -1063,24 +1129,6 @@ final class CityHandler
             return;
         }
 
-        if ($this->healerQuest->awaitsPotion($player)) {
-            $responder->answerCallback();
-            $opened = $this->healerQuest->openMeet($player);
-
-            if (! $opened->ok || ! $opened->character instanceof Character) {
-                return;
-            }
-
-            $this->editHealerQuestPanel(
-                $responder,
-                $opened->character,
-                $this->healerQuest->meetSpeech($opened->character),
-                TelegramKeyboards::healerMeet(),
-            );
-
-            return;
-        }
-
         if (! $this->questUnlocks->canTravelByPortal($player)) {
             $responder->answerCallback();
             $this->editPortalLocked($responder, $player);
@@ -1093,6 +1141,7 @@ final class CityHandler
         $totalCount = count($this->portalTargetList($player, 'all'));
         $edge = PaginatedListKeyboard::isOutOfRange($page, count($targets));
         $markup = CityKeyboard::portalTargets($targets, $filter, $page, $totalCount);
+        $text = $this->portalScreenText($targets, $page);
 
         $responder->answerCallback();
 
@@ -1100,7 +1149,7 @@ final class CityHandler
             $this->flashListPageEdge(
                 $responder,
                 __('telegram.location.portal_empty'),
-                __('telegram.location.portal_title'),
+                $text,
                 $markup,
             );
 
@@ -1108,12 +1157,6 @@ final class CityHandler
         }
 
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-
-        if (empty($targets)) {
-            $text = __('telegram.location.portal_empty');
-        } else {
-            $text = __('telegram.location.portal_title');
-        }
 
         $portalImage = config('bot.city_portal_image');
 
@@ -1460,6 +1503,7 @@ final class CityHandler
                 $player,
                 $this->bruiserQuest->meetSpeech($player),
                 TelegramKeyboards::bruiserArrive(),
+                $this->bruiserQuest->panelImagePath(),
             );
 
             return;
@@ -1471,6 +1515,7 @@ final class CityHandler
                 $player,
                 $this->bruiserQuest->knucklePendingSpeech($player),
                 TelegramKeyboards::bruiserKnucklePending(),
+                $this->bruiserQuest->knucklePanelImagePath(),
             );
 
             return;
@@ -1726,6 +1771,40 @@ final class CityHandler
         }
 
         return 'all';
+    }
+
+    /**
+     * @param  list<City>  $targets
+     */
+    private function portalScreenText(array $targets, int $page): string
+    {
+        if (empty($targets)) {
+            return __('telegram.location.portal_empty');
+        }
+
+        $safePage = PaginatedListKeyboard::clampedPage($page, count($targets));
+        $offset = ($safePage - 1) * PaginatedListKeyboard::PER_PAGE;
+        $slice = array_slice($targets, $offset, PaginatedListKeyboard::PER_PAGE);
+        $lines = [];
+
+        foreach ($slice as $target) {
+            $name = TelegramHtml::escape($target->name);
+
+            if ($target->portal_cost_silver <= 0) {
+                $lines[] = __('telegram.location.portal_price_line_free', [
+                    'name' => $name,
+                ]);
+            } else {
+                $lines[] = __('telegram.location.portal_price_line', [
+                    'name' => $name,
+                    'cost' => $target->portal_cost_silver,
+                ]);
+            }
+        }
+
+        return __('telegram.location.portal_title', [
+            'prices' => implode("\n", $lines),
+        ]);
     }
 
     /**

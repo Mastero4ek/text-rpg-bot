@@ -6,34 +6,10 @@ use App\Enums\Gem\GemTypeEnum;
 use App\Models\Bag\BagCatalog;
 use App\Models\City;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
-use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
     telegramHttpFake();
 });
-
-/**
- * @param  callable(string): bool  $bodyCheck
- */
-function assertTelegramMarkupBody(callable $bodyCheck): void
-{
-    Http::assertSent(function (Request $request) use ($bodyCheck): bool {
-        $url = $request->url();
-
-        if (
-            ! str_contains($url, '/editMessageMedia')
-            && ! str_contains($url, '/editMessageCaption')
-            && ! str_contains($url, '/editMessageText')
-            && ! str_contains($url, '/sendPhoto')
-            && ! str_contains($url, '/sendMessage')
-        ) {
-            return false;
-        }
-
-        return $bodyCheck(urldecode($request->body()));
-    });
-}
 
 describe('buyer chest', function (): void {
     it('opens chest with filters pagination and danger back', function (): void {
@@ -312,8 +288,8 @@ describe('healer potions', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:healer:potions:list:heal:1');
 
         assertTelegramMarkupBody(function (string $body): bool {
-            return str_contains($body, 'city:healer:potion:heal_0')
-                && ! str_contains($body, 'city:healer:potion:stamina_0')
+            return str_contains($body, 'city:healer:potion:view:heal_0')
+                && ! str_contains($body, 'city:healer:potion:view:stamina_0')
                 && str_contains($body, 'city:healer:potions:list:heal:1');
         });
     });

@@ -35,6 +35,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property QuestChapterEnum $quest_chapter
  * @property QuestPhaseEnum $quest_phase
  * @property bool $unlock_portal
+ * @property bool $unlock_ruins
  * @property bool $unlock_forest
  * @property bool $unlock_board
  * @property bool $unlock_arena
@@ -94,6 +95,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'quest_chapter',
     'quest_phase',
     'unlock_portal',
+    'unlock_ruins',
     'unlock_forest',
     'unlock_board',
     'unlock_arena',
@@ -215,6 +217,7 @@ final class Character extends Model implements HasMedia
             'quest_chapter' => QuestChapterEnum::class,
             'quest_phase' => QuestPhaseEnum::class,
             'unlock_portal' => 'boolean',
+            'unlock_ruins' => 'boolean',
             'unlock_forest' => 'boolean',
             'unlock_board' => 'boolean',
             'unlock_arena' => 'boolean',

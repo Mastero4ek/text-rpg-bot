@@ -8,7 +8,7 @@ use App\Actions\Character\CharacterGrantExpAction;
 use App\Actions\Character\CharacterGrantSilverAction;
 use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\DailyContract\DailyContractTypeEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
@@ -94,8 +94,13 @@ final class DailyContractTurnInAction
                 }
             }
 
-            $locked = $this->grantSilver->handle($locked, $contract->reward_silver);
-            $locked = $this->grantExp->handle($locked, $contract->reward_exp);
+            if ($contract->reward_silver >= 1) {
+                $locked = $this->grantSilver->handle($locked, $contract->reward_silver);
+            }
+
+            if ($contract->reward_exp >= 1) {
+                $locked = $this->grantExp->handle($locked, $contract->reward_exp);
+            }
 
             $contract->status = DailyContractStatusEnum::Completed;
             $contract->save();

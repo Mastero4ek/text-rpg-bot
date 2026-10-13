@@ -8,6 +8,8 @@ use App\Enums\Fight\FightEndUiEnum;
 use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
+use App\Quests\BruiserQuest;
+use App\Quests\HealerQuest;
 use App\Services\Registration\RegistrationService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
@@ -18,9 +20,11 @@ use RuntimeException;
 final class FightPanelService
 {
     public function __construct(
+        private readonly BruiserQuest $bruiserQuest,
         private readonly FightService $fights,
         private readonly FightStatusFormatter $fightStatus,
         private readonly FightReportStore $reports,
+        private readonly HealerQuest $healerQuest,
         private readonly RegistrationService $registration,
     ) {}
 
@@ -179,8 +183,8 @@ final class FightPanelService
     {
         $enemy = $this->fights->enemy($fight);
 
-        if ($enemy->catalogId === 'bruiser') {
-            $path = config('bot.bruiser_image');
+        if ($enemy->catalogId === EnemyCatalog::BRUISER_CATALOG_ID) {
+            $path = config('bot.bruiser_fight_image');
 
             if (is_string($path) && $path !== '' && is_file($path)) {
                 return $path;
@@ -226,11 +230,14 @@ final class FightPanelService
             || $result->replyUi === FightEndUiEnum::BlacksmithComplete) {
             $path = config('bot.blacksmith_image');
         } elseif (
+            $result->replyUi === FightEndUiEnum::BruiserComplete
+            || $result->replyUi === FightEndUiEnum::BruiserKnucklePending
+        ) {
+            return $this->bruiserQuest->knucklePanelImagePath();
+        } elseif (
             in_array($result->replyUi, [
                 FightEndUiEnum::BruiserArrive,
                 FightEndUiEnum::BruiserTalk,
-                FightEndUiEnum::BruiserComplete,
-                FightEndUiEnum::BruiserKnucklePending,
                 FightEndUiEnum::BruiserKnockout,
             ], true)
         ) {
@@ -241,7 +248,7 @@ final class FightPanelService
         ) {
             $path = config('bot.healer_tavern_image');
         } elseif ($result->replyUi === FightEndUiEnum::HealerRatLoot) {
-            return null;
+            return $this->healerQuest->ratTailPanelImagePath();
         } elseif ($result->character->overseer_at_tavern) {
             $path = config('bot.overseer_tavern_image');
         } else {

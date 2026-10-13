@@ -85,10 +85,10 @@
 | Поле | Смысл |
 |------|--------|
 | `maxPerStrength` | max stamina = strength × это |
-| `drainDefend` | расход за ход в DEFEND |
-| `drainAttack` | расход за ход в ATTACK |
-| `drainExtraOnCrit` | доп. расход при крите |
-| `drainExtraOnDodge` | доп. расход при увороте |
+| `drainDefend` | расход атакующему в DEFEND / защищающемуся за каждый хит |
+| `drainAttack` | расход атакующему в ATTACK за каждый хит |
+| `drainExtraOnCrit` | доп. расход атакующему при крите/pierce |
+| `drainExtraOnDodge` | доп. расход защищающемуся при dodge |
 
 #### `combat.damage`
 
@@ -203,4 +203,4 @@
 | `rewards.HealerQuest` | exp / зелья / debt |
 | `rewards.BlacksmithQuest` | exp / silver / mail / amulet / enemy |
 | `rewards.BuyerQuest.contract` / `turnIn` | контракт и сдача кошеля |
-| `rewards.BruiserQuest` | exp / purse / knuckle / enemy |
+| `rewards.BruiserQuest` | exp / purse / knuckle (враг — `enemy_catalog.bruiser`) |

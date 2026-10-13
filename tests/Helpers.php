@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\Combat\StanceEnum;
+use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\DailyContract\DailyContractTypeEnum;
 use App\Enums\Equipment\SlotEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Backpack\BackpackItem;
@@ -152,7 +153,8 @@ function dailyDeliveryOffer(Character $player, NpcEnum $issuer = NpcEnum::Buyer)
 
     foreach ($offers as $row) {
         if (
-            $row->type === DailyContractTypeEnum::Delivery
+            $row->status === DailyContractStatusEnum::Offered
+            && $row->type === DailyContractTypeEnum::Delivery
             && $row->issuer_npc === $issuer
             && is_int($row->target_city_id)
             && $row->target_city_id !== $boardCity->id
@@ -161,10 +163,17 @@ function dailyDeliveryOffer(Character $player, NpcEnum $issuer = NpcEnum::Buyer)
         }
     }
 
-    $first = $offers->first();
+    $slot = null;
 
-    if (! $first instanceof CharacterDailyContract) {
-        throw new RuntimeException('Daily offer missing after ensureOffers.');
+    foreach ($offers as $row) {
+        if ($row->status === DailyContractStatusEnum::Offered) {
+            $slot = $row;
+            break;
+        }
+    }
+
+    if (! $slot instanceof CharacterDailyContract) {
+        throw new RuntimeException('Daily offered slot missing after ensureOffers.');
     }
 
     $catalog = BagCatalogModel::query()->find('daily_parcel');
@@ -178,19 +187,13 @@ function dailyDeliveryOffer(Character $player, NpcEnum $issuer = NpcEnum::Buyer)
         ->where('id', '!=', $boardCity->id)
         ->orderBy('id')
         ->get()
-        ->first(fn (City $city): bool => match ($issuer) {
-            NpcEnum::Buyer => $city->has_buyer,
-            NpcEnum::Healer => $city->has_healer,
-            NpcEnum::Blacksmith => $city->has_blacksmith,
-            NpcEnum::Overseer => $city->has_overseer,
-            NpcEnum::Bruiser => false,
-        });
+        ->first(fn (City $city): bool => DailyContractService::cityHasDeliverySpot($city, $issuer));
 
     if (! $target instanceof City) {
         throw new RuntimeException('dailyDeliveryOffer: no other city for issuer ' . $issuer->value);
     }
 
-    $params = $first->params;
+    $params = $slot->params;
     $params['item_name'] = $catalog->name;
     $params['bag_catalog_key'] = $catalog->catalog_id;
     $params['lvl'] = $player->level;
@@ -198,16 +201,16 @@ function dailyDeliveryOffer(Character $player, NpcEnum $issuer = NpcEnum::Buyer)
     $params['city_key'] = $target->key;
     unset($params['zone'], $params['monster_name'], $params['enemy_catalog_key']);
 
-    $first->type = DailyContractTypeEnum::Delivery;
-    $first->enemy_catalog_id = null;
-    $first->bag_catalog_id = $catalog->catalog_id;
-    $first->issuer_npc = $issuer;
-    $first->target_city_id = $target->id;
-    $first->target_kills = 0;
-    $first->params = $params;
-    $first->save();
+    $slot->type = DailyContractTypeEnum::Delivery;
+    $slot->enemy_catalog_id = null;
+    $slot->bag_catalog_id = $catalog->catalog_id;
+    $slot->issuer_npc = $issuer;
+    $slot->target_city_id = $target->id;
+    $slot->target_kills = 0;
+    $slot->params = $params;
+    $slot->save();
 
-    return $first->fresh();
+    return $slot->fresh();
 }
 
 function shopCatalog(): ShopCatalog
@@ -370,7 +373,8 @@ function cityHealerPhase(int $tgId, string $nick, string $cityKey = City::KEY_AN
     $player->overseer_trained = true;
     $player->overseer_at_tavern = true;
     $player->overseer_train_step = null;
-    $player->unlock_portal = true;
+    $player->unlock_portal = false;
+    $player->unlock_ruins = true;
     $player->healer_at_tavern = false;
     $player->healer_meet_open = false;
     $player->unlock_forest = false;
@@ -479,6 +483,7 @@ function unlockQuestCity(Character $character): Character
     $character->quest_phase = QuestPhaseEnum::Done;
     $character->city_unlocked_full = true;
     $character->unlock_portal = true;
+    $character->unlock_ruins = true;
     $character->unlock_forest = true;
     $character->unlock_board = true;
     $character->unlock_arena = true;
@@ -546,6 +551,28 @@ function assertCityEditMarkupHas(string $needle): void
         $markup = $request['reply_markup'] ?? '';
 
         return is_string($markup) && str_contains($markup, $needle);
+    });
+}
+
+/**
+ * @param  callable(string): bool  $bodyCheck
+ */
+function assertTelegramMarkupBody(callable $bodyCheck): void
+{
+    Http::assertSent(function (Request $request) use ($bodyCheck): bool {
+        $url = $request->url();
+
+        if (
+            ! str_contains($url, '/editMessageMedia')
+            && ! str_contains($url, '/editMessageCaption')
+            && ! str_contains($url, '/editMessageText')
+            && ! str_contains($url, '/sendPhoto')
+            && ! str_contains($url, '/sendMessage')
+        ) {
+            return false;
+        }
+
+        return $bodyCheck(urldecode($request->body()));
     });
 }
 

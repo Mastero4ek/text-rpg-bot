@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('quest_chapter')->default(QuestChapterEnum::Chapter1->value);
             $table->string('quest_phase')->default(QuestPhaseEnum::Overseer->value);
             $table->boolean('unlock_portal')->default(false);
+            $table->boolean('unlock_ruins')->default(false);
             $table->boolean('unlock_forest')->default(false);
             $table->boolean('unlock_board')->default(false);
             $table->boolean('unlock_arena')->default(false);
@@ -39,7 +40,7 @@ return new class extends Migration
             $table->boolean('bruiser_knuckle_pending')->default(false);
             $table->boolean('healer_debt_open')->default(false);
             $table->boolean('healer_rat_loot_pending')->default(false);
-            $table->unsignedInteger('level')->default(0);
+            $table->unsignedInteger('level')->default(1);
             $table->unsignedInteger('exp')->default(0);
             $table->unsignedInteger('silver')->default(20);
             $table->unsignedInteger('gold')->default(0);

@@ -6,7 +6,7 @@ namespace App\Models\Character;
 
 use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\DailyContract\DailyContractTypeEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Bag\BagCatalog;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;

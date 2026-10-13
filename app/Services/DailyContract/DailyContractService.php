@@ -8,7 +8,8 @@ use App\Actions\DailyContract\DailyContractExpireStaleAction;
 use App\Enums\City\PveZoneEnum;
 use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\DailyContract\DailyContractTypeEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
+use App\Enums\Npc\NpcSpotEnum;
 use App\Models\Bag\BagCatalog;
 use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
@@ -33,7 +34,24 @@ final class DailyContractService
             NpcEnum::Healer => $city->has_healer,
             NpcEnum::Blacksmith => $city->has_blacksmith,
             NpcEnum::Overseer => $city->has_overseer,
-            NpcEnum::Bruiser => false,
+            NpcEnum::Bruiser => $city->has_bruiser,
+            NpcEnum::Barkeeper => $city->has_barkeeper,
+        };
+    }
+
+    public static function cityHasDeliverySpot(City $city, NpcEnum $issuer): bool
+    {
+        if (! self::cityHasIssuer($city, $issuer)) {
+            return false;
+        }
+
+        return match ($issuer->deliverySpot()) {
+            NpcSpotEnum::Ruins => $city->has_ruins,
+            NpcSpotEnum::Forest => $city->has_forest,
+            NpcSpotEnum::Board => $city->has_quest_board,
+            NpcSpotEnum::Port => $city->has_port,
+            NpcSpotEnum::Hub,
+            NpcSpotEnum::Tavern => true,
         };
     }
 
@@ -116,7 +134,13 @@ final class DailyContractService
                 return false;
             }
 
-            $picks = $this->pickBoardSlots($character->level, $city);
+            $level = $character->level;
+
+            if ($level < 1) {
+                $level = 1;
+            }
+
+            $picks = $this->pickBoardSlots($level, $city);
 
             foreach ($picks as $slot => $pick) {
                 $row = new CharacterDailyContract;
@@ -125,13 +149,13 @@ final class DailyContractService
                 $row->board_date = \Illuminate\Support\Facades\Date::parse($today);
                 $row->slot = $slot;
                 $row->status = DailyContractStatusEnum::Offered;
-                $row->reward_silver = $character->level * $this->silverMultiplier($pick['type']);
-                $row->reward_exp = $character->level * $this->expMultiplier($pick['type']);
+                $row->reward_silver = $level * $this->silverMultiplier($pick['type']);
+                $row->reward_exp = $level * $this->expMultiplier($pick['type']);
 
                 if ($pick['type'] === DailyContractTypeEnum::Delivery) {
-                    $this->fillDeliveryRow($row, $pick, $character->level);
+                    $this->fillDeliveryRow($row, $pick, $level);
                 } else {
-                    $this->fillHuntRow($row, $pick, $character->level);
+                    $this->fillHuntRow($row, $pick, $level);
                 }
 
                 $row->save();
@@ -343,28 +367,105 @@ final class DailyContractService
     private function pickBoardSlots(int $level, City $city): array
     {
         $slots = [];
+        $usedKeys = [];
+        $slotCount = $this->boardSlotCount();
 
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < $slotCount; $i++) {
             $type = $this->rollSlotType($level, $city);
-
-            if ($type === DailyContractTypeEnum::Delivery) {
-                $pick = $this->pickOneDelivery($level, $city);
-
-                if ($pick === null) {
-                    $pick = $this->pickOneHunt($level, $city);
-                    $pick['type'] = DailyContractTypeEnum::Hunt;
-                } else {
-                    $pick['type'] = DailyContractTypeEnum::Delivery;
-                }
-            } else {
-                $pick = $this->pickOneHunt($level, $city);
-                $pick['type'] = DailyContractTypeEnum::Hunt;
-            }
-
+            $pick = $this->pickSlot($level, $city, $type, $usedKeys);
+            $usedKeys[$this->slotKey($pick)] = true;
             $slots[] = $pick;
         }
 
         return $slots;
+    }
+
+    private function boardSlotCount(): int
+    {
+        $cfg = $this->config->dailyContracts();
+
+        if (! array_key_exists('board_slots', $cfg) || ! is_int($cfg['board_slots'])) {
+            throw new RuntimeException('daily_contracts.board_slots missing.');
+        }
+
+        if ($cfg['board_slots'] < 1) {
+            throw new RuntimeException('daily_contracts.board_slots must be >= 1.');
+        }
+
+        return $cfg['board_slots'];
+    }
+
+    /**
+     * Unique by board label (hunt: mob+zone, delivery: item+city). Pad repeats only if pool exhausted.
+     *
+     * @param  array<string, true>  $usedKeys
+     * @return array{type: DailyContractTypeEnum, enemy_catalog_key?: string, zone_key?: string, issuer_npc: string, bag_catalog_key?: string, min_lvl?: int, max_lvl?: int, target_city_id?: int, target_city_name?: string, target_city_key?: string}
+     */
+    private function pickSlot(int $level, City $city, DailyContractTypeEnum $preferred, array $usedKeys): array
+    {
+        $order = [$preferred, DailyContractTypeEnum::Hunt];
+
+        if ($preferred === DailyContractTypeEnum::Hunt) {
+            $order = [DailyContractTypeEnum::Hunt, DailyContractTypeEnum::Delivery];
+        }
+
+        foreach ($order as $type) {
+            if ($type === DailyContractTypeEnum::Delivery) {
+                $delivery = $this->pickOneDelivery($level, $city, $usedKeys);
+
+                if ($delivery !== null) {
+                    $delivery['type'] = DailyContractTypeEnum::Delivery;
+
+                    return $delivery;
+                }
+
+                continue;
+            }
+
+            $hunt = $this->pickOneHunt($level, $city, $usedKeys);
+
+            if ($hunt !== null) {
+                $hunt['type'] = DailyContractTypeEnum::Hunt;
+
+                return $hunt;
+            }
+        }
+
+        $padHunt = $this->pickOneHunt($level, $city, []);
+
+        if ($padHunt !== null) {
+            $padHunt['type'] = DailyContractTypeEnum::Hunt;
+
+            return $padHunt;
+        }
+
+        $padDelivery = $this->pickOneDelivery($level, $city, []);
+
+        if ($padDelivery !== null) {
+            $padDelivery['type'] = DailyContractTypeEnum::Delivery;
+
+            return $padDelivery;
+        }
+
+        throw new RuntimeException('daily_contracts board pool empty.');
+    }
+
+    /**
+     * @param  array{type: DailyContractTypeEnum, enemy_catalog_key?: string, zone_key?: string, issuer_npc: string, bag_catalog_key?: string, min_lvl?: int, max_lvl?: int, target_city_id?: int, target_city_name?: string, target_city_key?: string}  $pick
+     */
+    private function slotKey(array $pick): string
+    {
+        if ($pick['type'] === DailyContractTypeEnum::Delivery) {
+            $bag = $pick['bag_catalog_key'] ?? '';
+            $cityId = $pick['target_city_id'] ?? 0;
+
+            return 'd:' . $bag . ':' . $cityId;
+        }
+
+        $enemy = $pick['enemy_catalog_key'] ?? '';
+        $zone = $pick['zone_key'] ?? '';
+
+        return 'h:' . $enemy . ':' . $zone;
     }
 
     private function rollSlotType(int $level, City $city): DailyContractTypeEnum
@@ -393,9 +494,10 @@ final class DailyContractService
     }
 
     /**
-     * @return array{enemy_catalog_key: string, zone_key: string, issuer_npc: string, min_lvl: int, max_lvl: int}
+     * @param  array<string, true>  $usedKeys
+     * @return array{enemy_catalog_key: string, zone_key: string, issuer_npc: string, min_lvl: int, max_lvl: int}|null
      */
-    private function pickOneHunt(int $level, City $city): array
+    private function pickOneHunt(int $level, City $city, array $usedKeys): ?array
     {
         $pool = $this->huntPoolRowsForCity($city);
         $filtered = [];
@@ -416,13 +518,30 @@ final class DailyContractService
             throw new RuntimeException('daily_contracts.hunt_pool is empty.');
         }
 
-        return $filtered[array_rand($filtered)];
+        $available = [];
+
+        foreach ($filtered as $row) {
+            $key = 'h:' . $row['enemy_catalog_key'] . ':' . $row['zone_key'];
+
+            if (array_key_exists($key, $usedKeys)) {
+                continue;
+            }
+
+            $available[] = $row;
+        }
+
+        if ($available === []) {
+            return null;
+        }
+
+        return $available[array_rand($available)];
     }
 
     /**
+     * @param  array<string, true>  $usedKeys
      * @return array{bag_catalog_key: string, issuer_npc: string, min_lvl: int, max_lvl: int, target_city_id: int, target_city_name: string, target_city_key: string}|null
      */
-    private function pickOneDelivery(int $level, City $boardCity): ?array
+    private function pickOneDelivery(int $level, City $boardCity, array $usedKeys): ?array
     {
         $candidates = $this->deliveryCandidates($level, $boardCity);
 
@@ -430,7 +549,23 @@ final class DailyContractService
             return null;
         }
 
-        return $candidates[array_rand($candidates)];
+        $available = [];
+
+        foreach ($candidates as $row) {
+            $key = 'd:' . $row['bag_catalog_key'] . ':' . $row['target_city_id'];
+
+            if (array_key_exists($key, $usedKeys)) {
+                continue;
+            }
+
+            $available[] = $row;
+        }
+
+        if ($available === []) {
+            return null;
+        }
+
+        return $available[array_rand($available)];
     }
 
     /**
@@ -475,7 +610,7 @@ final class DailyContractService
             }
 
             foreach ($others as $target) {
-                if (! self::cityHasIssuer($target, $issuer)) {
+                if (! self::cityHasDeliverySpot($target, $issuer)) {
                     continue;
                 }
 

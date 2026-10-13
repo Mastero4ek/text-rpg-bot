@@ -78,6 +78,8 @@ final class EnemyCatalog extends Model implements HasMedia
     use InteractsWithMedia;
     use SoftDeletes;
 
+    public const BRUISER_CATALOG_ID = 'bruiser';
+
     public const TUTORIAL_CATALOG_ID = 'wooden_soldier';
 
     public $incrementing = false;

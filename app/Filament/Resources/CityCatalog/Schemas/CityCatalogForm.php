@@ -79,6 +79,8 @@ final class CityCatalogForm
                             Toggle::make('has_healer')->label(__('admin.labels.has_healer')),
                             Toggle::make('has_buyer')->label(__('admin.labels.has_buyer')),
                             Toggle::make('has_overseer')->label(__('admin.labels.has_overseer')),
+                            Toggle::make('has_bruiser')->label(__('admin.labels.has_bruiser')),
+                            Toggle::make('has_barkeeper')->label(__('admin.labels.has_barkeeper')),
                         ])->columns(2),
                     ]),
                 Section::make(__('admin.sections.city_locations'))

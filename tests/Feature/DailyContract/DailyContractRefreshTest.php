@@ -67,7 +67,7 @@ it('materializes three offers and queues a board push when missing', function ()
     $created = refreshService()->refreshCharacter($player->tg_id);
 
     expect($created)->toBeTrue()
-        ->and(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(3);
+        ->and(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(gameConfig()->dailyContracts()['board_slots']);
 
     Queue::assertPushed(DailyContractBoardPushJob::class, function (DailyContractBoardPushJob $job) use ($player): bool {
         return $job->tgId === $player->tg_id;
@@ -81,7 +81,7 @@ it('does not rematerialize or push twice on the same board date', function (): v
     $first = refreshService()->refreshCharacter($player->tg_id);
 
     expect($first)->toBeTrue()
-        ->and(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(3);
+        ->and(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(gameConfig()->dailyContracts()['board_slots']);
 
     Queue::assertPushed(DailyContractBoardPushJob::class);
     Queue::fake();
@@ -98,7 +98,7 @@ it('still queues one push when offers were already materialized lazily', functio
     $player = refreshPlayer(98017, 'RefLazyPush');
     dailyService()->ensureOffers($player, dailyCity($player));
 
-    expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(3);
+    expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(gameConfig()->dailyContracts()['board_slots']);
 
     $pushed = refreshService()->refreshCharacter($player->tg_id);
 
@@ -260,7 +260,7 @@ it('keeps offered status after materialize so the board can be taken', function 
         ->pluck('status')
         ->all();
 
-    expect($statuses)->toHaveCount(3);
+    expect($statuses)->toHaveCount(gameConfig()->dailyContracts()['board_slots']);
 
     foreach ($statuses as $status) {
         expect($status)->toBe(DailyContractStatusEnum::Offered);

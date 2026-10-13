@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+final class DatabaseDemoSeeder extends Seeder
+{
+    use WithoutModelEvents;
+
+    public function run(): void
+    {
+        $this->call([
+            AdminUserSeeder::class,
+            BackpackCatalogSeeder::class,
+            BagCatalogSeeder::class,
+            EnemyCatalogSeeder::class,
+            CitySeeder::class,
+        ]);
+    }
+}

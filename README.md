@@ -32,7 +32,7 @@ composer dev
 # TELEGRAM_WEBHOOK_URL=https://…/telegram/webhook
 # TELEGRAM_WEBHOOK_SECRET=…, TELEGRAM_ASYNC=true
 php artisan migrate --force
-php artisan db:seed --class=AdminUserSeeder
+php artisan db:seed --class=DatabaseDemoSeeder --force
 php artisan telegram:webhook set
 php artisan queue:work redis
 ```

@@ -13,14 +13,10 @@ final class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $this->call([
-            AdminUserSeeder::class,
-            BackpackCatalogSeeder::class,
-            BagCatalogSeeder::class,
-            EnemyCatalogSeeder::class,
-            CitySeeder::class,
-            CharacterSeeder::class,
-            FightSeeder::class,
-        ]);
+        if (app()->isProduction()) {
+            $this->call(DatabaseDemoSeeder::class);
+        } else {
+            $this->call(DatabaseTestSeeder::class);
+        }
     }
 }

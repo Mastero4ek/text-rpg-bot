@@ -255,6 +255,7 @@ final class RegistrationService
             $locked->progress_step = ProgressStepEnum::ARRIVED;
             $locked->quest_phase = QuestPhaseEnum::Overseer;
             $locked->unlock_portal = false;
+            $locked->unlock_ruins = false;
             $locked->unlock_forest = false;
             $locked->unlock_board = false;
             $locked->unlock_arena = false;

@@ -13,7 +13,9 @@ use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\BarkeeperHandler;
 use App\Telegram\Handlers\BlacksmithHandler;
+use App\Telegram\Handlers\BruiserHandler;
 use App\Telegram\Handlers\BuyerHandler;
 use App\Telegram\Handlers\CityHandler;
 use App\Telegram\Handlers\DailyContractHandler;
@@ -44,7 +46,9 @@ final class UpdateProcessor
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
         private readonly SmithHandler $smith,
+        private readonly BarkeeperHandler $barkeeper,
         private readonly BlacksmithHandler $blacksmith,
+        private readonly BruiserHandler $bruiser,
         private readonly HealerHandler $healer,
         private readonly BuyerHandler $buyer,
         private readonly OverseerHandler $overseer,
@@ -208,8 +212,20 @@ final class UpdateProcessor
             return;
         }
 
+        if (str_starts_with($data, 'city:barkeeper')) {
+            $this->barkeeper->handleCallback($update, $responder);
+
+            return;
+        }
+
         if (str_starts_with($data, 'city:blacksmith')) {
             $this->blacksmith->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'city:bruiser')) {
+            $this->bruiser->handleCallback($update, $responder);
 
             return;
         }

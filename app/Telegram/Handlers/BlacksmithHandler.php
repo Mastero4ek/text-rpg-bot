@@ -10,7 +10,7 @@ use App\Actions\City\CityBlacksmithBuyAction;
 use App\Actions\Telegram\FlashListPageEdgeAction;
 use App\Enums\Economy\CurrencyEnum;
 use App\Enums\Equipment\TypeEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Character\Character;
 use App\Models\City;
@@ -18,6 +18,7 @@ use App\Queries\City\CityQuery;
 use App\Services\Backpack\RepairService;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
+use App\Services\Quest\QuestNpcPlacement;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Telegram\TelegramHtml;
 use App\Support\Telegram\TelegramPlayerGate;
@@ -36,6 +37,7 @@ final class BlacksmithHandler
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
         private readonly DailyContractService $dailyContracts,
+        private readonly QuestNpcPlacement $npcPlacement,
         private readonly RepairService $repairs,
         private readonly ShopCatalog $shopCatalog,
         private readonly TelegramPlayerGate $gate,
@@ -560,11 +562,13 @@ final class BlacksmithHandler
     {
         $city = $this->cityMenu->currentCity($player);
 
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Blacksmith);
+
         if (! $city instanceof City || ! $city->has_blacksmith) {
             $this->editBlacksmithPanel(
                 $responder,
                 __('telegram.npc.blacksmith.error.no_blacksmith'),
-                CityKeyboard::backToTavern(),
+                CityKeyboard::backToCallback($back),
             );
 
             return;
@@ -577,7 +581,7 @@ final class BlacksmithHandler
         $this->editBlacksmithPanel(
             $responder,
             __('telegram.npc.blacksmith.offer'),
-            CityKeyboard::blacksmithWithDaily($hasDaily),
+            CityKeyboard::blacksmithWithDaily($hasDaily, $back),
         );
     }
 

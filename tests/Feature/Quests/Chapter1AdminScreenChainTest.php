@@ -98,6 +98,7 @@ it('chains splash through chapter1_done via apply action', function (): void {
     expect($player->quest_phase)->toBe(QuestPhaseEnum::Done)
         ->and($player->city_unlocked_full)->toBeTrue()
         ->and($player->unlock_portal)->toBeTrue()
+        ->and($player->unlock_ruins)->toBeTrue()
         ->and($player->unlock_forest)->toBeTrue()
         ->and($player->unlock_board)->toBeTrue()
         ->and($player->unlock_arena)->toBeTrue()

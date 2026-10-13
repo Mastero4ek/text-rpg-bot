@@ -67,12 +67,13 @@ describe('gates and unlock', function (): void {
         });
     });
 
-    it('fogs swamp ruins and port until city_unlocked_full', function (): void {
+    it('fogs swamp and port until city_unlocked_full while ruins need unlock_ruins', function (): void {
         $player = cityArrivedSkipped(98003, 'PveFogZones');
         $player->progress_step = ProgressStepEnum::DONE;
         $player->overseer_trained = true;
         $player->unlock_forest = true;
         $player->unlock_portal = true;
+        $player->unlock_ruins = false;
         $player->city_unlocked_full = false;
         $player->save();
         $player->loadMissing('city');
@@ -362,7 +363,7 @@ describe('daily hunt zones', function (): void {
 
         $offers = dailyService()->ensureOffers($player, $city->fresh());
 
-        expect($offers)->toHaveCount(3);
+        expect($offers)->toHaveCount(gameConfig()->dailyContracts()['board_slots']);
 
         foreach ($offers as $row) {
             if ($row->type === DailyContractTypeEnum::Delivery) {

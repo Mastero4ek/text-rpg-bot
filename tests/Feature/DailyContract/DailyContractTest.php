@@ -9,7 +9,7 @@ use App\Actions\DailyContract\DailyContractStartHuntAction;
 use App\Actions\DailyContract\DailyContractTurnInAction;
 use App\Enums\DailyContract\DailyContractStatusEnum;
 use App\Enums\Fight\FightKindEnum;
-use App\Enums\NpcEnum;
+use App\Enums\Npc\NpcEnum;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Models\Fight;
@@ -24,16 +24,17 @@ beforeEach(function (): void {
 });
 
 describe('ensureOffers', function (): void {
-    it('creates three offered contracts with level-scaled rewards', function (): void {
+    it('creates board_slots offered contracts with level-scaled rewards', function (): void {
         $player = cityDone(97001, 'DailyGen');
         $player->level = 4;
         $player->save();
         $player = $player->fresh();
         $city = dailyCity($player);
+        $slotCount = gameConfig()->dailyContracts()['board_slots'];
 
         $offers = dailyService()->ensureOffers($player, $city);
 
-        expect($offers)->toHaveCount(3);
+        expect($offers)->toHaveCount($slotCount);
 
         $cfg = gameConfig()->dailyContracts();
         $huntSilver = $cfg['economy_balance']['hunt']['silver_multiplier'];
@@ -66,18 +67,32 @@ describe('ensureOffers', function (): void {
             }
         }
 
-        expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(3);
+        expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe($slotCount);
+
+        $keys = [];
+
+        foreach ($offers as $row) {
+            if ($row->type->value === 'hunt') {
+                $key = 'h:' . $row->enemy_catalog_id . ':' . ($row->params['zone'] ?? '');
+            } else {
+                $key = 'd:' . $row->bag_catalog_id . ':' . $row->target_city_id;
+            }
+
+            expect($keys)->not->toHaveKey($key);
+            $keys[$key] = true;
+        }
     });
 
     it('does not regenerate offers on the same board date', function (): void {
         $player = cityDone(97002, 'DailyIdem');
         $city = dailyCity($player);
+        $slotCount = gameConfig()->dailyContracts()['board_slots'];
 
         $first = dailyService()->ensureOffers($player, $city);
         $second = dailyService()->ensureOffers($player, $city);
 
         expect($second->pluck('id')->all())->toBe($first->pluck('id')->all());
-        expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe(3);
+        expect(CharacterDailyContract::query()->where('tg_id', $player->tg_id)->count())->toBe($slotCount);
     });
 
     it('hides accepted slots from the board and filters asks to delivery', function (): void {
@@ -91,7 +106,7 @@ describe('ensureOffers', function (): void {
         $asks = dailyService()->offeredForBoard($player->fresh(), $city, 'asks');
         $orders = dailyService()->offeredForBoard($player->fresh(), $city, 'orders');
 
-        expect($offered)->toHaveCount(2)
+        expect($offered)->toHaveCount(gameConfig()->dailyContracts()['board_slots'] - 1)
             ->and($offered->contains(fn (CharacterDailyContract $row): bool => $row->id === $offer->id))->toBeFalse();
 
         foreach ($asks as $row) {
@@ -196,11 +211,20 @@ describe('accept', function (): void {
         $player = dailyPlayer(97017, 'DailyCapBlock');
         $home = dailyCity($player);
         $homeOffers = dailyService()->ensureOffers($player, $home);
+        $cap = gameConfig()->dailyContracts()['max_accepts_per_day'];
+        $accepted = 0;
 
         foreach ($homeOffers as $row) {
+            if ($accepted >= $cap) {
+                break;
+            }
+
             $ok = app(DailyContractAcceptAction::class)->handle($player->fresh(), $home, $row->id);
             expect($ok->ok)->toBeTrue();
+            $accepted++;
         }
+
+        expect($accepted)->toBe($cap);
 
         $player = placeInCity($player->fresh(), City::KEY_ELDWOOD);
         $away = dailyCity($player);
@@ -421,6 +445,7 @@ describe('delivery', function (): void {
             'item' => $offer->params['item_name'] ?? 'daily_parcel',
             'city' => $offer->params['city_name'] ?? '',
             'npc' => __('telegram.daily.npc.' . $offer->issuer_npc->value),
+            'place' => __('telegram.daily.place.' . $offer->issuer_npc->deliverySpot()->value),
             'silver' => $offer->reward_silver,
             'exp' => $offer->reward_exp,
         ])));
@@ -494,6 +519,7 @@ describe('delivery', function (): void {
         'healer' => [NpcEnum::Healer, 97061, 'DailyDelHeal'],
         'blacksmith' => [NpcEnum::Blacksmith, 97062, 'DailyDelSmith'],
         'overseer' => [NpcEnum::Overseer, 97063, 'DailyDelOver'],
+        'barkeeper' => [NpcEnum::Barkeeper, 97066, 'DailyDelBark'],
     ]);
 
     it('rejects accept when bag is full', function (): void {
@@ -620,7 +646,7 @@ describe('delivery', function (): void {
             ->and(bag()->ownsQuestItem($player->tg_id, 'daily_parcel'))->toBeFalse();
     });
 
-    it('marks destination tavern npc with daily mark', function (): void {
+    it('marks destination ruins healer with daily mark and hides from tavern', function (): void {
         $player = dailyPlayer(97071, 'DailyDelMark');
         $board = dailyCity($player);
         $offer = dailyDeliveryOffer($player, NpcEnum::Healer);
@@ -629,10 +655,15 @@ describe('delivery', function (): void {
         $player = placeInCity($player->fresh(), $target->key);
 
         cityFlowCallback($player->tg_id, 9, 'city:tavern');
+        Http::assertNotSent(function ($request): bool {
+            return str_contains((string) $request->body(), 'city:healer');
+        });
 
+        cityFlowCallback($player->tg_id, 10, 'city:ruins');
         assertCityEditMarkupHas(__('telegram.daily.npc_mark', [
             'name' => __('telegram.btn.healer'),
         ]));
+        assertCityEditMarkupHas('city:healer');
     });
 });
 
@@ -684,7 +715,7 @@ describe('telegram surface', function (): void {
         });
     });
 
-    it('puts zone and npc on hunt board rows', function (): void {
+    it('puts monster and zone on hunt board rows', function (): void {
         $player = cityDone(97054, 'DailyRowHunt');
         $offer = dailyOffer($player);
         $offer->issuer_npc = NpcEnum::Healer;
@@ -693,27 +724,21 @@ describe('telegram surface', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:board');
 
         assertCityEditMarkupHas(__('telegram.daily.row', [
-            'silver' => $offer->reward_silver,
-            'exp' => $offer->reward_exp,
             'monster' => $offer->params['monster_name'] ?? $offer->enemy_catalog_id,
             'zone' => __('telegram.daily.zone_name.forest'),
-            'npc' => __('telegram.daily.npc.healer'),
         ]));
     });
 
-    it('puts city and npc on delivery board rows', function (): void {
+    it('puts item and city on delivery board rows', function (): void {
         $player = cityDone(97055, 'DailyRowDel');
         $offer = dailyDeliveryOffer($player, NpcEnum::Blacksmith);
         $cityName = $offer->params['city_name'] ?? '';
 
         cityFlowCallback($player->tg_id, 9, 'city:board');
 
-        assertCityEditMarkupHas(__('telegram.daily.row_delivery_city', [
-            'silver' => $offer->reward_silver,
-            'exp' => $offer->reward_exp,
+        assertCityEditMarkupHas(__('telegram.daily.row_delivery', [
             'item' => $offer->params['item_name'] ?? 'daily_parcel',
             'city' => $cityName,
-            'npc' => __('telegram.daily.npc.blacksmith'),
         ]));
     });
 
@@ -816,18 +841,23 @@ describe('telegram surface', function (): void {
         assertCityEditHas(mb_trim(__('telegram.daily.accept_done_delivery', [
             'npc' => __('telegram.daily.npc.healer'),
             'city' => $target->name,
+            'place' => __('telegram.daily.place.ruins'),
         ])));
 
         $player = placeInCity($player->fresh(), $target->key);
         $silverBefore = $player->silver;
 
-        cityFlowCallback($player->tg_id, 10, 'city:healer');
-        assertCityEditMarkupHas('daily:healer:list');
+        cityFlowCallback($player->tg_id, 10, 'city:ruins');
+        assertCityEditMarkupHas('city:healer');
 
-        cityFlowCallback($player->tg_id, 11, 'daily:healer:list');
+        cityFlowCallback($player->tg_id, 11, 'city:healer');
+        assertCityEditMarkupHas('daily:healer:list');
+        assertCityEditMarkupHas('city:ruins');
+
+        cityFlowCallback($player->tg_id, 12, 'daily:healer:list');
         assertCityEditMarkupHas('daily:healer:turnin:' . $offer->id);
 
-        cityFlowCallback($player->tg_id, 12, 'daily:healer:turnin:' . $offer->id);
+        cityFlowCallback($player->tg_id, 13, 'daily:healer:turnin:' . $offer->id);
 
         expect($offer->fresh()->status)->toBe(DailyContractStatusEnum::Completed)
             ->and(bag()->ownsQuestItem($player->tg_id, 'daily_parcel'))->toBeFalse()

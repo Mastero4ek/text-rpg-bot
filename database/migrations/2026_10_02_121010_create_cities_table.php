@@ -22,6 +22,8 @@ return new class extends Migration
             $table->boolean('has_healer')->default(false);
             $table->boolean('has_buyer')->default(false);
             $table->boolean('has_overseer')->default(false);
+            $table->boolean('has_bruiser')->default(false);
+            $table->boolean('has_barkeeper')->default(false);
             $table->boolean('has_quest_board')->default(false);
             $table->boolean('has_portal')->default(false);
             $table->boolean('has_forest')->default(false);

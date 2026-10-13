@@ -49,7 +49,7 @@ final class Chapter1ScreenProjector
         $character->overseer_trained = true;
         $character->overseer_at_tavern = true;
         $character->overseer_train_step = null;
-        $character->unlock_portal = true;
+        $character->unlock_ruins = true;
         $character->healer_meet_open = false;
     }
 
@@ -88,6 +88,7 @@ final class Chapter1ScreenProjector
     {
         $character->quest_phase = QuestPhaseEnum::Overseer;
         $character->unlock_portal = false;
+        $character->unlock_ruins = false;
         $character->unlock_forest = false;
         $character->unlock_board = false;
         $character->unlock_arena = false;
@@ -213,6 +214,7 @@ final class Chapter1ScreenProjector
         $character->blacksmith_at_tavern = true;
         $character->buyer_at_tavern = true;
         $character->unlock_portal = true;
+        $character->unlock_ruins = true;
         $character->unlock_forest = true;
         $character->unlock_board = true;
         $character->unlock_arena = true;

@@ -63,7 +63,12 @@ final class Chapter1ScreenPanelPusher
 
         try {
             [$imagePath, $caption, $markup] = $this->panel($character, $screen);
-            $responder->editPhotoAt($chatId, $messageId, $imagePath, $caption, $markup);
+
+            if ($imagePath !== null) {
+                $responder->editPhotoAt($chatId, $messageId, $imagePath, $caption, $markup);
+            } else {
+                $responder->editAt($chatId, $messageId, $caption, $markup);
+            }
         } catch (Throwable) {
             return ActionResult::fail(__('admin.actions.push_quest_screen.error.telegram'));
         }
@@ -72,7 +77,7 @@ final class Chapter1ScreenPanelPusher
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<string, mixed>}
+     * @return array{0: ?string, 1: string, 2: array<string, mixed>}
      */
     private function panel(Character $character, Chapter1ScreenEnum $screen): array
     {
@@ -150,12 +155,12 @@ final class Chapter1ScreenPanelPusher
                 TelegramKeyboards::healerDebt(),
             ],
             Chapter1ScreenEnum::HealerRatLoot => [
-                $this->healerQuest->panelImagePath(),
+                $this->healerQuest->ratTailPanelImagePath(),
                 $this->healerQuest->ratLootSpeech($character),
                 TelegramKeyboards::healerRatLoot(),
             ],
             Chapter1ScreenEnum::BruiserKnucklePending => [
-                $this->bruiserQuest->panelImagePath(),
+                $this->bruiserQuest->knucklePanelImagePath(),
                 $this->bruiserQuest->knucklePendingSpeech($character),
                 TelegramKeyboards::bruiserKnucklePending(),
             ],

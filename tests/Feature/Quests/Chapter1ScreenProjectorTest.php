@@ -38,7 +38,8 @@ it('applies healer_meet mask', function (): void {
     $fresh = $player->fresh();
 
     expect($fresh->quest_phase)->toBe(QuestPhaseEnum::Healer)
-        ->and($fresh->unlock_portal)->toBeTrue()
+        ->and($fresh->unlock_ruins)->toBeTrue()
+        ->and($fresh->unlock_portal)->toBeFalse()
         ->and($fresh->unlock_forest)->toBeFalse()
         ->and($fresh->healer_meet_open)->toBeFalse();
 });

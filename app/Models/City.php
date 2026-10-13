@@ -33,6 +33,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property bool $has_healer
  * @property bool $has_buyer
  * @property bool $has_overseer
+ * @property bool $has_bruiser
+ * @property bool $has_barkeeper
  * @property bool $has_quest_board
  * @property bool $has_portal
  * @property bool $has_forest
@@ -56,6 +58,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'has_healer',
     'has_buyer',
     'has_overseer',
+    'has_bruiser',
+    'has_barkeeper',
     'has_quest_board',
     'has_portal',
     'has_forest',
@@ -264,6 +268,8 @@ final class City extends Model implements HasMedia
                 'has_healer',
                 'has_buyer',
                 'has_overseer',
+                'has_bruiser',
+                'has_barkeeper',
                 'has_quest_board',
                 'has_portal',
                 'has_forest',
@@ -307,6 +313,8 @@ final class City extends Model implements HasMedia
             'has_healer' => 'boolean',
             'has_buyer' => 'boolean',
             'has_overseer' => 'boolean',
+            'has_bruiser' => 'boolean',
+            'has_barkeeper' => 'boolean',
             'has_quest_board' => 'boolean',
             'has_portal' => 'boolean',
             'has_forest' => 'boolean',

@@ -10,7 +10,7 @@ use RuntimeException;
 
 final class FightReportStore
 {
-    private const CAPTION_MAX = 900;
+    private const CAPTION_MAX = 1024;
 
     public function __construct(
         private readonly GameConfig $config,
@@ -27,7 +27,56 @@ final class FightReportStore
             return $text;
         }
 
-        return mb_substr($text, 0, self::CAPTION_MAX - 1) . '…';
+        $marker = "\n\n…\n\n";
+        $lines = explode("\n", $text);
+        $lineCount = count($lines);
+
+        $bestHead = 0;
+        $bestTail = 0;
+        $bestKept = -1;
+        $bestBalance = -1;
+
+        for ($headCount = 0; $headCount < $lineCount; $headCount++) {
+            $maxTail = $lineCount - $headCount - 1;
+
+            for ($tailCount = 0; $tailCount <= $maxTail; $tailCount++) {
+                if ($headCount === 0 && $tailCount === 0) {
+                    continue;
+                }
+
+                $chunk = $this->clipChunk($lines, $headCount, $tailCount, $marker);
+
+                if (mb_strlen($chunk) > self::CAPTION_MAX) {
+                    continue;
+                }
+
+                $kept = $headCount + $tailCount;
+                $balance = $headCount;
+
+                if ($tailCount < $balance) {
+                    $balance = $tailCount;
+                }
+
+                if ($kept < $bestKept) {
+                    continue;
+                }
+
+                if ($kept === $bestKept && $balance < $bestBalance) {
+                    continue;
+                }
+
+                $bestHead = $headCount;
+                $bestTail = $tailCount;
+                $bestKept = $kept;
+                $bestBalance = $balance;
+            }
+        }
+
+        if ($bestKept < 0) {
+            return $this->clipSingleLine($text, $marker);
+        }
+
+        return $this->clipChunk($lines, $bestHead, $bestTail, $marker);
     }
 
     /**
@@ -65,6 +114,40 @@ final class FightReportStore
             ],
             now()->addSeconds($this->ttlSeconds()),
         );
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private function clipChunk(array $lines, int $headCount, int $tailCount, string $marker): string
+    {
+        $lineCount = count($lines);
+        $head = array_slice($lines, 0, $headCount);
+        $tail = array_slice($lines, $lineCount - $tailCount, $tailCount);
+
+        if ($headCount === 0) {
+            return $marker . implode("\n", $tail);
+        }
+
+        if ($tailCount === 0) {
+            return implode("\n", $head) . $marker;
+        }
+
+        return implode("\n", $head) . $marker . implode("\n", $tail);
+    }
+
+    private function clipSingleLine(string $text, string $marker): string
+    {
+        $budget = self::CAPTION_MAX - mb_strlen($marker);
+
+        if ($budget < 2) {
+            return '…';
+        }
+
+        $headLen = intdiv($budget, 2);
+        $tailLen = $budget - $headLen;
+
+        return mb_substr($text, 0, $headLen) . $marker . mb_substr($text, -1 * $tailLen);
     }
 
     private function ttlSeconds(): int

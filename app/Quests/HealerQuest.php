@@ -11,10 +11,12 @@ use App\Actions\Healer\HealerOpenMeetAction;
 use App\Actions\Healer\HealerStartRatFightAction;
 use App\Actions\Healer\HealerTakeRatTailAction;
 use App\Enums\Quest\QuestPhaseEnum;
+use App\Models\Bag\BagCatalog;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Models\Fight;
 use App\Services\Fight\FightService;
+use App\Services\GameConfig;
 use App\Support\ActionResult;
 use App\Support\Telegram\TelegramHtml;
 use RuntimeException;
@@ -29,12 +31,13 @@ final class HealerQuest
         private readonly HealerStartRatFightAction $startRatFightAction,
         private readonly HealerTakeRatTailAction $takeRatTailAction,
         private readonly FightService $fights,
+        private readonly GameConfig $config,
     ) {}
 
     public function awaitsPotion(Character $character): bool
     {
         return $character->quest_phase === QuestPhaseEnum::Healer
-            && $character->unlock_portal
+            && $character->unlock_ruins
             && ! $character->healer_at_tavern;
     }
 
@@ -121,6 +124,23 @@ final class HealerQuest
         return $this->speech('telegram.quest.healer.rat_loot', $character);
     }
 
+    public function ratTailPanelImagePath(): string
+    {
+        $catalog = BagCatalog::query()->find($this->ratTailCatalogId());
+
+        if (! $catalog instanceof BagCatalog) {
+            throw new RuntimeException('Healer rat tail catalog missing.');
+        }
+
+        $path = $catalog->localImagePath();
+
+        if ($path === null) {
+            throw new RuntimeException('Healer rat tail panel image missing.');
+        }
+
+        return $path;
+    }
+
     public function startRatFight(Character $character): ActionResult
     {
         return $this->startRatFightAction->handle($character);
@@ -151,6 +171,33 @@ final class HealerQuest
         }
 
         return TelegramHtml::escape($character->city->name);
+    }
+
+    private function ratTailCatalogId(): string
+    {
+        $quest = $this->config->quest();
+
+        if (! array_key_exists('rewards', $quest) || ! is_array($quest['rewards'])) {
+            throw new RuntimeException('quest.rewards missing.');
+        }
+
+        if (! array_key_exists('HealerQuest', $quest['rewards']) || ! is_array($quest['rewards']['HealerQuest'])) {
+            throw new RuntimeException('quest.rewards.HealerQuest missing.');
+        }
+
+        $healer = $quest['rewards']['HealerQuest'];
+
+        if (! array_key_exists('debt', $healer) || ! is_array($healer['debt'])) {
+            throw new RuntimeException('HealerQuest.debt missing.');
+        }
+
+        $row = $healer['debt'];
+
+        if (! array_key_exists('rat_tail_catalog_id', $row) || ! is_string($row['rat_tail_catalog_id']) || $row['rat_tail_catalog_id'] === '') {
+            throw new RuntimeException('HealerQuest.debt.rat_tail_catalog_id missing.');
+        }
+
+        return $row['rat_tail_catalog_id'];
     }
 
     private function speech(string $key, Character $character): string

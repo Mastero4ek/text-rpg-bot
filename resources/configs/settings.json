@@ -40,11 +40,11 @@
         "dualWieldMinLevel": 0,
         "mfPerStat": 3,
         "stamina": {
-            "maxPerStrength": 6,
-            "drainDefend": 4,
-            "drainAttack": 7,
-            "drainExtraOnCrit": 3,
-            "drainExtraOnDodge": 3
+            "maxPerStrength": 10,
+            "drainDefend": 2,
+            "drainAttack": 4,
+            "drainExtraOnCrit": 2,
+            "drainExtraOnDodge": 2
         },
         "damage": {
             "base": 6,
@@ -527,14 +527,12 @@
                 "exp": 40,
                 "silver": 0,
                 "purse_catalog_id": "buyer_purse",
-                "knuckle_catalog_id": "bruiser_knuckle",
-                "power_pct": 120,
-                "enemy_name": "Громила",
-                "enemy_catalog_id": "bruiser"
+                "knuckle_catalog_id": "bruiser_knuckle"
             }
         }
     },
     "daily_contracts": {
+        "board_slots": 5,
         "max_accepts_per_day": 3,
         "refresh": {
             "enabled": true,
@@ -608,6 +606,18 @@
             {
                 "bag_catalog_key": "daily_parcel",
                 "issuer_npc": "overseer",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "barkeeper",
+                "min_lvl": 1,
+                "max_lvl": 99
+            },
+            {
+                "bag_catalog_key": "daily_parcel",
+                "issuer_npc": "bruiser",
                 "min_lvl": 1,
                 "max_lvl": 99
             }

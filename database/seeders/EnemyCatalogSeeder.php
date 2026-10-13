@@ -41,9 +41,17 @@ final class EnemyCatalogSeeder extends Seeder
 
     private function attachImage(EnemyCatalog $catalog): void
     {
-        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-            $path = resource_path('images/telegram/enemy/' . $catalog->catalog_id . '.' . $ext);
+        $paths = [];
 
+        if ($catalog->catalog_id === EnemyCatalog::BRUISER_CATALOG_ID) {
+            $paths[] = resource_path('images/telegram/npc/bruizer_fight.png');
+        }
+
+        foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+            $paths[] = resource_path('images/telegram/enemy/' . $catalog->catalog_id . '.' . $ext);
+        }
+
+        foreach ($paths as $path) {
             if (! is_file($path)) {
                 continue;
             }
@@ -86,6 +94,30 @@ final class EnemyCatalogSeeder extends Seeder
                 'reward_silver_min' => 0,
                 'reward_silver_max' => 0,
                 'sort_order' => 0,
+                'drops' => [],
+            ],
+            [
+                'catalog_id' => EnemyCatalog::BRUISER_CATALOG_ID,
+                'kind' => EnemyKindEnum::MIRROR,
+                'name' => 'Громила',
+                'description' => null,
+                'enabled' => true,
+                'level' => null,
+                'strength' => null,
+                'agility' => null,
+                'instinct' => null,
+                'vitality' => null,
+                'max_hp' => null,
+                'weapon_damage' => null,
+                'mf_dodge' => null,
+                'mf_anti_dodge' => null,
+                'mf_crit' => null,
+                'mf_anti_crit' => null,
+                'power_pct' => 120,
+                'reward_exp_pct' => 0,
+                'reward_silver_min' => 0,
+                'reward_silver_max' => 0,
+                'sort_order' => 1,
                 'drops' => [],
             ],
             [
