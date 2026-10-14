@@ -26,7 +26,8 @@ describe('buyer chest', function (): void {
         assertCityEditMarkupHas('city:buyer:chest:listpage:1:');
         assertCityEditMarkupHas('"style":"primary"');
         assertCityEditMarkupHas('"style":"danger"');
-        assertCityEditMarkupHas('city:buyer:buy:ruby_0');
+        assertCityEditMarkupHas('city:buyer:chest:view:ruby_0:all');
+        assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:buyer:buy:'));
     });
 
     it('filters chest to gems and keeps charms empty', function (): void {
@@ -34,7 +35,7 @@ describe('buyer chest', function (): void {
 
         cityFlowCallback($player->tg_id, 9, 'city:buyer:chest:list:gems:1');
 
-        assertCityEditMarkupHas('city:buyer:buy:ruby_0');
+        assertCityEditMarkupHas('city:buyer:chest:view:ruby_0:gems');
         assertCityEditMarkupHas('city:buyer:chest:list:gems:1');
 
         telegramHttpFake();
@@ -42,7 +43,7 @@ describe('buyer chest', function (): void {
 
         assertCityEditHas(mb_trim(__('telegram.npc.buyer.empty')));
         assertCityEditMarkupHas('city:buyer:chest:list:charms:1');
-        assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:buyer:buy:'));
+        assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:buyer:chest:view:'));
     });
 
     it('shows only back on completely empty chest', function (): void {
@@ -80,8 +81,8 @@ describe('buyer chest', function (): void {
 
         cityFlowCallback($player->tg_id, 9, 'city:buyer:chest:list:nope:1');
 
-        assertCityEditMarkupHas('city:buyer:buy:ruby_0');
-        assertCityEditMarkupHas('city:buyer:buy:emerald_0');
+        assertCityEditMarkupHas('city:buyer:chest:view:ruby_0:all');
+        assertCityEditMarkupHas('city:buyer:chest:view:emerald_0:all');
         assertCityEditMarkupHas('city:buyer:chest:list:all:1');
     });
 
@@ -106,15 +107,15 @@ describe('buyer chest', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:buyer:chest:list:all:2');
 
         assertTelegramMarkupBody(function (string $body) use ($ids): bool {
-            $buyCount = 0;
+            $viewCount = 0;
 
             foreach ($ids as $id) {
-                if (str_contains($body, 'city:buyer:buy:' . $id)) {
-                    $buyCount++;
+                if (str_contains($body, 'city:buyer:chest:view:' . $id . ':all')) {
+                    $viewCount++;
                 }
             }
 
-            return $buyCount === 1
+            return $viewCount === 1
                 && str_contains($body, 'city:buyer:chest:list:all:1')
                 && str_contains($body, 'city:buyer:chest:list:all:3');
         });
@@ -194,9 +195,9 @@ describe('buyer sell', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:buyer:sell:list:bp:1');
 
         assertTelegramMarkupBody(function (string $body) use ($knife, $potion, $gem): bool {
-            return str_contains($body, 'city:buyer:sell:bp:' . $knife->id)
-                && ! str_contains($body, 'city:buyer:sell:bag:' . $potion->id)
-                && ! str_contains($body, 'city:buyer:sell:bag:' . $gem->id)
+            return str_contains($body, 'city:buyer:sell:view:bp:' . $knife->id . ':bp')
+                && ! str_contains($body, 'city:buyer:sell:view:bag:' . $potion->id . ':')
+                && ! str_contains($body, 'city:buyer:sell:view:bag:' . $gem->id . ':')
                 && str_contains($body, 'city:buyer:sell:list:bp:1');
         });
     });
@@ -211,8 +212,8 @@ describe('buyer sell', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:buyer:sell:list:bag:1');
 
         assertTelegramMarkupBody(function (string $body) use ($knife, $potion): bool {
-            return str_contains($body, 'city:buyer:sell:bag:' . $potion->id)
-                && ! str_contains($body, 'city:buyer:sell:bp:' . $knife->id);
+            return str_contains($body, 'city:buyer:sell:view:bag:' . $potion->id . ':bag')
+                && ! str_contains($body, 'city:buyer:sell:view:bp:' . $knife->id . ':');
         });
     });
 
@@ -237,12 +238,15 @@ describe('blacksmith', function (): void {
     it('filters gear stand to weapons', function (): void {
         $player = cityDone(10121, 'ListSmithWpn');
 
-        cityFlowCallback($player->tg_id, 9, 'city:blacksmith:gear:list:wpn:1');
+        cityFlowCallback($player->tg_id, 9, 'city:blacksmith:gear:list:WEAPON:1');
 
         assertTelegramMarkupBody(function (string $body): bool {
-            return str_contains($body, 'city:blacksmith:buy:sword_0')
-                && str_contains($body, 'city:blacksmith:gear:list:wpn:1')
-                && ! str_contains($body, 'city:blacksmith:buy:worn_mail');
+            return str_contains($body, 'city:blacksmith:gear:view:sword_0:WEAPON')
+                && str_contains($body, 'city:blacksmith:gear:list:WEAPON:1')
+                && str_contains($body, '"style":"primary"')
+                && ! str_contains($body, 'city:blacksmith:gear:view:worn_mail:')
+                && ! str_contains($body, 'city:blacksmith:buy:')
+                && ! str_contains($body, __('telegram.btn.filter_all'));
         });
     });
 
@@ -257,11 +261,11 @@ describe('blacksmith', function (): void {
         $armor->durability = 1;
         $armor->save();
 
-        cityFlowCallback($player->tg_id, 9, 'city:blacksmith:repair:list:wpn:1');
+        cityFlowCallback($player->tg_id, 9, 'city:blacksmith:repair:list:WEAPON:1');
 
         assertTelegramMarkupBody(function (string $body) use ($knife, $armor): bool {
-            return str_contains($body, 'city:blacksmith:repair:' . $knife->id)
-                && ! str_contains($body, 'city:blacksmith:repair:' . $armor->id)
+            return str_contains($body, 'city:blacksmith:repair:view:' . $knife->id . ':WEAPON')
+                && ! str_contains($body, 'city:blacksmith:repair:view:' . $armor->id . ':')
                 && str_contains($body, 'city:blacksmith:repair_all');
         });
     });
@@ -272,12 +276,27 @@ describe('blacksmith', function (): void {
         cityFlowCallback($player->tg_id, 9, 'city:blacksmith:gear');
         telegramHttpFake();
 
-        cityFlowCallback($player->tg_id, 10, 'city:blacksmith:gear:list:wpn:99');
+        cityFlowCallback($player->tg_id, 10, 'city:blacksmith:gear:list:WEAPON:99');
 
         assertCityEditHas(mb_trim(__('telegram.npc.blacksmith.gear_empty')));
-        assertCityEditMarkupHas('city:blacksmith:gear:list:wpn:1');
+        assertCityEditMarkupHas('city:blacksmith:gear:list:WEAPON:1');
         assertCityEditMarkupHas('"style":"danger"');
-        assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:blacksmith:gear:list:all:'));
+        assertTelegramMarkupBody(fn (string $body): bool => ! str_contains($body, 'city:blacksmith:gear:list:all:')
+            && ! str_contains($body, __('telegram.btn.filter_all')));
+    });
+
+    it('maps legacy wpn filter callbacks to weapon primary', function (): void {
+        $player = cityDone(10124, 'ListSmithLegacy');
+
+        cityFlowCallback($player->tg_id, 9, 'city:blacksmith:gear:list:wpn:1');
+
+        assertTelegramMarkupBody(function (string $body): bool {
+            return str_contains($body, 'city:blacksmith:gear:list:WEAPON:1')
+                && str_contains($body, '"style":"primary"')
+                && str_contains($body, 'city:blacksmith:gear:view:sword_0:WEAPON')
+                && ! str_contains($body, 'city:blacksmith:gear:view:worn_mail:')
+                && ! str_contains($body, 'city:blacksmith:buy:');
+        });
     });
 });
 

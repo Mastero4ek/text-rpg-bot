@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs;
+namespace App\Jobs\DailyContract;
 
 use App\Models\Character\Character;
 use App\Services\DailyContract\DailyContractBoardPushService;

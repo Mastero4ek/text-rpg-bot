@@ -10,7 +10,7 @@ use App\Models\Bag\BagItem;
 use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenProjector;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;

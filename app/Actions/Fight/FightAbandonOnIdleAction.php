@@ -9,7 +9,7 @@ use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Quests\BlacksmithQuest;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 
 final class FightAbandonOnIdleAction
 {

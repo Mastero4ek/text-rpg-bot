@@ -10,7 +10,7 @@ use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 

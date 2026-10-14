@@ -8,7 +8,7 @@ use App\Enums\ProgressStepEnum;
 use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Support\ActionResult;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs;
+namespace App\Jobs\DailyContract;
 
 use App\Services\DailyContract\DailyContractRefreshService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;

@@ -13,7 +13,7 @@ use App\Quests\BruiserQuest;
 use App\Quests\BuyerQuest;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
@@ -310,7 +310,23 @@ final class QuestHandler
         } catch (Throwable) {
         }
 
-        $responder->edit($text, $markup);
+        if ($player->tg_chat_id !== null && $player->tg_message_id !== null) {
+            try {
+                $responder->editPhotoAt(
+                    $player->tg_chat_id,
+                    $player->tg_message_id,
+                    $image,
+                    $text,
+                    $markup,
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $messageId = $responder->replyPhoto($image, $text, $markup);
+        $this->registration->rememberTelegramMessage($player, $responder->chatId(), $messageId);
     }
 
     private function editBlacksmithPanel(

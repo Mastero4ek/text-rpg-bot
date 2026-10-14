@@ -9,7 +9,7 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
 use App\Models\City;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramClient;

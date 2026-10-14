@@ -16,6 +16,7 @@ use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Quests\HealerQuest;
 use App\Services\Bag\BagCatalog;
+use App\Services\Character\CharacterService;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
 use App\Services\GameConfig;
@@ -35,6 +36,7 @@ final class HealerHandler
 {
     public function __construct(
         private readonly BagCatalog $bagCatalog,
+        private readonly CharacterService $characters,
         private readonly CityHealerBuyPotionAction $buyPotion,
         private readonly CityHealerHealAction $healer,
         private readonly CityMenuService $cityMenu,
@@ -84,8 +86,14 @@ final class HealerHandler
             return;
         }
 
-        if ($data === 'city:healer:heal') {
+        if ($data === 'city:healer:heal:yes') {
             $this->heal($responder, $player);
+
+            return;
+        }
+
+        if ($data === 'city:healer:heal') {
+            $this->healConfirm($responder, $player);
 
             return;
         }
@@ -152,7 +160,7 @@ final class HealerHandler
             $this->editHealerPanel(
                 $responder,
                 TelegramResponder::errorMessage($res->error),
-                $this->healerErrorMarkup($res->error),
+                $this->healerErrorMarkup($player, $res->error),
             );
 
             return;
@@ -162,6 +170,37 @@ final class HealerHandler
             $responder,
             __('telegram.npc.healer.done', ['gold' => $this->goldCost()]),
             CityKeyboard::backToHealer(),
+        );
+    }
+
+    private function healConfirm(TelegramResponder $responder, Character $player): void
+    {
+        $city = $this->cityMenu->currentCity($player);
+
+        if (! $city instanceof City || ! $city->has_healer) {
+            $this->editHealerPanel(
+                $responder,
+                __('telegram.npc.healer.error.no_healer'),
+                CityKeyboard::backToTavern(),
+            );
+
+            return;
+        }
+
+        $player = $this->characters->applyRegen($player);
+        $maxHp = $this->characters->maxHp($player);
+        $maxStamina = $this->characters->maxStamina($player);
+
+        $this->editHealerPanel(
+            $responder,
+            __('telegram.npc.healer.heal_confirm', [
+                'hp' => $player->current_hp,
+                'max_hp' => $maxHp,
+                'stamina' => $player->current_stamina,
+                'max_stamina' => $maxStamina,
+                'gold' => $this->goldCost(),
+            ]),
+            CityKeyboard::healerHealConfirm(),
         );
     }
 
@@ -196,13 +235,35 @@ final class HealerHandler
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    private function healerErrorMarkup(?string $error): array
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    private function healerErrorMarkup(Character $player, ?string $error): array
     {
         if ($error === __('errors.city_unavailable') || $error === __('telegram.npc.healer.error.no_healer')) {
             return CityKeyboard::backToTavern();
         }
 
-        return CityKeyboard::backToHealer();
+        return $this->healerOfferMarkup($player);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    private function healerOfferMarkup(Character $player): array
+    {
+        $city = $this->cityMenu->currentCity($player);
+        $back = $this->npcPlacement->npcBackCallback($player, NpcEnum::Healer);
+
+        if (! $city instanceof City || ! $city->has_healer) {
+            return CityKeyboard::backToCallback($back);
+        }
+
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Healer)
+            ->isNotEmpty();
+
+        return CityKeyboard::healerOfferWithDaily($hasDaily, $back);
     }
 
     /**

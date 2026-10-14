@@ -11,7 +11,7 @@ use App\Enums\SkinEnum;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\ActionResult;
 use App\Support\LangVariant;
 use App\Support\NickValidator;
@@ -123,6 +123,14 @@ final class RegistrationService
     public function forgetSkinPreview(Character $character): void
     {
         Cache::forget($this->skinPreviewCacheKey($character->tg_id));
+    }
+
+    public function forgetTelegramMessage(Character $character): Character
+    {
+        $character->tg_message_id = null;
+        $character->save();
+
+        return $character;
     }
 
     public function rememberTelegramMessage(Character $character, int|string $chatId, int $messageId): Character

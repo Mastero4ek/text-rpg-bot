@@ -14,3 +14,7 @@ Schedule::command('daily-contracts:refresh')
     ->dailyAt('08:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(120);
+
+Schedule::command('characters:release-expired-bans')
+    ->everyMinute()
+    ->withoutOverlapping();

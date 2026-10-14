@@ -7,7 +7,7 @@ namespace App\Actions\Bruiser;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Services\Quest\QuestNpcPlacement;
 use App\Support\ActionResult;

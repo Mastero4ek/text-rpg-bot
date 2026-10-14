@@ -82,13 +82,20 @@ it('discards backpack item through inv discard_yes callback', function (): void 
     expect(BackpackItem::query()->whereKey($axe->id)->exists())->toBeFalse();
 
     Http::assertSent(function (Request $request) use ($axe): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
+        if (! str_contains($request->url(), '/editMessageText')
+            && ! str_contains($request->url(), '/sendMessage')) {
             return false;
         }
 
-        return ($request['text'] ?? null) === __('profile.discarded', [
+        $text = (string) ($request['text'] ?? '');
+
+        return str_contains($text, __('profile.discarded', [
             'name' => $axe->item_name,
-        ]);
+        ]))
+            && str_contains($text, __('profile.backpack_header_all', [
+                'current' => 0,
+                'max' => backpack()->maxRows(characters()->findByTgId($axe->tg_id)),
+            ]));
     });
 });
 
@@ -124,13 +131,37 @@ it('discards gem from bag through bag discard_yes callback', function (): void {
     expect(bag()->looseGems($character))->toHaveCount(1)
         ->and(hasLooseGem($character, 'emerald_0'))->toBeTrue()
         ->and(looseGem($character, 'emerald_0')->durability)->toBe(4);
-    Http::assertSent(function (Request $request): bool {
-        if (! str_contains($request->url(), '/sendMessage')) {
-            return false;
+
+    $max = bag()->bagMaxRows($character);
+    $panel = null;
+
+    foreach (Http::recorded() as $pair) {
+        $request = $pair[0];
+
+        if (! $request instanceof Request) {
+            continue;
         }
 
-        return ($request['text'] ?? null) === __('profile.discarded', [
+        if (
+            ! str_contains($request->url(), '/editMessageText')
+            && ! str_contains($request->url(), '/sendMessage')
+        ) {
+            continue;
+        }
+
+        $text = $request['text'] ?? null;
+
+        if (is_string($text)) {
+            $panel = $text;
+        }
+    }
+
+    expect($panel)->toBeString()
+        ->and($panel)->toContain(__('profile.bag_header', [
+            'current' => 1,
+            'max' => $max,
+        ]))
+        ->and($panel)->toContain(__('profile.discarded', [
             'name' => 'Рубин ученика',
-        ]);
-    });
+        ]));
 });

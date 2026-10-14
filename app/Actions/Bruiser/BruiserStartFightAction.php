@@ -7,7 +7,7 @@ namespace App\Actions\Bruiser;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightService;
 use App\Services\Quest\QuestNpcPlacement;

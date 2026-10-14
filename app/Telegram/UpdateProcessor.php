@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
+use App\Actions\Character\CharacterUnbanAction;
 use App\Models\Character\Character;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterJailPushService;
+use App\Services\Character\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
@@ -22,12 +24,14 @@ use App\Telegram\Handlers\DailyContractHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
+use App\Telegram\Handlers\JournalHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OverseerHandler;
 use App\Telegram\Handlers\QuestHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -37,6 +41,8 @@ final class UpdateProcessor
     public function __construct(
         private readonly TelegramClient $client,
         private readonly CharacterService $characters,
+        private readonly CharacterJailPushService $jailPush,
+        private readonly CharacterUnbanAction $unban,
         private readonly IdleSessionService $idleSession,
         private readonly RegistrationHandler $registration,
         private readonly RegistrationFlow $registrationFlow,
@@ -45,6 +51,7 @@ final class UpdateProcessor
         private readonly HealerQuest $healerQuest,
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
+        private readonly JournalHandler $journal,
         private readonly SmithHandler $smith,
         private readonly BarkeeperHandler $barkeeper,
         private readonly BlacksmithHandler $blacksmith,
@@ -90,14 +97,14 @@ final class UpdateProcessor
                 return;
             }
 
-            $this->trackIdleSession($update, $responder);
-
             if ($update->isStartCommand()) {
                 $this->routeStart($update, $responder);
-                $this->trackIdleSession($update, $responder);
+                $this->touchIdleSession($update);
 
                 return;
             }
+
+            $this->trackIdleSession($update, $responder);
 
             if ($update->isTextMessage()) {
                 $this->routeText($update, $responder);
@@ -119,13 +126,25 @@ final class UpdateProcessor
         }
 
         if ($character->trashed()) {
+            $responder->answerCallback();
             $responder->reply(__('errors.archived'), null);
 
             return true;
         }
 
         if ($this->characters->hasActiveBan($character)) {
-            $responder->reply(__('errors.banned'), null);
+            $responder->answerCallback();
+            $this->jailPush->nudge($character, $responder);
+
+            return true;
+        }
+
+        if (
+            $character->banned_until instanceof CarbonInterface
+            && $character->banned_until->isPast()
+        ) {
+            $responder->answerCallback();
+            $this->unban->handle($character);
 
             return true;
         }
@@ -165,6 +184,12 @@ final class UpdateProcessor
 
         if (str_starts_with($data, 'daily:')) {
             $this->daily->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'journal:')) {
+            $this->journal->handleCallback($update, $responder);
 
             return;
         }

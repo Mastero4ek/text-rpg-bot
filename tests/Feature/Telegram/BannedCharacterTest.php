@@ -76,6 +76,8 @@ it('replies banned while banned_until is in the future', function (): void {
     $p->banned_until = now()->addDay();
     $p->save();
 
+    $until = $p->fresh()->banned_until->timezone(config('app.timezone'))->format('d.m.Y H:i') . ' (МСК)';
+
     $payload = [
         'update_id' => 101,
         'message' => [
@@ -90,17 +92,53 @@ it('replies banned while banned_until is in the future', function (): void {
         'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
     ])->assertOk();
 
-    Http::assertSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && ($request['text'] ?? null) === __('errors.banned');
+    Http::assertSent(function (Request $request) use ($until): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), $until);
     });
 });
 
-it('allows play when banned_until is in the past', function (): void {
+it('blocks banned callback and answers callback query', function (): void {
+    $p = characters()->createDraft(1305);
+    $p->banned_until = now()->addDay();
+    $p->save();
+
+    $until = $p->fresh()->banned_until->timezone(config('app.timezone'))->format('d.m.Y H:i') . ' (МСК)';
+
+    $payload = [
+        'update_id' => 103,
+        'callback_query' => [
+            'id' => 'cb-ban',
+            'from' => ['id' => 1305, 'is_bot' => false, 'first_name' => 'B'],
+            'message' => [
+                'message_id' => 5,
+                'chat' => ['id' => 1305, 'type' => 'private'],
+            ],
+            'data' => 'city:home',
+        ],
+    ];
+
+    $this->postJson('/telegram/webhook', $payload, [
+        'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
+    ])->assertOk();
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/answerCallbackQuery');
+    });
+
+    Http::assertSent(function (Request $request) use ($until): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), $until);
+    });
+});
+
+it('releases past ban and shows jail released panel', function (): void {
     $p = characters()->createDraft(1304);
     $p->progress_step = App\Enums\ProgressStepEnum::DONE;
     $p->username = 'Unbanned';
     $p->banned_until = now()->subMinute();
+    $p->tg_chat_id = 1304;
+    $p->tg_message_id = 40;
     $p->save();
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
@@ -118,17 +156,10 @@ it('allows play when banned_until is in the past', function (): void {
         'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
     ])->assertOk();
 
+    expect($p->fresh()->banned_until)->toBeNull();
+
     Http::assertSent(function (Request $request): bool {
-        $isOutbound = str_contains($request->url(), '/sendMessage')
-            || str_contains($request->url(), '/sendPhoto');
-
-        if (! $isOutbound) {
-            return false;
-        }
-
-        $text = $request['text'] ?? $request['caption'] ?? null;
-
-        return $text !== __('errors.banned')
-            && $text !== __('errors.archived');
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), 'city:home');
     });
 });

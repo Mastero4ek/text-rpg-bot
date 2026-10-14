@@ -7,22 +7,24 @@ namespace App\Telegram\Handlers;
 use App\Actions\Character\CharacterResetStatsForGoldAction;
 use App\Actions\Character\CharacterSpendStatPointAction;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Fight\FightService;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
-use App\Telegram\Keyboards\CityKeyboard;
 use App\Telegram\Keyboards\TelegramKeyboards;
+use Throwable;
 
 final class MenuHandler
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly CityHandler $city,
         private readonly FightService $fights,
         private readonly CharacterSpendStatPointAction $spendStatPoint,
         private readonly CharacterResetStatsForGoldAction $resetStatsForGold,
         private readonly InventoryHandler $inventory,
+        private readonly JournalHandler $journal,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -37,7 +39,7 @@ final class MenuHandler
         }
 
         if ($data === 'menu:profile') {
-            $responder->edit($this->characters->profileText($player), CityKeyboard::backToCity());
+            $this->showProfile($responder, $player);
 
             return;
         }
@@ -84,15 +86,21 @@ final class MenuHandler
         }
 
         if (
-            ! in_array($command, ['character', 'skills', 'backpack', 'bag'], true)
+            ! in_array($command, ['city', 'profile', 'backpack', 'bag', 'journal', 'character', 'skills'], true)
         ) {
             return;
         }
 
         $responder->deleteUpdateMessage();
 
-        if ($command === 'character') {
-            $responder->reply($this->characters->profileText($player), CityKeyboard::backToCity());
+        if ($command === 'city') {
+            $this->city->sendHomePanel($responder, $player);
+
+            return;
+        }
+
+        if ($command === 'profile' || $command === 'character') {
+            $this->replyProfile($responder, $player);
 
             return;
         }
@@ -110,13 +118,19 @@ final class MenuHandler
         }
 
         if ($command === 'backpack') {
-            [$text, $markup] = $this->inventory->backpackPanel($player, null);
+            [$text, $markup] = $this->inventory->backpackPanel($player, 'WEAPON', 1);
             $responder->reply($text, $markup);
 
             return;
         }
 
-        [$text, $markup] = $this->inventory->bagPanel($player);
+        if ($command === 'journal') {
+            $this->journal->sendList($responder, $player);
+
+            return;
+        }
+
+        [$text, $markup] = $this->inventory->bagPanel($player, 'POTION', 1);
         $responder->reply($text, $markup);
     }
 
@@ -135,7 +149,7 @@ final class MenuHandler
         $text = $update->text();
 
         if ($text === __('menu.profile')) {
-            $responder->reply($this->characters->profileText($player), CityKeyboard::backToCity());
+            $this->replyProfile($responder, $player);
 
             return;
         }
@@ -157,6 +171,39 @@ final class MenuHandler
         }
     }
 
+    private function replyProfile(TelegramResponder $responder, Character $player): void
+    {
+        $text = $this->characters->profileText($player);
+        $markup = TelegramKeyboards::profile();
+        $skin = $this->characters->skinImagePath($player);
+
+        if ($skin !== null) {
+            $responder->replyPhoto($skin, $text, $markup);
+
+            return;
+        }
+
+        $responder->reply($text, $markup);
+    }
+
+    private function showProfile(TelegramResponder $responder, Character $player): void
+    {
+        $text = $this->characters->profileText($player);
+        $markup = TelegramKeyboards::profile();
+        $skin = $this->characters->skinImagePath($player);
+
+        if ($skin !== null) {
+            try {
+                $responder->editPhoto($skin, $text, $markup);
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $responder->edit($text, $markup);
+    }
+
     private function spendStat(TelegramResponder $responder, Character $player, string $stat): void
     {
         $res = $this->spendStatPoint->handle($player, $stat);
@@ -176,27 +223,6 @@ final class MenuHandler
         );
     }
 
-    private function statsScreen(TelegramResponder $responder, Character $player): void
-    {
-        $responder->edit(
-            $this->characters->statsScreenText($player),
-            TelegramKeyboards::statsScreen(
-                $player->stat_points,
-                $this->characters->statResetGoldCost(),
-            ),
-        );
-    }
-
-    private function statsResetConfirm(TelegramResponder $responder): void
-    {
-        $responder->edit(
-            __('profile.stats_reset_confirm', [
-                'gold' => $this->characters->statResetGoldCost(),
-            ]),
-            TelegramKeyboards::statsResetConfirm(),
-        );
-    }
-
     private function statsReset(TelegramResponder $responder, Character $player): void
     {
         $res = $this->resetStatsForGold->handle($player);
@@ -213,6 +239,27 @@ final class MenuHandler
             ]),
             TelegramKeyboards::statsScreen(
                 $res->character->stat_points,
+                $this->characters->statResetGoldCost(),
+            ),
+        );
+    }
+
+    private function statsResetConfirm(TelegramResponder $responder): void
+    {
+        $responder->edit(
+            __('profile.stats_reset_confirm', [
+                'gold' => $this->characters->statResetGoldCost(),
+            ]),
+            TelegramKeyboards::statsResetConfirm(),
+        );
+    }
+
+    private function statsScreen(TelegramResponder $responder, Character $player): void
+    {
+        $responder->edit(
+            $this->characters->statsScreenText($player),
+            TelegramKeyboards::statsScreen(
+                $player->stat_points,
                 $this->characters->statResetGoldCost(),
             ),
         );

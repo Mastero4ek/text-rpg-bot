@@ -6,7 +6,7 @@ namespace App\Actions\Healer;
 
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;

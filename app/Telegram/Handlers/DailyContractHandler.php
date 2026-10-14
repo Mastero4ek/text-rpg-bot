@@ -8,32 +8,30 @@ use App\Actions\DailyContract\DailyContractAcceptAction;
 use App\Actions\DailyContract\DailyContractStartHuntAction;
 use App\Actions\DailyContract\DailyContractTurnInAction;
 use App\Enums\DailyContract\DailyContractStatusEnum;
-use App\Enums\DailyContract\DailyContractTypeEnum;
 use App\Enums\Npc\NpcEnum;
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Models\Bag\BagCatalog;
 use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\CityMenuService;
-use App\Services\CombatService;
 use App\Services\DailyContract\DailyContractService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
 use App\Services\Quest\QuestNpcPlacement;
+use App\Support\Demo\DemoMode;
+use App\Support\Telegram\DailyContractCopy;
 use App\Support\Telegram\TelegramPlayerGate;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
 use App\Telegram\Keyboards\CityKeyboard;
-use RuntimeException;
 use Throwable;
 
 final class DailyContractHandler
 {
     public function __construct(
         private readonly CityMenuService $cityMenu,
-        private readonly CombatService $combat,
+        private readonly DailyContractCopy $dailyCopy,
         private readonly DailyContractService $dailyContracts,
         private readonly DailyContractAcceptAction $accept,
         private readonly DailyContractStartHuntAction $startHunt,
@@ -138,9 +136,9 @@ final class DailyContractHandler
 
         $this->editBoardPanel(
             $responder,
-            $this->cardText($contract),
+            $this->dailyCopy->cardText($contract),
             CityKeyboard::dailyOfferCard($contract->id),
-            $this->offerCardImagePath($contract),
+            $this->dailyCopy->offerCardImagePath($contract),
         );
     }
 
@@ -188,7 +186,7 @@ final class DailyContractHandler
 
         $this->editBoardPanel(
             $responder,
-            $this->acceptDoneText($contract),
+            $this->dailyCopy->acceptDoneText($contract),
             CityKeyboard::boardBack(),
             null,
         );
@@ -263,15 +261,17 @@ final class DailyContractHandler
         }
 
         $contract = $ready->firstOrFail();
+        $reward = DemoMode::rewardAmounts($player, $contract->reward_exp, $contract->reward_silver);
+        $turnInText = __('telegram.daily.turnin_list', [
+            'target' => $this->dailyCopy->turnInTarget($contract),
+            'silver' => $reward['silver'],
+            'exp' => $reward['exp'],
+        ]);
 
         $this->editIssuerPanel(
             $responder,
             $issuer,
-            __('telegram.daily.turnin_list', [
-                'target' => $this->turnInTarget($contract),
-                'silver' => $contract->reward_silver,
-                'exp' => $contract->reward_exp,
-            ]),
+            DemoMode::withRewardFrozenNotice($player, $turnInText),
             CityKeyboard::dailyNpcTurnIn(
                 $issuer,
                 $contract->id,
@@ -303,6 +303,7 @@ final class DailyContractHandler
         $contract = $this->dailyContracts->findOwned($player, $contractId);
         $silver = 0;
         $exp = 0;
+        $rewardFrozen = DemoMode::isProgressionCapped($player);
 
         if ($contract instanceof CharacterDailyContract) {
             $silver = $contract->reward_silver;
@@ -329,6 +330,21 @@ final class DailyContractHandler
         }
 
         $panelChar = $res->character ?? $player;
+
+        if ($rewardFrozen) {
+            $silver = 0;
+            $exp = 0;
+        }
+
+        $doneText = __('telegram.daily.turnin_done', [
+            'silver' => $silver,
+            'exp' => $exp,
+        ]);
+
+        if ($rewardFrozen) {
+            $doneText .= "\n\n" . __('profile.demo_reward_frozen');
+        }
+
         $hubDeliveryDone = $issuer === NpcEnum::Overseer
             && ! $this->npcPlacement->hasAcceptedDeliveryHere($panelChar, NpcEnum::Overseer);
 
@@ -336,10 +352,7 @@ final class DailyContractHandler
             $this->editIssuerPanel(
                 $responder,
                 $issuer,
-                __('telegram.daily.turnin_done', [
-                    'silver' => $silver,
-                    'exp' => $exp,
-                ]),
+                $doneText,
                 CityKeyboard::toCityHub(),
             );
 
@@ -352,10 +365,7 @@ final class DailyContractHandler
         $this->editIssuerPanel(
             $responder,
             $issuer,
-            __('telegram.daily.turnin_done', [
-                'silver' => $silver,
-                'exp' => $exp,
-            ]),
+            $doneText,
             CityKeyboard::npcOfferWithDaily(
                 $issuer,
                 $ready->isNotEmpty(),
@@ -372,158 +382,6 @@ final class DailyContractHandler
         }
 
         return $player->quest_phase === QuestPhaseEnum::Done;
-    }
-
-    private function acceptDoneText(?CharacterDailyContract $contract): string
-    {
-        if ($contract instanceof CharacterDailyContract && $contract->type === DailyContractTypeEnum::Delivery) {
-            return __('telegram.daily.accept_done_delivery', [
-                'npc' => $this->issuerLabel($contract),
-                'city' => $this->deliveryCityName($contract),
-                'place' => $this->deliveryPlaceLabel($contract),
-            ]);
-        }
-
-        return __('telegram.daily.accept_done', [
-            'zone' => $this->zoneLabel($contract),
-            'npc' => $this->issuerLabel($contract),
-        ]);
-    }
-
-    private function cardText(CharacterDailyContract $contract): string
-    {
-        if ($contract->type === DailyContractTypeEnum::Delivery) {
-            return __('telegram.daily.card_delivery', [
-                'item' => $this->itemName($contract),
-                'city' => $this->deliveryCityName($contract),
-                'npc' => $this->issuerLabel($contract),
-                'place' => $this->deliveryPlaceLabel($contract),
-                'silver' => $contract->reward_silver,
-                'exp' => $contract->reward_exp,
-            ]);
-        }
-
-        $lvl = $contract->reward_exp;
-
-        if (array_key_exists('lvl', $contract->params) && is_int($contract->params['lvl'])) {
-            $lvl = $contract->params['lvl'];
-        }
-
-        return __('telegram.daily.card', [
-            'zone' => $this->zoneLabel($contract),
-            'target' => $this->combat->logName($this->monsterName($contract), $lvl),
-            'npc' => $this->issuerLabel($contract),
-            'silver' => $contract->reward_silver,
-            'exp' => $contract->reward_exp,
-        ]);
-    }
-
-    private function turnInTarget(CharacterDailyContract $contract): string
-    {
-        if ($contract->type === DailyContractTypeEnum::Delivery) {
-            return $this->itemName($contract);
-        }
-
-        $lvl = $contract->reward_exp;
-
-        if (array_key_exists('lvl', $contract->params) && is_int($contract->params['lvl'])) {
-            $lvl = $contract->params['lvl'];
-        }
-
-        return $this->combat->logName($this->monsterName($contract), $lvl);
-    }
-
-    private function deliveryCityName(CharacterDailyContract $contract): string
-    {
-        if (array_key_exists('city_name', $contract->params) && is_string($contract->params['city_name'])) {
-            return $contract->params['city_name'];
-        }
-
-        $contract->loadMissing('targetCity');
-
-        if ($contract->targetCity instanceof City) {
-            return $contract->targetCity->name;
-        }
-
-        throw new RuntimeException('Delivery contract missing target city name.');
-    }
-
-    private function itemName(CharacterDailyContract $contract): string
-    {
-        if (array_key_exists('item_name', $contract->params) && is_string($contract->params['item_name'])) {
-            return $contract->params['item_name'];
-        }
-
-        if (is_string($contract->bag_catalog_id) && $contract->bag_catalog_id !== '') {
-            return $contract->bag_catalog_id;
-        }
-
-        throw new RuntimeException('Delivery contract missing item name.');
-    }
-
-    private function zoneLabel(?CharacterDailyContract $contract): string
-    {
-        $zoneKey = 'forest';
-
-        if (
-            $contract instanceof CharacterDailyContract
-            && array_key_exists('zone', $contract->params)
-            && is_string($contract->params['zone'])
-        ) {
-            $zoneKey = $contract->params['zone'];
-        }
-
-        return __('telegram.daily.zone.' . $zoneKey);
-    }
-
-    private function issuerLabel(?CharacterDailyContract $contract): string
-    {
-        $npc = NpcEnum::Buyer;
-
-        if ($contract instanceof CharacterDailyContract) {
-            $npc = $contract->issuer_npc;
-        }
-
-        return __('telegram.daily.npc.' . $npc->value);
-    }
-
-    private function deliveryPlaceLabel(CharacterDailyContract $contract): string
-    {
-        return __('telegram.daily.place.' . $contract->issuer_npc->deliverySpot()->value);
-    }
-
-    private function monsterName(CharacterDailyContract $contract): string
-    {
-        if (array_key_exists('monster_name', $contract->params) && is_string($contract->params['monster_name'])) {
-            return $contract->params['monster_name'];
-        }
-
-        if (is_string($contract->enemy_catalog_id) && $contract->enemy_catalog_id !== '') {
-            return $contract->enemy_catalog_id;
-        }
-
-        return 'enemy';
-    }
-
-    private function offerCardImagePath(CharacterDailyContract $contract): ?string
-    {
-        if ($contract->type !== DailyContractTypeEnum::Delivery) {
-            return null;
-        }
-
-        $catalogId = $contract->bag_catalog_id;
-
-        if (! is_string($catalogId) || $catalogId === '') {
-            return null;
-        }
-
-        $catalog = BagCatalog::query()->find($catalogId);
-
-        if (! $catalog instanceof BagCatalog) {
-            return null;
-        }
-
-        return $catalog->localImagePath();
     }
 
     /**

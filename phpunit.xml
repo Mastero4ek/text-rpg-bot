@@ -27,6 +27,9 @@
         <env name="TELEGRAM_WEBHOOK_SECRET" value="test-secret"/>
         <env name="TELEGRAM_ASYNC" value="false"/>
         <env name="TELEGRAM_API_BASE" value="https://api.telegram.org"/>
+        <env name="DEMO_MODE" value="false"/>
+        <env name="DEMO_MAX_LEVEL" value="3"/>
+
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

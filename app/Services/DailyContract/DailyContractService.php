@@ -245,6 +245,33 @@ final class DailyContractService
     }
 
     /**
+     * @return Collection<int, CharacterDailyContract>
+     */
+    public function takenForJournal(Character $character, string $filter): Collection
+    {
+        $this->expireStale->handle($character->tg_id);
+
+        $query = CharacterDailyContract::query()
+            ->where('tg_id', $character->tg_id)
+            ->whereIn('status', [
+                DailyContractStatusEnum::Accepted,
+                DailyContractStatusEnum::Ready,
+                DailyContractStatusEnum::Completed,
+            ]);
+
+        if ($filter === 'hunt') {
+            $query->where('type', DailyContractTypeEnum::Hunt);
+        } elseif ($filter === 'delivery') {
+            $query->where('type', DailyContractTypeEnum::Delivery);
+        }
+
+        return $query
+            ->latest('board_date')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
      * Hunt ready in board city + delivery accepted targeting this city.
      *
      * @return list<CharacterDailyContract>

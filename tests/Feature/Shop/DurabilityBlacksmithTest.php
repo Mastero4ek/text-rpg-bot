@@ -102,12 +102,12 @@ it('broken shield loses second block slot', function (): void {
 
 it('lists only damaged repairable items for the smith', function (): void {
     $p = characters()->createDraft(8206);
-    backpack()->addItem($p->tg_id, 'mobile_3');
-    $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
+    backpack()->addItem($p->tg_id, 'ward_1');
+    $gloves = backpack()->findOwned($p->tg_id, 'ward_1');
     $gloves->durability = 10;
     $gloves->save();
 
     $list = repair()->damagedList($p->tg_id);
     expect($list)->toHaveCount(1)
-        ->and($list->first()->catalog_id)->toBe('mobile_3');
+        ->and($list->first()->catalog_id)->toBe('ward_1');
 });

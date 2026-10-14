@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Characters\Pages;
 
+use App\Actions\Character\CharacterBanAction;
 use App\Actions\Character\CharacterDeleteAction;
 use App\Actions\Character\CharacterSyncSkinMediaAction;
+use App\Actions\Character\CharacterUnbanAction;
 use App\Enums\SkinEnum;
 use App\Filament\Concerns\HasFormActionsBetween;
 use App\Filament\Resources\Characters\CharacterResource;
@@ -13,7 +15,8 @@ use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
+use Carbon\CarbonInterface;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -22,6 +25,7 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Schema;
 use Filament\Support\Colors\Color;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Date;
 use Livewire\Attributes\On;
 use RuntimeException;
 
@@ -156,6 +160,9 @@ final class EditCharacter extends EditRecord
         $characters = app(CharacterService::class);
         $oldExp = $record->exp;
         $skinBefore = $record->skin;
+        $banBefore = $record->banned_until;
+        $banIncoming = $data['banned_until'] ?? null;
+        unset($data['banned_until']);
 
         $record->fill($data);
 
@@ -183,7 +190,9 @@ final class EditCharacter extends EditRecord
             app(CharacterSyncSkinMediaAction::class)->handle($record);
         }
 
-        return $record->fresh() ?? $record;
+        $fresh = $record->fresh() ?? $record;
+
+        return $this->syncBanAfterSave($fresh, $banBefore, $banIncoming);
     }
 
     /**
@@ -212,5 +221,61 @@ final class EditCharacter extends EditRecord
         }
 
         return (string) $record->tg_id;
+    }
+
+    private function banUntilFromForm(mixed $value): ?CarbonInterface
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof CarbonInterface) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return Date::parse($value);
+        }
+
+        throw new RuntimeException('Invalid banned_until form value.');
+    }
+
+    private function syncBanAfterSave(
+        Character $character,
+        ?CarbonInterface $banBefore,
+        mixed $banIncoming,
+    ): Character {
+        $banAfter = $this->banUntilFromForm($banIncoming);
+        $wasActive = $banBefore instanceof CarbonInterface && $banBefore->isFuture();
+        $isActive = $banAfter instanceof CarbonInterface && $banAfter->isFuture();
+
+        if ($isActive) {
+            if (! $wasActive || ! $banBefore->equalTo($banAfter)) {
+                return app(CharacterBanAction::class)->handle($character, $banAfter);
+            }
+
+            return $character;
+        }
+
+        if ($wasActive) {
+            return app(CharacterUnbanAction::class)->handle($character);
+        }
+
+        if ($character->banned_until === null && ! $banAfter instanceof CarbonInterface) {
+            return $character;
+        }
+
+        if (
+            $character->banned_until instanceof CarbonInterface
+            && $banAfter instanceof CarbonInterface
+            && $character->banned_until->equalTo($banAfter)
+        ) {
+            return $character;
+        }
+
+        $character->banned_until = $banAfter;
+        $character->save();
+
+        return $character->fresh() ?? $character;
     }
 }

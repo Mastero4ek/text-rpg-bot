@@ -453,7 +453,10 @@ it('start mid-reg resumes city, deletes junk /start, does not reset nick', funct
         ->and($player->progress_step)->toBe(ProgressStepEnum::SET_CITY);
 
     assertDeletedMessage(50);
-    assertRegistrationEditHas(mb_trim(__('telegram.registration.pick_city', ['name' => 'KeepNick'])));
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), mb_trim(__('telegram.registration.pick_city', ['name' => 'KeepNick'])));
+    });
 });
 
 it('back to nick from skin via callback', function (): void {
@@ -614,8 +617,13 @@ it('start mid-reg resumes skin without resetting nick', function (): void {
         ->and($player->progress_step)->toBe(ProgressStepEnum::SET_SKIN);
 
     assertDeletedMessage(60);
-    assertRegistrationEditHas(mb_trim(__('telegram.registration.pick_skin', ['name' => 'KeepSkinNick'])));
-    assertRegistrationEditHas('Сталь на плечах.');
+    Http::assertSent(function (Request $request): bool {
+        $body = $request->body();
+
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($body, mb_trim(__('telegram.registration.pick_skin', ['name' => 'KeepSkinNick'])))
+            && str_contains($body, 'Сталь на плечах.');
+    });
 });
 
 it('nudges mid-reg side-entry on skin step', function (int $tgId, string $data): void {

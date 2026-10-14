@@ -9,7 +9,7 @@ use App\Models\Backpack\BackpackItem;
 use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Backpack\BackpackService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;

@@ -10,6 +10,10 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->beforeEach(function (): void {
+    config([
+        'bot.demo.enabled' => false,
+        'bot.demo.max_level' => 3,
+    ]);
     Illuminate\Support\Facades\Cache::flush();
     Illuminate\Support\Facades\Storage::fake('public');
     $this->seed(Database\Seeders\BackpackCatalogSeeder::class);

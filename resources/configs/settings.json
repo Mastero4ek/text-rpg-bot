@@ -2,6 +2,10 @@
     "telegram": {
         "idleSessionSeconds": 600
     },
+    "luckyBarrel": {
+        "stakes": [20, 50, 100],
+        "multipliers": [1.2, 1.5, 2.0, 3.5]
+    },
     "backpack": {
         "maxRows": 50
     },

@@ -39,7 +39,8 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 |------|-------|
 | Telegram handlers | `app/Telegram/Handlers/` (плоско: `RegistrationHandler`, `CityHandler`, …) |
 | Telegram keyboards | `app/Telegram/Keyboards/` (`CityKeyboard`, `RegistrationKeyboard`, `TelegramKeyboards` + trait) |
-| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Fight/`, `Shop/`, `Registration/`, `Quest/`; иначе корень) |
+| Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Character/`, `DailyContract/`, `Fight/`, `Shop/`, `Registration/`, `Quest/`; иначе корень) |
+| Jobs | `app/Jobs/` (подпапки при ≥2 файлах: `Character/`, `DailyContract/`; telegram-generic — корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/SetNickAction`, `SetLocationAction`) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quests/` |

@@ -6,7 +6,7 @@ namespace App\Support\Telegram;
 
 use App\Models\Character\Character;
 use App\Services\Backpack\LoadoutService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 
 final class TelegramPlayerGate

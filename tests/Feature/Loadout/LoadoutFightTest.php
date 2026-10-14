@@ -21,11 +21,11 @@ it('maps armor by zone and sets two block slots with shield', function (): void 
     $p = characters()->createDraft(8101);
     backpack()->addItem($p->tg_id, 'mobile_0');
     backpack()->addItem($p->tg_id, 'worn_mail');
-    backpack()->addItem($p->tg_id, 'mobile_2');
+    backpack()->addItem($p->tg_id, 'ward_0');
     backpack()->addItem($p->tg_id, 'mobile_1');
     backpack()->addItem($p->tg_id, 'heavy_1');
 
-    foreach (['mobile_0', 'worn_mail', 'mobile_2', 'mobile_1', 'heavy_1'] as $itemId) {
+    foreach (['mobile_0', 'worn_mail', 'ward_0', 'mobile_1', 'heavy_1'] as $itemId) {
         $row = backpack()->findOwned($p->tg_id, $itemId);
         $res = loadout()->equip($p, $row->id);
         expect($res->ok)->toBeTrue();
@@ -37,7 +37,7 @@ it('maps armor by zone and sets two block slots with shield', function (): void 
     expect($loadout->blockSlots)->toBe(2)
         ->and($loadout->armorByZone['HEAD'])->toBe(shopCatalog()->findItem('mobile_0')->armor)
         ->and($loadout->armorByZone['CHEST'])->toBe(shopCatalog()->findItem('worn_mail')->armor)
-        ->and($loadout->armorByZone['BELLY'])->toBe(shopCatalog()->findItem('mobile_2')->armor)
+        ->and($loadout->armorByZone['BELLY'])->toBe(shopCatalog()->findItem('ward_0')->armor)
         ->and($loadout->armorByZone['LEGS'])->toBe(shopCatalog()->findItem('mobile_1')->armor)
         ->and($loadout->armor)->toBe(
             $loadout->armorByZone['HEAD']
@@ -108,7 +108,7 @@ it('sells new doll wearables from shop', function (): void {
     $p->silver = 500;
     $p = placeInCity($p, App\Models\City::KEY_ANKRAT);
 
-    foreach (['mobile_2', 'mobile_3', 'heavy_1', 'focus_0', 'ancient_amulet', 'knife_0'] as $itemId) {
+    foreach (['ward_0', 'ward_1', 'heavy_1', 'focus_0', 'ancient_amulet', 'knife_0'] as $itemId) {
         $buy = blacksmithService()->buyGear($p->tg_id, $itemId);
 
         if ($itemId === 'knife_0') {
@@ -244,10 +244,10 @@ it('resolves after one defend zone without shield', function (): void {
 
 it('keeps gloves and rings equippable in gameplay slots', function (): void {
     $p = characters()->createDraft(8107);
-    backpack()->addItem($p->tg_id, 'mobile_3');
+    backpack()->addItem($p->tg_id, 'ward_1');
     backpack()->addItem($p->tg_id, 'focus_0');
 
-    $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
+    $gloves = backpack()->findOwned($p->tg_id, 'ward_1');
     $ring = backpack()->findOwned($p->tg_id, 'focus_0');
 
     expect(loadout()->equip($p, $gloves->id)->ok)->toBeTrue();

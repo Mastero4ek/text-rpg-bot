@@ -19,7 +19,7 @@ final class ShopCatalog
 
     private const string STARTER_ARMOR_ID = 'worn_mail';
 
-    private const string STARTER_KNUCKLES_ID = 'knuckles_0';
+    private const string STARTER_KNUCKLES_ID = 'bruiser_knuckle';
 
     private const string TRAINER_WEAPON_ID = 'club_0';
 

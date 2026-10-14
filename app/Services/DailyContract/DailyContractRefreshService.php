@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services\DailyContract;
 
 use App\Enums\Quest\QuestPhaseEnum;
-use App\Jobs\DailyContractBoardPushJob;
-use App\Jobs\DailyContractRefreshCharacterJob;
+use App\Jobs\DailyContract\DailyContractBoardPushJob;
+use App\Jobs\DailyContract\DailyContractRefreshCharacterJob;
 use App\Models\Character\Character;
 use App\Models\City;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\CityMenuService;
 use App\Services\GameConfig;
 use Illuminate\Database\Eloquent\Builder;

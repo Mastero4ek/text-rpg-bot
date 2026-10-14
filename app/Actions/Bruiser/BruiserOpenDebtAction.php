@@ -6,7 +6,7 @@ namespace App\Actions\Bruiser;
 
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Quest\QuestNpcPlacement;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;

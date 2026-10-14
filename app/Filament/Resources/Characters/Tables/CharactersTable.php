@@ -9,7 +9,7 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Concerns\HasAppearanceColumn;
 use App\Filament\Support\CharacterSkinArt;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use Carbon\CarbonInterface;
 use Filament\Actions\BulkActionGroup;
