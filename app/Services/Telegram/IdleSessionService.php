@@ -8,7 +8,7 @@ use App\Actions\Fight\FightAbandonOnIdleAction;
 use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\Telegram\TelegramResponder;
 use App\Telegram\Handlers\CityHandler;

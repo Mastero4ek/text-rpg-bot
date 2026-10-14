@@ -11,7 +11,7 @@ use App\Enums\SkinEnum;
 use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenEnum;
 use App\Quests\QuestChapterRegistry;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\LangVariant;
 use App\Support\NickValidator;
 use Closure;
@@ -326,7 +326,8 @@ final class CharacterForm
                                 ->label(__('admin.labels.banned_until'))
                                 ->displayFormat('d.m.Y H:i')
                                 ->seconds(false)
-                                ->native(false),
+                                ->native(false)
+                                ->hintIcon(self::fieldHintIcon(), tooltip: __('admin.hints.banned_until')),
                         ])->columns(4)->columnSpanFull(),
                     ]),
             ]);

@@ -9,6 +9,7 @@ use App\Enums\Enemy\EnemyKindEnum;
 use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Services\Backpack\LoadoutService;
+use App\Services\Character\CharacterService;
 use App\Support\Enemy;
 use App\Support\Mf;
 use RuntimeException;

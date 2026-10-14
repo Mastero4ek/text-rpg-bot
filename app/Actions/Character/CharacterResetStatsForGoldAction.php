@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Character;
 
 use App\Models\Character\Character;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\ActionResult;
 
 final class CharacterResetStatsForGoldAction

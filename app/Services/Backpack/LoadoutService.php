@@ -13,7 +13,7 @@ use App\Models\Character\Character;
 use App\Models\LoadoutSlot;
 use App\Services\Bag\BagCatalog as BagCatalogService;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;

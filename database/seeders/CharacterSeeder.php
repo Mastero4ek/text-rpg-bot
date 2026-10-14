@@ -15,7 +15,7 @@ use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 

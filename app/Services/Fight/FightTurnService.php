@@ -13,7 +13,7 @@ use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\CombatService;
 use App\Support\PotionDef;
 use Illuminate\Support\Facades\DB;

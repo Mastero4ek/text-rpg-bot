@@ -16,7 +16,7 @@ use App\Services\Backpack\BackpackService;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\Gem\GemMfText;
 use App\Support\Telegram\TelegramPlayerGate;

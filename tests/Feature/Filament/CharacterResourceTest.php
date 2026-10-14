@@ -6,6 +6,7 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Filament\Resources\Characters\Pages\ViewCharacter;
+use App\Jobs\Character\CharacterBanReleaseJob;
 use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Models\User;
@@ -17,6 +18,7 @@ use Filament\Actions\Testing\TestAction;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 use function Pest\Livewire\livewire;
 
@@ -314,3 +316,126 @@ it('view page keeps form disabled and exposes only edit header action', function
         ])
         ->assertActionExists('edit');
 });
+
+it('bans character from edit save, clears fight and pushes jail', function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 61]]),
+    ]);
+    Queue::fake([CharacterBanReleaseJob::class]);
+
+    $character = cityDone(1513, 'AdminBan');
+    $character->tg_chat_id = 1513;
+    $character->tg_message_id = 61;
+    $character->save();
+    fights()->createTraining($character, woodenSoldier($character));
+
+    $until = now()->addDays(2)->startOfMinute();
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm(characterEditFormState($character, [
+            'banned_until' => $until,
+        ]))
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = $character->fresh();
+
+    expect($fresh->banned_until)->not->toBeNull()
+        ->and($fresh->banned_until?->format('d.m.Y H:i'))->toBe($until->format('d.m.Y H:i'))
+        ->and(Fight::query()->whereKey($character->tg_id)->exists())->toBeFalse();
+
+    Http::assertSent(function (Request $request) use ($until): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), $until->timezone(config('app.timezone'))->format('d.m.Y H:i') . ' (МСК)');
+    });
+
+    Queue::assertPushed(CharacterBanReleaseJob::class, function (CharacterBanReleaseJob $job) use ($character): bool {
+        return $job->tgId === $character->tg_id;
+    });
+});
+
+it('unbans character from edit save and pushes released panel', function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 62]]),
+    ]);
+
+    $character = cityDone(1514, 'AdminUnban');
+    $character->banned_until = now()->addDay();
+    $character->tg_chat_id = 1514;
+    $character->tg_message_id = 62;
+    $character->save();
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm(characterEditFormState($character, [
+            'banned_until' => null,
+        ]))
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($character->fresh()->banned_until)->toBeNull();
+
+    Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            && str_contains($request->body(), 'city:home');
+    });
+});
+
+it('does not re-push jail when banned_until is unchanged on save', function (): void {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 63]]),
+    ]);
+    Queue::fake([CharacterBanReleaseJob::class]);
+
+    $until = now()->addDay()->startOfMinute();
+    $character = cityDone(1515, 'AdminBanKeep');
+    $character->banned_until = $until;
+    $character->tg_chat_id = 1515;
+    $character->tg_message_id = 63;
+    $character->save();
+
+    livewire(EditCharacter::class, [
+        'record' => $character->getKey(),
+    ])
+        ->fillForm(characterEditFormState($character, [
+            'banned_until' => $until,
+            'silver' => $character->silver + 1,
+        ]))
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($character->fresh()->silver)->toBe($character->silver + 1)
+        ->and($character->fresh()->banned_until?->format('d.m.Y H:i'))->toBe($until->format('d.m.Y H:i'));
+
+    Http::assertNothingSent();
+    Queue::assertNothingPushed();
+});
+
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function characterEditFormState(Character $character, array $overrides = []): array
+{
+    return array_merge([
+        'username' => $character->username,
+        'exp' => $character->exp,
+        'level' => $character->level,
+        'stat_points' => $character->stat_points,
+        'strength' => $character->strength,
+        'agility' => $character->agility,
+        'instinct' => $character->instinct,
+        'vitality' => $character->vitality,
+        'current_hp' => $character->current_hp,
+        'max_hp' => $character->max_hp,
+        'current_stamina' => $character->current_stamina,
+        'max_stamina' => $character->max_stamina,
+        'silver' => $character->silver,
+        'gold' => $character->gold,
+        'arena_points' => $character->arena_points,
+        'banned_until' => $character->banned_until,
+    ], $overrides);
+}

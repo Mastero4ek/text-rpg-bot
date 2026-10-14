@@ -9,7 +9,7 @@ use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Models\Character\Character;
 use App\Models\Fight;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\Enemy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;

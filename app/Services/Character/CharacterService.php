@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Character;
 
 use App\Enums\ProgressStepEnum;
 use App\Enums\StatKeyEnum;
@@ -10,6 +10,7 @@ use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
+use App\Services\GameConfig;
 use App\Support\ActionResult;
 use App\Support\Mf;
 use App\Support\Telegram\TelegramHtml;

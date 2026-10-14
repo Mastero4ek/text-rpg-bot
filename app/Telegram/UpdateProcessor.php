@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Telegram;
 
+use App\Actions\Character\CharacterUnbanAction;
 use App\Models\Character\Character;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterJailPushService;
+use App\Services\Character\CharacterService;
 use App\Services\Registration\RegistrationFlow;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
@@ -28,6 +30,7 @@ use App\Telegram\Handlers\QuestHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
 use App\Telegram\Keyboards\PaginatedListKeyboard;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -37,6 +40,8 @@ final class UpdateProcessor
     public function __construct(
         private readonly TelegramClient $client,
         private readonly CharacterService $characters,
+        private readonly CharacterJailPushService $jailPush,
+        private readonly CharacterUnbanAction $unban,
         private readonly IdleSessionService $idleSession,
         private readonly RegistrationHandler $registration,
         private readonly RegistrationFlow $registrationFlow,
@@ -119,13 +124,25 @@ final class UpdateProcessor
         }
 
         if ($character->trashed()) {
+            $responder->answerCallback();
             $responder->reply(__('errors.archived'), null);
 
             return true;
         }
 
         if ($this->characters->hasActiveBan($character)) {
-            $responder->reply(__('errors.banned'), null);
+            $responder->answerCallback();
+            $this->jailPush->nudge($character, $responder);
+
+            return true;
+        }
+
+        if (
+            $character->banned_until instanceof CarbonInterface
+            && $character->banned_until->isPast()
+        ) {
+            $responder->answerCallback();
+            $this->unban->handle($character);
 
             return true;
         }

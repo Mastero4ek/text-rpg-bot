@@ -653,6 +653,16 @@ final class CityKeyboard
     }
 
     /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function jailReleased(): array
+    {
+        return self::inline([
+            [self::cbSuccess(__('telegram.btn.to_city'), 'city:home')],
+        ]);
+    }
+
+    /**
      * @param  list<array{text: string, callback_data: string}>  $pveRows
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */

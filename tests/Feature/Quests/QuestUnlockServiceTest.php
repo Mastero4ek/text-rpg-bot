@@ -138,6 +138,8 @@ it('gates missing character and banned player without NPE', function (): void {
     $player->banned_until = now()->addDay();
     $player->save();
 
+    $until = $player->fresh()->banned_until->timezone(config('app.timezone'))->format('d.m.Y H:i') . ' (МСК)';
+
     cityFlowCallback($player->tg_id, 9, 'city:portal');
-    assertCitySendHas(mb_trim(__('errors.banned')));
+    assertCitySendHas($until);
 });

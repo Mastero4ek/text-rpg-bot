@@ -8,7 +8,7 @@ use App\Enums\Bag\BagKindEnum;
 use App\Models\Bag\BagCatalog;
 use App\Models\Character\Character;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\CombatService;
 use App\Support\Enemy;
 use App\Support\Random\RandomSourceContract;

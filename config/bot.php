@@ -36,6 +36,7 @@ return [
     'city_port_image' => resource_path('images/telegram/location/port.png'),
     'city_portal_image' => resource_path('images/telegram/location/portal_city.png'),
     'idle_session_image' => resource_path('images/telegram/location/portal_city.png'),
+    'jail_image' => resource_path('images/telegram/location/jail.png'),
     'city_quest_board_image' => resource_path('images/telegram/location/quest_board.png'),
     'city_tavern_image' => resource_path('images/telegram/location/tavern.png'),
     'city_lists_image' => resource_path('images/telegram/location/arena_outer.png'),

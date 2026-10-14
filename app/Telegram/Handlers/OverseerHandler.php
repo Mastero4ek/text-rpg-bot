@@ -13,7 +13,7 @@ use App\Models\Character\Character;
 use App\Models\Character\CharacterDailyContract;
 use App\Models\City;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\CityMenuService;
 use App\Services\DailyContract\DailyContractService;
 use App\Services\Quest\QuestNpcPlacement;

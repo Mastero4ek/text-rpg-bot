@@ -21,7 +21,7 @@ use App\Services\Backpack\LoadoutService;
 use App\Services\Backpack\RepairService;
 use App\Services\Bag\BagCatalog;
 use App\Services\Bag\BagService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\City\BlacksmithService;
 use App\Services\City\BuyerService;
 use App\Services\City\HealerService;

@@ -19,7 +19,7 @@ use App\Quests\BlacksmithQuest;
 use App\Quests\BruiserQuest;
 use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\Telegram\TelegramHtml;
 

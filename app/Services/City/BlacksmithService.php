@@ -8,7 +8,7 @@ use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
 use App\Services\Backpack\BackpackService;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;

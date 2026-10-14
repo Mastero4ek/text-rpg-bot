@@ -75,7 +75,7 @@
 | Папка                    | Что                                                                                       |
 | ------------------------ | ----------------------------------------------------------------------------------------- |
 | `city/{key}.png`         | хаб города (Spatie media в `CitySeeder`)                                                  |
-| `location/*.png`         | экраны: gates/forest/swamp/ruins/port/portal/tavern/arena/quest*board + registration*\* (`config/bot.php`; swamp/ruins/port могут отсутствовать → text-only) |
+| `location/*.png`         | экраны: gates/forest/swamp/ruins/port/portal/tavern/arena/quest*board + registration*\* + jail (`config/bot.php`; swamp/ruins/port могут отсутствовать → text-only) |
 | `npc/*.png`              | NPC-панели (`overseer`, `healer_tavern`, …)                                               |
 | `enemy/{catalog_id}.png` | арт моба (`EnemyCatalogSeeder` media)                                                     |
 | `equipment/{catalog_id}.png` | gear (`BackpackCatalogSeeder` media)                                                   |

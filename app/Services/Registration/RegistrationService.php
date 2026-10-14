@@ -11,7 +11,7 @@ use App\Enums\SkinEnum;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Queries\City\CityQuery;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Support\ActionResult;
 use App\Support\LangVariant;
 use App\Support\NickValidator;

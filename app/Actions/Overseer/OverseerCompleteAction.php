@@ -9,7 +9,7 @@ use App\Enums\Quest\OverseerTrainStepEnum;
 use App\Enums\Quest\QuestPhaseEnum;
 use App\Models\Character\Character;
 use App\Quests\Chapter1\Chapter1ScreenProjector;
-use App\Services\CharacterService;
+use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\ActionResult;
 use Illuminate\Support\Facades\DB;
