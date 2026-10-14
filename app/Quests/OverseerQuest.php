@@ -79,7 +79,9 @@ final class OverseerQuest
 
     public function introSpeech(): string
     {
-        return __('telegram.quest.overseer.intro');
+        return __('telegram.quest.overseer.intro', [
+            'seconds' => $this->fights->turnTimeoutSeconds(),
+        ]);
     }
 
     public function isTrainLocked(Character $character): bool

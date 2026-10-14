@@ -64,24 +64,40 @@ final class FightHandler
         $responder->answerCallback();
 
         if (preg_match('/^fight:stance:(ATTACK|DEFEND)$/', $data, $m) === 1) {
+            if (! $this->resolveExpiredTurn($update, $responder)) {
+                return;
+            }
+
             $this->stance($update, StanceEnum::from($m[1]));
 
             return;
         }
 
         if (preg_match('/^fight:atk:(HEAD|CHEST|BELLY|LEGS|POTION|STAMINA_POTION)$/', $data, $m) === 1) {
+            if (! $this->resolveExpiredTurn($update, $responder)) {
+                return;
+            }
+
             $this->attack($update, $m[1]);
 
             return;
         }
 
         if (preg_match('/^fight:def:(HEAD|CHEST|BELLY|LEGS)$/', $data, $m) === 1) {
+            if (! $this->resolveExpiredTurn($update, $responder)) {
+                return;
+            }
+
             $this->defend($update, $responder, ZoneEnum::from($m[1]));
 
             return;
         }
 
         if ($data === 'fight:flee') {
+            if (! $this->resolveExpiredTurn($update, $responder)) {
+                return;
+            }
+
             $this->flee($update, $responder);
 
             return;
@@ -90,6 +106,49 @@ final class FightHandler
         if (preg_match('/^fight:start:(.+)$/', $data, $m) === 1) {
             $this->startFight($update, $responder, $m[1]);
         }
+    }
+
+    private function resolveExpiredTurn(TelegramUpdate $update, TelegramResponder $responder): bool
+    {
+        $tgId = $update->userId();
+
+        if (! $this->fights->exists($tgId)) {
+            return false;
+        }
+
+        $fight = $this->fights->findByTgId($tgId);
+
+        if ($fight->turn_deadline_at === null || $fight->turn_deadline_at->isFuture()) {
+            return true;
+        }
+
+        $player = Character::query()->find($tgId);
+
+        if ($player === null) {
+            return false;
+        }
+
+        $outcome = $this->rounds->runSkipRound($player);
+
+        if ($outcome->kind === 'missing' || ! $outcome->character instanceof Character || ! $outcome->fight instanceof Fight) {
+            return false;
+        }
+
+        if ($outcome->kind === 'win') {
+            $this->applyEnd($this->ends->finishWin($outcome->character, $outcome->fight), $outcome->fight, $responder);
+
+            return false;
+        }
+
+        if ($outcome->kind === 'lose') {
+            $this->applyEnd($this->ends->finishLose($outcome->character, $outcome->fight), $outcome->fight, $responder);
+
+            return false;
+        }
+
+        $this->panel->refresh($this->telegram, $outcome->fight, $outcome->character);
+
+        return false;
     }
 
     private function flee(TelegramUpdate $update, TelegramResponder $responder): void

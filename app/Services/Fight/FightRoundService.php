@@ -123,7 +123,15 @@ final class FightRoundService
                 return FightRoundOutcome::missing();
             }
 
-            return $this->applyRound($fresh, $fight, true, __('combat.turn_timeout'));
+            if ($fresh->username === null) {
+                $actorName = __('common.you');
+            } else {
+                $actorName = $fresh->username;
+            }
+
+            return $this->applyRound($fresh, $fight, true, __('combat.turn_timeout', [
+                'name' => $this->combat->logName($actorName, $fresh->level),
+            ]));
         });
 
         return $this->scheduleContinueTurn($outcome);

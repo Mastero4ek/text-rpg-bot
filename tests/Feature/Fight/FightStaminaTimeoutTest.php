@@ -65,7 +65,7 @@ it('initializes stamina and turn_seq on fight create', function (): void {
     expect($fight->player_max_stamina)->toBe(combat()->maxStamina($p->strength))
         ->and($fight->player_stamina)->toBe($fight->player_max_stamina)
         ->and($fight->turn_seq)->toBe(1)
-        ->and($fight->turn_deadline_at)->toBeNull();
+        ->and($fight->turn_deadline_at)->not->toBeNull();
 });
 
 it('resolveSkip applies timeout log and enemy hit without player attack', function (): void {
@@ -89,7 +89,9 @@ it('resolveSkip applies timeout log and enemy hit without player attack', functi
 
     $fight = $outcome->fight;
 
-    expect($fight->log)->toContain(__('combat.turn_timeout'))
+    expect($fight->log)->toContain(__('combat.turn_timeout', [
+        'name' => combat()->logName('SkipMe', $p->level),
+    ]))
         ->and($fight->player_hp)->toBeLessThanOrEqual($beforeHp)
         ->and($fight->player_stamina)->toBe($beforeStamina)
         ->and($fight->turn_seq)->toBe($beforeSeq + 1)
@@ -133,7 +135,9 @@ it('clears partial wizard choice before skip so attack stance mf does not apply'
         ->and($fight->player_defend)->toBeNull()
         ->and($fight->player_defend_second)->toBeNull()
         ->and($fight->use_potion)->toBeFalse()
-        ->and($fight->log)->toContain(__('combat.turn_timeout'))
+        ->and($fight->log)->toContain(__('combat.turn_timeout', [
+            'name' => combat()->logName('SkipStance', $p->level),
+        ]))
         ->and($fight->log)->toContain(__('combat.dodge', [
             'defender' => '<b>SkipStance [' . $p->level . ']</b>',
             'zone' => __('combat.zone_acc.HEAD'),

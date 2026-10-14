@@ -8,6 +8,7 @@ use App\Actions\Fight\FightAbandonOnIdleAction;
 use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
+use App\Models\Fight;
 use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Support\Telegram\TelegramResponder;
@@ -62,6 +63,10 @@ final class IdleSessionService
         }
 
         if (! $character->progress_step->canPlayCity()) {
+            return false;
+        }
+
+        if (Fight::query()->whereKey($character->tg_id)->exists()) {
             return false;
         }
 

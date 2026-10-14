@@ -9,7 +9,6 @@ use App\Enums\Quest\QuestPhaseEnum;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
 use App\Models\City;
-use App\Services\Character\CharacterService;
 use App\Services\Telegram\IdleSessionService;
 use App\Support\LangVariant;
 use App\Support\Telegram\TelegramClient;
@@ -222,7 +221,7 @@ it('idle job no-ops when action token is stale after a newer touch', function ()
     });
 });
 
-it('idle job edits fight panel and clears active fight', function (): void {
+it('idle job no-ops while fight is active', function (): void {
     Bus::fake([IdleSessionResetJob::class]);
     [$p, $city] = idleReadyPlayer(9407);
 
@@ -242,11 +241,12 @@ it('idle job edits fight panel and clears active fight', function (): void {
 
     app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
 
-    expect(idlePortalEditSent($city->name))->toBeTrue()
-        ->and(fights()->exists($p->tg_id))->toBeFalse();
-
-    $p->refresh();
-    expect($p->tg_message_id)->toBe(88);
+    Http::assertNotSent(function (Request $request) use ($city): bool {
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($request->body(), 'portal_city.png')
+            && str_contains($request->body(), $city->name);
+    });
+    expect(fights()->exists($p->tg_id))->toBeTrue();
 });
 
 it('idle job no-ops during registration', function (): void {
@@ -345,7 +345,7 @@ it('does not schedule idle when update belongs to unknown character', function (
     Bus::assertNotDispatched(IdleSessionResetJob::class);
 });
 
-it('idle abandon overseer quest fight resets train step and fully heals', function (): void {
+it('idle job no-ops for overseer quest fight', function (): void {
     Bus::fake([IdleSessionResetJob::class]);
     $p = cityArrived(9414, 'IdleOverseerFight');
     $p->overseer_train_step = OverseerTrainStepEnum::Fight;
@@ -374,17 +374,14 @@ it('idle abandon overseer quest fight resets train step and fully heals', functi
     app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
 
     $p->refresh();
-    $maxHp = app(CharacterService::class)->maxHp($p);
-    $maxStamina = app(CharacterService::class)->maxStamina($p);
 
-    expect(fights()->exists($p->tg_id))->toBeFalse()
-        ->and($p->overseer_train_step)->toBe(OverseerTrainStepEnum::Intro)
-        ->and($p->current_hp)->toBe($maxHp)
-        ->and($p->current_stamina)->toBe($maxStamina)
+    expect(fights()->exists($p->tg_id))->toBeTrue()
+        ->and($p->overseer_train_step)->toBe(OverseerTrainStepEnum::Fight)
+        ->and($p->current_hp)->toBe(1)
         ->and($p->quest_phase)->toBe(QuestPhaseEnum::Overseer);
 });
 
-it('idle abandon blacksmith quest fight fully heals without completing quest', function (): void {
+it('idle job no-ops for blacksmith quest fight', function (): void {
     Bus::fake([IdleSessionResetJob::class]);
     $p = cityBlacksmithPhase(9415, 'IdleSmithFight');
     $p->current_hp = 1;
@@ -408,15 +405,14 @@ it('idle abandon blacksmith quest fight fully heals without completing quest', f
     app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
 
     $p->refresh();
-    $maxHp = app(CharacterService::class)->maxHp($p);
 
-    expect(fights()->exists($p->tg_id))->toBeFalse()
-        ->and($p->current_hp)->toBe($maxHp)
+    expect(fights()->exists($p->tg_id))->toBeTrue()
+        ->and($p->current_hp)->toBe(1)
         ->and($p->blacksmith_at_tavern)->toBeFalse()
         ->and($p->quest_phase)->toBe(QuestPhaseEnum::Blacksmith);
 });
 
-it('idle abandon bruiser quest fight fully heals without opening debt', function (): void {
+it('idle job no-ops for bruiser quest fight', function (): void {
     Bus::fake([IdleSessionResetJob::class]);
     $p = cityBruiserPhase(9416, 'IdleBruiserFight');
     $p->current_hp = 1;
@@ -448,15 +444,14 @@ it('idle abandon bruiser quest fight fully heals without opening debt', function
     app()->call([new IdleSessionResetJob($p->tg_id, $actionAtUnix), 'handle']);
 
     $p->refresh();
-    $maxHp = app(CharacterService::class)->maxHp($p);
 
-    expect(fights()->exists($p->tg_id))->toBeFalse()
-        ->and($p->current_hp)->toBe($maxHp)
+    expect(fights()->exists($p->tg_id))->toBeTrue()
+        ->and($p->current_hp)->toBe(1)
         ->and($p->healer_debt_open)->toBeFalse()
         ->and($p->bruiser_contract_active)->toBeTrue();
 });
 
-it('stale callback after idle wake shows idle panel and does not route fight click', function (): void {
+it('stale fight callback while fight active does not wake idle panel', function (): void {
     Bus::fake([IdleSessionResetJob::class]);
     [$p, $city] = idleReadyPlayer(9417);
 
@@ -470,6 +465,13 @@ it('stale callback after idle wake shows idle panel and does not route fight cli
 
     cityFlowCallback($p->tg_id, 88, 'fight:stance:ATTACK');
 
-    expect(idlePortalEditSent($city->name))->toBeTrue()
-        ->and(fights()->exists($p->tg_id))->toBeFalse();
+    Http::assertNotSent(function (Request $request) use ($city): bool {
+        return str_contains($request->url(), '/editMessageMedia')
+            && str_contains($request->body(), 'portal_city.png')
+            && str_contains($request->body(), $city->name);
+    });
+    expect(fights()->exists($p->tg_id))->toBeTrue();
+
+    $fight = fights()->findByTgId($p->tg_id);
+    expect($fight->player_stance)->not->toBeNull();
 });

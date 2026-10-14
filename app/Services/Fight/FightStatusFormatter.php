@@ -25,12 +25,18 @@ final class FightStatusFormatter
 
     public function panelCaption(Fight $fight, Character $player): string
     {
-        return $this->statusCaption($fight, $player) . "\n\n" . $this->stepPrompt($fight);
+        return $this->statusCaption($fight, $player)
+            . "\n\n"
+            . $this->stepPrompt($fight)
+            . $this->timerSuffix($fight);
     }
 
     public function errorCaption(Fight $fight, Character $player, string $error): string
     {
-        return $this->statusCaption($fight, $player) . "\n\n" . $error;
+        return $this->statusCaption($fight, $player)
+            . "\n\n"
+            . $error
+            . $this->timerSuffix($fight);
     }
 
     public function statusCaption(Fight $fight, Character $player): string
@@ -64,6 +70,32 @@ final class FightStatusFormatter
         }
 
         return $prefix . $prompt;
+    }
+
+    public function timerSuffix(Fight $fight): string
+    {
+        if ($fight->turn_deadline_at === null) {
+            return '';
+        }
+
+        return "\n\n" . __('combat.turn_timer', [
+            'time' => $this->formatRemaining($this->fights->turnTimerDisplaySeconds($fight)),
+        ]);
+    }
+
+    private function formatRemaining(int $remainingSeconds): string
+    {
+        if ($remainingSeconds >= 60) {
+            $minutes = (int) ceil($remainingSeconds / 60);
+
+            return __('combat.turn_timer_min', [
+                'minutes' => $minutes,
+            ]);
+        }
+
+        return __('combat.turn_timer_sec', [
+            'seconds' => $remainingSeconds,
+        ]);
     }
 
     private function shouldShowSkipNote(Fight $fight): bool
