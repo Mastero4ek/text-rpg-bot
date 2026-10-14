@@ -205,7 +205,7 @@ final class CitySeeder extends Seeder
             $shopIds[] = $city->id;
         }
 
-        foreach (BackpackCatalog::query()->whereNotIn('catalog_id', ['knuckles_0', 'worn_mail', 'bruiser_knuckle'])->get() as $catalog) {
+        foreach (BackpackCatalog::query()->whereNotIn('catalog_id', ['worn_mail', 'bruiser_knuckle'])->get() as $catalog) {
             $catalog->cities()->sync($shopIds);
         }
 

@@ -37,7 +37,7 @@ final class LoadoutService
      * @return list<array{
      *     kind: 'note'|'plain'|'delta',
      *     text?: string,
-     *     label?: string,
+     *     stat?: string,
      *     before?: string,
      *     after?: string,
      *     delta?: int
@@ -74,7 +74,7 @@ final class LoadoutService
         $afterRows[$slot->value] = $row;
         $after = $this->forRows($character, $afterRows);
 
-        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
+        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}> $lines */
         $lines = [];
 
         if ($replaced instanceof BackpackItem && $replaced->id !== $row->id) {
@@ -100,7 +100,7 @@ final class LoadoutService
      * @return list<array{
      *     kind: 'note'|'plain'|'delta',
      *     text?: string,
-     *     label?: string,
+     *     stat?: string,
      *     before?: string,
      *     after?: string,
      *     delta?: int
@@ -128,7 +128,7 @@ final class LoadoutService
 
         $after = $this->forRows($character, $afterRows);
 
-        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
+        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}> $lines */
         $lines = [];
         $this->appendLoadoutStatChangeLines($lines, $character, $before, $after);
 
@@ -146,7 +146,7 @@ final class LoadoutService
      * @return list<array{
      *     kind: 'note'|'plain'|'delta',
      *     text?: string,
-     *     label?: string,
+     *     stat?: string,
      *     before?: string,
      *     after?: string,
      *     delta?: int
@@ -183,12 +183,12 @@ final class LoadoutService
         $before = $this->forCharacter($character);
         $afterMf = $before->mf->merge($def->mf);
 
-        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}> $lines */
+        /** @var list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}> $lines */
         $lines = [];
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_dodge', $before->mf->dodge, $afterMf->dodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_dodge', $before->mf->antiDodge, $afterMf->antiDodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_crit', $before->mf->crit, $afterMf->crit);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_crit', $before->mf->antiCrit, $afterMf->antiCrit);
+        $this->pushStatChangeLine($lines, 'dodge', $before->mf->dodge, $afterMf->dodge);
+        $this->pushStatChangeLine($lines, 'anti_dodge', $before->mf->antiDodge, $afterMf->antiDodge);
+        $this->pushStatChangeLine($lines, 'crit', $before->mf->crit, $afterMf->crit);
+        $this->pushStatChangeLine($lines, 'anti_crit', $before->mf->antiCrit, $afterMf->antiCrit);
 
         if ($lines === []) {
             return [[
@@ -423,6 +423,16 @@ final class LoadoutService
         ]);
 
         return implode("\n", $lines);
+    }
+
+    public function catalogShopCardText(EquipmentDef $def): string
+    {
+        return $this->shopCardText($def, $def->maxDurability, $def->maxDurability, true);
+    }
+
+    public function gearShopCardText(BackpackItem $row, EquipmentDef $def, bool $withRequirements): string
+    {
+        return $this->shopCardText($def, $row->durability, $row->max_durability, $withRequirements);
     }
 
     public function itemCardText(EquipmentDef $def): string
@@ -733,26 +743,137 @@ final class LoadoutService
      */
     private function itemCardRequirementLines(EquipmentDef $def): array
     {
-        $lines = [];
+        $parts = [];
 
         if ($def->reqLevel !== null) {
-            $lines[] = __('profile.item_card_req_level', ['value' => $def->reqLevel]);
+            $parts[] = __('profile.item_card_req_level', ['value' => $def->reqLevel]);
         }
 
         if ($def->reqStrength !== null) {
-            $lines[] = __('profile.item_card_req_strength', ['value' => $def->reqStrength]);
+            $parts[] = __('profile.item_card_req_strength', ['value' => $def->reqStrength]);
         }
 
         if ($def->reqAgility !== null) {
-            $lines[] = __('profile.item_card_req_agility', ['value' => $def->reqAgility]);
+            $parts[] = __('profile.item_card_req_agility', ['value' => $def->reqAgility]);
         }
 
         if ($def->reqInstinct !== null) {
-            $lines[] = __('profile.item_card_req_instinct', ['value' => $def->reqInstinct]);
+            $parts[] = __('profile.item_card_req_instinct', ['value' => $def->reqInstinct]);
         }
 
         if ($def->reqVitality !== null) {
-            $lines[] = __('profile.item_card_req_vitality', ['value' => $def->reqVitality]);
+            $parts[] = __('profile.item_card_req_vitality', ['value' => $def->reqVitality]);
+        }
+
+        if (empty($parts)) {
+            return [];
+        }
+
+        return [
+            __('profile.item_card_requirements', [
+                'list' => implode(', ', $parts),
+            ]),
+        ];
+    }
+
+    private function shopCardText(
+        EquipmentDef $def,
+        ?int $durability,
+        ?int $maxDurability,
+        bool $withRequirements,
+    ): string {
+        if ($def->slot instanceof SlotEnum) {
+            $slotLabel = $def->slot->getLabel();
+        } else {
+            $slotLabel = '—';
+        }
+
+        if ($def->profile instanceof ProfileEnum) {
+            $profileLabel = $def->profile->getLabel();
+        } else {
+            $profileLabel = '—';
+        }
+
+        $meta = __('profile.item_card_meta_line', [
+            'slot' => $slotLabel,
+            'profile' => $profileLabel,
+        ]);
+
+        $statLines = $this->gearShopCardStatLines($def, $durability, $maxDurability);
+
+        if ($withRequirements) {
+            foreach ($this->itemCardRequirementLines($def) as $reqLine) {
+                $statLines[] = $reqLine;
+            }
+        }
+
+        $stats = implode("\n", $statLines);
+        $name = TelegramHtml::escape($def->itemName);
+
+        if ($def->description !== null && $def->description !== '') {
+            return __('profile.item_card_shop', [
+                'name' => $name,
+                'description' => TelegramHtml::escape($def->description),
+                'meta' => $meta,
+                'stats' => $stats,
+            ]);
+        }
+
+        return __('profile.item_card_shop_no_desc', [
+            'name' => $name,
+            'meta' => $meta,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function gearShopCardStatLines(EquipmentDef $def, ?int $durability, ?int $maxDurability): array
+    {
+        $lines = [];
+
+        if ($def->weaponDamageMax > 0) {
+            $lines[] = __('profile.item_card_stat_damage', [
+                'value' => $this->damageRangeText($def->weaponDamageMin, $def->weaponDamageMax),
+            ]);
+        }
+
+        if ($def->armor > 0) {
+            $lines[] = __('profile.item_card_stat_armor', ['value' => $def->armor]);
+        }
+
+        if ($def->statBonus > 0) {
+            $lines[] = __('profile.item_card_stat_hp', ['value' => $def->statBonus]);
+        }
+
+        if ($def->mf->dodge > 0 && $def->mf->antiDodge > 0) {
+            $lines[] = __('profile.item_card_stat_dodge_pair', [
+                'dodge' => $def->mf->dodge,
+                'anti' => $def->mf->antiDodge,
+            ]);
+        } elseif ($def->mf->dodge > 0) {
+            $lines[] = __('profile.item_card_stat_dodge', ['value' => $def->mf->dodge]);
+        } elseif ($def->mf->antiDodge > 0) {
+            $lines[] = __('profile.item_card_stat_anti_dodge', ['value' => $def->mf->antiDodge]);
+        }
+
+        if ($def->mf->crit > 0 && $def->mf->antiCrit > 0) {
+            $lines[] = __('profile.item_card_stat_crit_pair', [
+                'crit' => $def->mf->crit,
+                'anti' => $def->mf->antiCrit,
+            ]);
+        } elseif ($def->mf->crit > 0) {
+            $lines[] = __('profile.item_card_stat_crit', ['value' => $def->mf->crit]);
+        } elseif ($def->mf->antiCrit > 0) {
+            $lines[] = __('profile.item_card_stat_anti_crit', ['value' => $def->mf->antiCrit]);
+        }
+
+        if ($maxDurability !== null && $durability !== null) {
+            $lines[] = __('profile.item_card_stat_durability', [
+                'current' => $durability,
+                'max' => $maxDurability,
+            ]);
         }
 
         return $lines;
@@ -1124,9 +1245,9 @@ final class LoadoutService
     }
 
     /**
-     * @param  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     * @param  list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}>  $lines
      *
-     * @param-out  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     * @param-out  list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}>  $lines
      */
     private function appendLoadoutStatChangeLines(
         array &$lines,
@@ -1136,7 +1257,7 @@ final class LoadoutService
     ): void {
         $beforeHp = $character->max_hp + $before->statBonus;
         $afterHp = $character->max_hp + $after->statBonus;
-        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_max_hp', $beforeHp, $afterHp);
+        $this->pushStatChangeLine($lines, 'max_hp', $beforeHp, $afterHp);
 
         $beforeDamage = $this->damageRangeText($before->weaponDamageMin, $before->weaponDamageMax);
         $afterDamage = $this->damageRangeText($after->weaponDamageMin, $after->weaponDamageMax);
@@ -1144,25 +1265,25 @@ final class LoadoutService
         if ($beforeDamage !== $afterDamage) {
             $lines[] = [
                 'kind' => 'plain',
-                'label' => $this->equipLang('admin.actions.equip.stat_damage'),
+                'stat' => 'damage',
                 'before' => $beforeDamage,
                 'after' => $afterDamage,
             ];
         }
 
-        $this->pushStatChangeLine($lines, 'admin.actions.equip.stat_armor', $before->armor, $after->armor);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_dodge', $before->mf->dodge, $after->mf->dodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_dodge', $before->mf->antiDodge, $after->mf->antiDodge);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_crit', $before->mf->crit, $after->mf->crit);
-        $this->pushStatChangeLine($lines, 'admin.labels.mf_anti_crit', $before->mf->antiCrit, $after->mf->antiCrit);
+        $this->pushStatChangeLine($lines, 'armor', $before->armor, $after->armor);
+        $this->pushStatChangeLine($lines, 'dodge', $before->mf->dodge, $after->mf->dodge);
+        $this->pushStatChangeLine($lines, 'anti_dodge', $before->mf->antiDodge, $after->mf->antiDodge);
+        $this->pushStatChangeLine($lines, 'crit', $before->mf->crit, $after->mf->crit);
+        $this->pushStatChangeLine($lines, 'anti_crit', $before->mf->antiCrit, $after->mf->antiCrit);
     }
 
     /**
-     * @param  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     * @param  list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}>  $lines
      *
-     * @param-out  list<array{kind: 'note'|'plain'|'delta', text?: string, label?: string, before?: string, after?: string, delta?: int}>  $lines
+     * @param-out  list<array{kind: 'note'|'plain'|'delta', text?: string, stat?: string, before?: string, after?: string, delta?: int}>  $lines
      */
-    private function pushStatChangeLine(array &$lines, string $labelKey, int $before, int $after): void
+    private function pushStatChangeLine(array &$lines, string $stat, int $before, int $after): void
     {
         if ($before === $after) {
             return;
@@ -1170,7 +1291,7 @@ final class LoadoutService
 
         $lines[] = [
             'kind' => 'delta',
-            'label' => $this->equipLang($labelKey),
+            'stat' => $stat,
             'before' => (string) $before,
             'after' => (string) $after,
             'delta' => $after - $before,

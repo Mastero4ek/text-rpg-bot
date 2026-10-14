@@ -16,12 +16,12 @@ final class BotCommandsSync
     {
         $this->client->setMyCommands([
             [
-                'command' => 'character',
-                'description' => __('telegram.commands.character'),
+                'command' => 'city',
+                'description' => __('telegram.commands.city'),
             ],
             [
-                'command' => 'skills',
-                'description' => __('telegram.commands.skills'),
+                'command' => 'profile',
+                'description' => __('telegram.commands.profile'),
             ],
             [
                 'command' => 'backpack',
@@ -30,6 +30,10 @@ final class BotCommandsSync
             [
                 'command' => 'bag',
                 'description' => __('telegram.commands.bag'),
+            ],
+            [
+                'command' => 'journal',
+                'description' => __('telegram.commands.journal'),
             ],
         ]);
     }

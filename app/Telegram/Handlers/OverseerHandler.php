@@ -190,7 +190,17 @@ final class OverseerHandler
             }
         }
 
-        $responder->edit($text, $markup);
+        try {
+            $responder->edit($text, $markup);
+        } catch (Throwable) {
+            if (is_string($overseerImage) && $overseerImage !== '' && is_file($overseerImage)) {
+                $responder->replyPhoto($overseerImage, $text, $markup);
+
+                return;
+            }
+
+            $responder->reply($text, $markup);
+        }
     }
 
     /**
@@ -282,6 +292,10 @@ final class OverseerHandler
         $this->editOverseerPanel(
             $responder,
             __('telegram.npc.overseer.reset_confirm', [
+                'str' => $player->strength,
+                'agi' => $player->agility,
+                'inst' => $player->instinct,
+                'vit' => $player->vitality,
                 'gold' => $this->characters->statResetGoldCost(),
             ]),
             CityKeyboard::overseerResetConfirm(),
@@ -327,7 +341,7 @@ final class OverseerHandler
                 $this->editOverseerPanel(
                     $responder,
                     __('telegram.npc.overseer.error.not_enough_gold'),
-                    CityKeyboard::backToOverseer(),
+                    $this->overseerOfferMarkup($player, $city, $back),
                 );
 
                 return;
@@ -336,21 +350,29 @@ final class OverseerHandler
             $this->editOverseerPanel(
                 $responder,
                 TelegramResponder::errorMessage($res->error),
-                CityKeyboard::backToOverseer(),
+                $this->overseerOfferMarkup($player, $city, $back),
             );
 
             return;
         }
 
-        $hasDaily = $this->dailyContracts
-            ->turnInableForIssuer($res->character, $city, NpcEnum::Overseer)
-            ->isNotEmpty();
-
         $this->editOverseerPanel(
             $responder,
             $this->resetDoneText($res->character),
-            CityKeyboard::overseerWithDaily($hasDaily, $res->character->stat_points, $back),
+            $this->overseerOfferMarkup($res->character, $city, $back),
         );
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    private function overseerOfferMarkup(Character $player, City $city, string $back): array
+    {
+        $hasDaily = $this->dailyContracts
+            ->turnInableForIssuer($player, $city, NpcEnum::Overseer)
+            ->isNotEmpty();
+
+        return CityKeyboard::overseerWithDaily($hasDaily, $player->stat_points, $back);
     }
 
     private function spendStat(TelegramResponder $responder, Character $player, string $stat): void

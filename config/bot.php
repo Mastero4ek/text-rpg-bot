@@ -8,6 +8,10 @@ return [
     'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET', ''),
     'async' => (bool) env('TELEGRAM_ASYNC', false),
     'api_base' => env('TELEGRAM_API_BASE', 'https://api.telegram.org'),
+    'demo' => [
+        'enabled' => (bool) env('DEMO_MODE', false),
+        'max_level' => (int) env('DEMO_MAX_LEVEL', 3),
+    ],
     'poll_timeout' => 25,
     'registration_rest_image' => resource_path('images/telegram/location/registration_rest.png'),
     'registration_up_image' => resource_path('images/telegram/location/registration_up.png'),

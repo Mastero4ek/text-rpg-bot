@@ -239,9 +239,9 @@ it('statsScreenText shows body and total mf blocks', function (): void {
     expect($text)->toContain('Свободно: 2')
         ->and($text)->toContain('МФ тела:')
         ->and($text)->toContain('Итог (тело + вещи):')
-        ->and($text)->toContain('жизнь ' . $bodyHp)
-        ->and($text)->toContain('жизнь ' . $totalHp)
-        ->and($text)->toContain('HP от шмота: +' . $gearHp);
+        ->and($text)->toContain('❤️ ' . $bodyHp)
+        ->and($text)->toContain('❤️ ' . $totalHp)
+        ->and($text)->toContain('❤️ от шмота: +' . $gearHp);
 });
 
 it('nextExpThreshold is null at max level', function (): void {

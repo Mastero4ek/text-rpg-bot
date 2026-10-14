@@ -24,7 +24,7 @@ final class PaginatedListKeyboard
         string $activeFilter,
         int $page,
         string $listCallbackPrefix,
-        string $backCallback,
+        ?string $backCallback,
         ?array $extraFooter,
         int $totalCount,
     ): array {
@@ -89,7 +89,9 @@ final class PaginatedListKeyboard
             }
         }
 
-        $rows[] = [self::cbDanger(__('telegram.btn.back'), $backCallback)];
+        if (is_string($backCallback)) {
+            $rows[] = [self::cbDanger(__('telegram.btn.back'), $backCallback)];
+        }
 
         return self::inline($rows);
     }

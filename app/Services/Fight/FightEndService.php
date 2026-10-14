@@ -21,6 +21,7 @@ use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
 use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
+use App\Support\Demo\DemoMode;
 use App\Support\Telegram\TelegramHtml;
 
 final class FightEndService
@@ -484,6 +485,7 @@ final class FightEndService
     {
         $logText = $this->fightLogText($fight);
         $reward = $this->config->trainingReward();
+        $rewardFrozen = DemoMode::isProgressionCapped($player);
         $this->characters->addExpSilver($player, $reward['exp'], $reward['silver']);
         $player = $this->characters->findByTgId($player->tg_id);
         $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
@@ -495,12 +497,15 @@ final class FightEndService
         $player->save();
         $this->clearFight->handle($player->tg_id);
 
+        if ($rewardFrozen) {
+            $winText = $this->demoFrozenWinCaption();
+        } else {
+            $winText = $this->winRewardCaption($reward['exp'], $reward['silver']);
+        }
+
         return new FightEndResult(
             $player,
-            $text . __('combat.win', [
-                'exp' => $reward['exp'],
-                'silver' => $reward['silver'],
-            ]),
+            $text . $winText,
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
@@ -582,6 +587,7 @@ final class FightEndService
         $player = $this->characters->findByTgId($player->tg_id);
         $brokeSuffix = $this->brokenGearSuffix($broken);
         $enemy = $this->fights->enemy($fight);
+        $rewardFrozen = DemoMode::isProgressionCapped($player);
         $loot = $this->winLoot->handle($player, $enemy);
         $player = $this->characters->findByTgId($player->tg_id);
         $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
@@ -593,17 +599,36 @@ final class FightEndService
         $player->save();
         $this->clearFight->handle($player->tg_id);
 
+        if ($rewardFrozen) {
+            $winText = $this->demoFrozenWinCaption();
+        } else {
+            $winText = $this->winRewardCaption($loot['exp'], $loot['silver']);
+        }
+
         return new FightEndResult(
             $player,
-            $text . __('combat.win', [
-                'exp' => $loot['exp'],
-                'silver' => $loot['silver'],
-            ]) . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
+            $text . $winText . $this->dropSuffix($loot['drop_names']) . $brokeSuffix,
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,
             $logText,
         );
+    }
+
+    private function demoFrozenWinCaption(): string
+    {
+        return __('combat.win', [
+            'exp' => 0,
+            'silver' => 0,
+        ]) . "\n" . __('profile.demo_reward_frozen');
+    }
+
+    private function winRewardCaption(int $exp, int $silver): string
+    {
+        return __('combat.win', [
+            'exp' => $exp,
+            'silver' => $silver,
+        ]);
     }
 
     private function trainingLose(Character $player, Fight $fight, string $text): FightEndResult

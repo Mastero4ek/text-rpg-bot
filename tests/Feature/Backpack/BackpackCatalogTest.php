@@ -13,11 +13,12 @@ use Illuminate\Support\Facades\Cache;
 it('seeds equipment catalog into the database', function (): void {
     expect(BackpackCatalog::query()->count())->toBeGreaterThan(10)
         ->and(shopCatalog()->mailShirtId())->toBe('worn_mail')
-        ->and(shopCatalog()->starterKnucklesId())->toBe('knuckles_0')
+        ->and(shopCatalog()->starterKnucklesId())->toBe('bruiser_knuckle')
         ->and(shopCatalog()->freeTrainerItemId())->toBe('club_0')
         ->and(bagCatalog()->potionPrice())->toBe(15)
         ->and(bagCatalog()->potionHeal())->toBe(40)
-        ->and(shopCatalog()->findItem('knife_0')->itemName)->toBe('Учебный нож')
+        ->and(shopCatalog()->findItem('knife_0')->itemName)->toBe('Легкий нож')
+
         ->and(bagCatalog()->findPotion('heal_0')->profile)->toBe(ProfileEnum::HEAL)
         ->and(bagCatalog()->findPotion('heal_0')->effectValue)->toBe(40)
         ->and(bagCatalog()->findPotion('stamina_0')->profile)->toBe(ProfileEnum::STAMINA)
@@ -59,7 +60,8 @@ it('finds trashed and disabled equipment for already owned lookup', function ():
     $def = shopCatalog()->findItem('axe_0');
 
     expect($def->itemId)->toBe('axe_0')
-        ->and($def->itemName)->toBe('Учебный топор')
+        ->and($def->itemName)->toBe('Тяжёлый топор')
+
         ->and(shopCatalog()->hasItem('axe_0'))->toBeTrue()
         ->and(shopCatalog()->isShopWeapon('axe_0'))->toBeFalse();
 });

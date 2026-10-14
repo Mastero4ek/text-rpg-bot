@@ -135,7 +135,7 @@ it('opens fights list from arena without creating a fight', function (): void {
     });
 });
 
-it('resumes home panel on done /start without welcome message', function (): void {
+it('sends home panel on done /start without welcome message', function (): void {
     $p = characters()->createDraft(9124);
     $p->username = 'DoneHero';
     $p->progress_step = ProgressStepEnum::DONE;
@@ -163,6 +163,10 @@ it('resumes home panel on done /start without welcome message', function (): voi
             && str_contains((string) ($request['text'] ?? ''), 'С возвращением');
     });
     Http::assertSent(function (Request $request): bool {
+        return str_contains($request->url(), '/sendPhoto')
+            || str_contains($request->url(), '/sendMessage');
+    });
+    Http::assertNotSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageMedia')
             || str_contains($request->url(), '/editMessageCaption')
             || str_contains($request->url(), '/editMessageText');
@@ -198,8 +202,9 @@ it('sends splash keyboard on registration start', function (): void {
 });
 
 it('exposes bot command descriptions from lang', function (): void {
-    expect(__('telegram.commands.character'))->toBe('Персонаж')
-        ->and(__('telegram.commands.skills'))->toBe('Навыки')
+    expect(__('telegram.commands.city'))->toBe('Город')
+        ->and(__('telegram.commands.profile'))->toBe('Профиль')
         ->and(__('telegram.commands.backpack'))->toBe('Рюкзак')
-        ->and(__('telegram.commands.bag'))->toBe('Сумка');
+        ->and(__('telegram.commands.bag'))->toBe('Сумка')
+        ->and(__('telegram.commands.journal'))->toBe('Задания');
 });

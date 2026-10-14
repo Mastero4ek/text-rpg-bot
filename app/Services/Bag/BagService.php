@@ -15,6 +15,7 @@ use App\Queries\City\CityQuery;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;
+use App\Support\Demo\DemoMode;
 use App\Support\Mf;
 use App\Support\Random\RandomSourceContract;
 use Carbon\CarbonInterface;
@@ -705,6 +706,12 @@ final class BagService
 
     public function sellPayout(BagItem $row): int
     {
+        $owner = Character::query()->find($row->tg_id);
+
+        if ($owner instanceof Character && DemoMode::isProgressionCapped($owner)) {
+            return 0;
+        }
+
         if ($row->kind === BagKindEnum::POTION) {
             $price = $this->catalog->findPotion($row->catalog_id)->price;
 

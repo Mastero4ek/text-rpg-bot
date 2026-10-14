@@ -47,11 +47,11 @@ it('renders gear text with damage range broken slot and totals', function (): vo
         'name' => $knife->item_name,
     ]))
         ->and($text)->toContain($helm->item_name)
-        ->and($text)->toContain('+' . $helmDef->statBonus . ' HP')
+        ->and($text)->toContain(__('profile.gear_bonus_hp', ['value' => $helmDef->statBonus]))
         ->and($text)->toContain(__('profile.gear_slot_empty', [
             'slot' => SlotEnum::LEFT_HAND->getLabel(),
         ]))
-        ->and($text)->toContain('урон 0')
+        ->and($text)->toContain(__('profile.gear_bonus_damage', ['value' => 0]))
         ->and($text)->not->toContain($knifeDef->weaponDamageMin . '–' . $knifeDef->weaponDamageMax)
         ->and($text)->toContain('голова ' . $helmDef->armor);
 });
@@ -92,32 +92,17 @@ it('builds item card with damage range durability and empty gem socket', functio
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    $expectedBase = app(LoadoutService::class)->itemCardText($def);
-    $expectedDurability = __('profile.item_card_durability', [
+    $expectedDamage = __('profile.item_card_stat_damage', [
+        'value' => $def->weaponDamageMin . '–' . $def->weaponDamageMax,
+    ]);
+    $expectedDurability = __('profile.item_card_stat_durability', [
         'current' => $knife->durability,
         'max' => $knife->max_durability,
     ]);
-    $expectedGems = __('profile.item_card_gems', [
-        'value' => __('smith.gem_slot_empty'),
-    ]);
 
-    Http::assertSent(function ($request) use ($expectedBase, $expectedDurability, $expectedGems, $def): bool {
-        if (! str_contains($request->url(), '/editMessageText')) {
-            return false;
-        }
-
-        $data = $request->data();
-        $text = '';
-
-        if (array_key_exists('text', $data) && is_string($data['text'])) {
-            $text = $data['text'];
-        }
-
-        return str_contains($text, $expectedBase)
-            && str_contains($text, $expectedDurability)
-            && str_contains($text, $expectedGems)
-            && str_contains($text, 'Урон: ' . $def->weaponDamageMin . '–' . $def->weaponDamageMax);
-    });
+    assertCityEditHas($def->itemName);
+    assertCityEditHas($expectedDamage);
+    assertCityEditHas($expectedDurability);
 });
 
 it('rejects repair and omits unrepairable gear from smith lists', function (): void {
@@ -260,7 +245,7 @@ it('counts pierce wear only from pierced block hits', function (): void {
     expect($knuckles->durability)->toBe(20 - $loss - (1 * $perPierce));
 });
 
-it('shows gear screen broken line through menu callback', function (): void {
+it('shows gear screen panel with zero damage for broken weapon through menu callback', function (): void {
     Http::fake([
         'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
@@ -268,6 +253,7 @@ it('shows gear screen broken line through menu callback', function (): void {
     $p = giveAndEquipStarterKnuckles(characters()->createDraft(8708));
     $p->progress_step = ProgressStepEnum::DONE;
     $p->username = 'BrokenGear';
+    $p->skin = null;
     $p->save();
 
     $knuckles = backpack()->findOwned($p->tg_id, shopCatalog()->starterKnucklesId());
@@ -293,12 +279,7 @@ it('shows gear screen broken line through menu callback', function (): void {
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    $broken = __('profile.gear_slot_broken', [
-        'slot' => SlotEnum::RIGHT_HAND->getLabel(),
-        'name' => $knuckles->item_name,
-    ]);
-
-    Http::assertSent(function ($request) use ($broken): bool {
+    Http::assertSent(function ($request) use ($knuckles): bool {
         if (! str_contains($request->url(), '/editMessageText')) {
             return false;
         }
@@ -310,7 +291,15 @@ it('shows gear screen broken line through menu callback', function (): void {
             $text = $data['text'];
         }
 
-        return str_contains($text, $broken)
-            && str_contains($text, 'урон 0');
+        $markup = '';
+
+        if (array_key_exists('reply_markup', $data) && is_string($data['reply_markup'])) {
+            $markup = $data['reply_markup'];
+        }
+
+        return str_contains($text, 'BrokenGear')
+            && str_contains($text, '⚔️ 0')
+            && str_contains($markup, 'gear:view:')
+            && str_contains($markup, (string) $knuckles->id);
     });
 });

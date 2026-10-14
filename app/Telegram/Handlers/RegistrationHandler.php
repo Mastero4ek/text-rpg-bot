@@ -36,23 +36,28 @@ final class RegistrationHandler
     public function handleStart(TelegramUpdate $update, TelegramResponder $responder): void
     {
         $player = $this->registration->ensurePlayer($update->userId());
-        $responder->deleteUpdateMessage();
 
         if (
             $player->progress_step === ProgressStepEnum::DONE
             || $player->progress_step === ProgressStepEnum::ARRIVED
         ) {
             $player = $this->characters->applyRegen($player);
+            // Send first, then drop the old anchor + /start. Deleting /start before send
+            // empties the chat → Telegram shows «Начать» again → appear/delete loop.
+            $oldPanelId = $player->tg_message_id;
+            $player = $this->registration->forgetTelegramMessage($player);
 
             if ($this->overseerQuest->awaitsMeet($player)) {
                 $meetMessageId = $this->quest->showMeet($responder, $player);
                 $this->registration->rememberTelegramMessage($player, $responder->chatId(), $meetMessageId);
+                $this->dropStaleMessages($responder, $oldPanelId);
 
                 return;
             }
 
             if ($this->overseerQuest->isTrainLocked($player)) {
                 $this->quest->resumeLocked($responder, $player);
+                $this->dropStaleMessages($responder, $oldPanelId);
 
                 return;
             }
@@ -60,18 +65,23 @@ final class RegistrationHandler
             if ($this->healerQuest->isPotionLocked($player)) {
                 $meetMessageId = $this->quest->showHealerMeet($responder, $player);
                 $this->registration->rememberTelegramMessage($player, $responder->chatId(), $meetMessageId);
+                $this->dropStaleMessages($responder, $oldPanelId);
 
                 return;
             }
 
-            $homeMessageId = $this->city->resumeHomePanel($responder, $player);
+            $homeMessageId = $this->city->sendHomePanel($responder, $player);
             $this->registration->rememberTelegramMessage($player, $responder->chatId(), $homeMessageId);
+            $this->dropStaleMessages($responder, $oldPanelId);
 
             return;
         }
 
         if ($this->flow->isActive($player)) {
+            $oldPanelId = $player->tg_message_id;
+            $player = $this->registration->forgetTelegramMessage($player);
             $this->flow->showClean($responder, $player);
+            $this->dropStaleMessages($responder, $oldPanelId);
         }
     }
 
@@ -281,5 +291,14 @@ final class RegistrationHandler
         $chosen = $res->character;
         $meetMessageId = $this->quest->showMeet($responder, $chosen);
         $this->registration->rememberTelegramMessage($chosen, $responder->chatId(), $meetMessageId);
+    }
+
+    private function dropStaleMessages(TelegramResponder $responder, ?int $oldPanelId): void
+    {
+        if ($oldPanelId !== null) {
+            $responder->deleteMessage($oldPanelId);
+        }
+
+        $responder->deleteUpdateMessage();
     }
 }

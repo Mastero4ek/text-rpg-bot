@@ -85,7 +85,7 @@ it('previews unequip stat deltas for equipped weapon', function (): void {
 
     expect($kinds)->toContain('plain')
         ->and(collect($lines)->contains(
-            fn (array $line): bool => ($line['label'] ?? null) === __('admin.actions.equip.stat_damage'),
+            fn (array $line): bool => ($line['stat'] ?? null) === 'damage',
         ))->toBeTrue();
 
     foreach ($lines as $line) {

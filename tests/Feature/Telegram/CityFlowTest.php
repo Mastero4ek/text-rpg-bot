@@ -139,7 +139,7 @@ it('resumes city hub on start after overseer skip', function (): void {
     assertCitySendMarkupHas('city:lists');
 });
 
-it('resumes ordinary home on start when done', function (): void {
+it('sends ordinary home on start when done', function (): void {
     $player = cityDone(9606, 'DoneHero');
     $player->tg_chat_id = $player->tg_id;
     $player->tg_message_id = 9;
@@ -148,13 +148,14 @@ it('resumes ordinary home on start when done', function (): void {
     cityFlowText($player->tg_id, 12, '/start');
 
     $player->refresh();
-    expect($player->progress_step)->toBe(ProgressStepEnum::DONE);
+    expect($player->progress_step)->toBe(ProgressStepEnum::DONE)
+        ->and($player->tg_message_id)->not->toBe(9);
 
-    assertCityEditHas('круговой площади');
+    assertCitySendHas('круговой площади');
     Http::assertNotSent(function (Request $request): bool {
-        return str_contains($request->url(), '/sendPhoto')
-            || (str_contains($request->url(), '/sendMessage')
-                && str_contains((string) ($request['text'] ?? ''), 'круговой площади'));
+        return str_contains($request->url(), '/editMessageMedia')
+            || str_contains($request->url(), '/editMessageCaption')
+            || str_contains($request->url(), '/editMessageText');
     });
 });
 

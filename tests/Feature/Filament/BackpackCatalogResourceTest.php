@@ -41,7 +41,8 @@ it('lists and views equipment catalog', function (): void {
         ->assertOk()
         ->assertSchemaStateSet([
             'catalog_id' => 'knife_0',
-            'name' => 'Учебный нож',
+            'name' => 'Легкий нож',
+
         ]);
 });
 

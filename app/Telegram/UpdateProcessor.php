@@ -24,6 +24,7 @@ use App\Telegram\Handlers\DailyContractHandler;
 use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
+use App\Telegram\Handlers\JournalHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OverseerHandler;
 use App\Telegram\Handlers\QuestHandler;
@@ -50,6 +51,7 @@ final class UpdateProcessor
         private readonly HealerQuest $healerQuest,
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
+        private readonly JournalHandler $journal,
         private readonly SmithHandler $smith,
         private readonly BarkeeperHandler $barkeeper,
         private readonly BlacksmithHandler $blacksmith,
@@ -95,14 +97,14 @@ final class UpdateProcessor
                 return;
             }
 
-            $this->trackIdleSession($update, $responder);
-
             if ($update->isStartCommand()) {
                 $this->routeStart($update, $responder);
-                $this->trackIdleSession($update, $responder);
+                $this->touchIdleSession($update);
 
                 return;
             }
+
+            $this->trackIdleSession($update, $responder);
 
             if ($update->isTextMessage()) {
                 $this->routeText($update, $responder);
@@ -182,6 +184,12 @@ final class UpdateProcessor
 
         if (str_starts_with($data, 'daily:')) {
             $this->daily->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'journal:')) {
+            $this->journal->handleCallback($update, $responder);
 
             return;
         }

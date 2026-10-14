@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Telegram\Keyboards;
 
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightEndUiEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
+use App\Models\Backpack\BackpackItem;
 use App\Models\Fight;
+use App\Support\Equipment\EquippedLoadout;
 use RuntimeException;
 
 final class TelegramKeyboards
@@ -118,6 +121,284 @@ final class TelegramKeyboards
     }
 
     /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function journalList(array $items, string $activeFilter, int $page, int $totalCount): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [
+                ['id' => 'all', 'label' => __('telegram.btn.filter_all')],
+                ['id' => 'hunt', 'label' => __('telegram.btn.filter_board_orders')],
+                ['id' => 'delivery', 'label' => __('telegram.btn.filter_board_asks')],
+            ],
+            $activeFilter,
+            $page,
+            'journal',
+            null,
+            null,
+            $totalCount,
+        );
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function journalCard(string $filter): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'journal:list:' . $filter . ':1')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function profile(): array
+    {
+        return self::inline([
+            [self::cb(__('profile.btn_gear'), 'menu:gear')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearDoll(EquippedLoadout $loadout): array
+    {
+        return self::inline([
+            [self::gearSlotButton($loadout, SlotEnum::HELMET)],
+            [self::gearSlotButton($loadout, SlotEnum::AMULET)],
+            [self::gearSlotButton($loadout, SlotEnum::ARMOR)],
+            [
+                self::gearSlotButton($loadout, SlotEnum::LEFT_HAND),
+                self::gearSlotButton($loadout, SlotEnum::RIGHT_HAND),
+            ],
+            [
+                self::gearSlotButton($loadout, SlotEnum::GLOVES),
+                self::gearSlotButton($loadout, SlotEnum::SHIELD),
+            ],
+            [
+                self::gearSlotButton($loadout, SlotEnum::RING_1),
+                self::gearSlotButton($loadout, SlotEnum::RING_2),
+            ],
+            [self::gearSlotButton($loadout, SlotEnum::PANTS)],
+            [self::gearSlotButton($loadout, SlotEnum::BOOTS)],
+            [self::cbDanger(__('menu.back'), 'menu:profile')],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $gemButtons
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearEquippedCard(int $rowId, array $gemButtons): array
+    {
+        $rows = [];
+
+        foreach ($gemButtons as $gemButton) {
+            $rows[] = [self::cb($gemButton['text'], $gemButton['callback_data'])];
+        }
+
+        $rows[] = [
+            self::cbDanger(__('menu.back'), 'menu:gear'),
+            self::cb(__('menu.unequip'), 'inv:uneq:ask:' . $rowId),
+        ];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearEquipConfirm(int $rowId, ?SlotEnum $slot, string $cancelCallback): array
+    {
+        if ($slot instanceof SlotEnum) {
+            $yes = 'inv:eq:yes:' . $rowId . ':' . $slot->value;
+        } else {
+            $yes = 'inv:eq:yes:' . $rowId;
+        }
+
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.no'), $cancelCallback),
+                self::cbSuccess(__('telegram.btn.yes'), $yes),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearUnequipConfirm(int $rowId, string $cancelCallback): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.no'), $cancelCallback),
+                self::cbSuccess(__('telegram.btn.yes'), 'inv:uneq:yes:' . $rowId),
+            ],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearGemPickList(
+        array $items,
+        int $hostId,
+        int $page,
+        int $totalCount,
+        string $backCallback,
+        ?SlotEnum $pickSlot,
+    ): array {
+        $prefix = 'gear:gem:pick:' . $hostId;
+
+        if ($pickSlot instanceof SlotEnum) {
+            $prefix .= ':pick:' . $pickSlot->value;
+        }
+
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            'all',
+            $page,
+            $prefix,
+            $backCallback,
+            null,
+            $totalCount,
+        );
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearGemSocketConfirm(int $hostId, int $bagItemId, ?SlotEnum $pickSlot): array
+    {
+        $pickTail = '';
+
+        if ($pickSlot instanceof SlotEnum) {
+            $pickTail = ':pick:' . $pickSlot->value;
+        }
+
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.no'), 'gear:gem:pick:' . $hostId . $pickTail),
+                self::cbSuccess(
+                    __('telegram.btn.yes'),
+                    'gear:gem:socket:' . $hostId . ':' . $bagItemId . $pickTail,
+                ),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearGemViewCard(string $backCallback): array
+    {
+        return self::inline([
+            [self::cbDanger(__('menu.back'), $backCallback)],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function backpackList(array $items, string $activeFilter, int $page, int $totalCount): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [
+                ['id' => 'WEAPON', 'label' => __('telegram.btn.filter_weapon')],
+                ['id' => 'ARMOR', 'label' => __('telegram.btn.filter_armor')],
+                ['id' => 'JEWELRY', 'label' => __('telegram.btn.filter_jewelry')],
+            ],
+            $activeFilter,
+            $page,
+            'inv',
+            null,
+            null,
+            $totalCount,
+        );
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagList(array $items, string $activeFilter, int $page, int $totalCount): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [
+                ['id' => 'POTION', 'label' => __('telegram.btn.filter_potion')],
+                ['id' => 'GEM', 'label' => __('telegram.btn.filter_gem')],
+                ['id' => 'QUEST', 'label' => __('telegram.btn.filter_quest')],
+            ],
+            $activeFilter,
+            $page,
+            'bag',
+            null,
+            null,
+            $totalCount,
+        );
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearPickList(array $items, SlotEnum $slot, int $page, int $totalCount): array
+    {
+        return PaginatedListKeyboard::markup(
+            $items,
+            [],
+            'all',
+            $page,
+            'gear:pick:' . $slot->value,
+            'menu:gear',
+            null,
+            $totalCount,
+        );
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function invCard(int $rowId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('menu.back'), 'inv:list:WEAPON:1'),
+                self::cb(__('menu.discard_item'), 'inv:discard:' . $rowId),
+            ],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $gemButtons
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function gearPickCard(int $rowId, SlotEnum $slot, array $gemButtons): array
+    {
+        $rows = [];
+
+        foreach ($gemButtons as $gemButton) {
+            $rows[] = [self::cb($gemButton['text'], $gemButton['callback_data'])];
+        }
+
+        $rows[] = [
+            self::cbDanger(__('menu.back'), 'gear:pick:' . $slot->value),
+            self::cbSuccess(__('menu.wear_item'), 'inv:eq:ask:' . $rowId . ':' . $slot->value),
+        ];
+
+        return self::inline($rows);
+    }
+
+    /**
      * @param  list<list<array{text: string, callback_data: string, style?: string}>>  $rows
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
@@ -129,34 +410,29 @@ final class TelegramKeyboards
     /**
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function bagCard(int $bagItemId, string $filter): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('menu.back'), 'bag:list:' . $filter . ':1'),
+                self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
     public static function bagDiscardConfirm(int $bagItemId): array
     {
         return self::inline([
-            [self::cb(__('menu.discard_confirm_yes'), 'bag:discard_yes:' . $bagItemId)],
-            [self::cb(__('menu.bag'), 'menu:bag')],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function bagGemCard(int $bagItemId): array
-    {
-        return self::inline([
-            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
-            [self::cb(__('menu.to_smith'), 'smith:gems')],
-            [self::cb(__('menu.bag'), 'menu:bag')],
-        ]);
-    }
-
-    /**
-     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
-     */
-    public static function bagPotionCard(int $bagItemId): array
-    {
-        return self::inline([
-            [self::cb(__('menu.discard_item'), 'bag:discard:' . $bagItemId)],
-            [self::cb(__('menu.bag'), 'menu:bag')],
+            [
+                self::cbDanger(__('telegram.btn.no'), 'bag:card:' . $bagItemId),
+                self::cbSuccess(__('telegram.btn.yes'), 'bag:discard_yes:' . $bagItemId),
+            ],
         ]);
     }
 
@@ -166,8 +442,10 @@ final class TelegramKeyboards
     public static function invDiscardConfirm(int $rowId): array
     {
         return self::inline([
-            [self::cb(__('menu.discard_confirm_yes'), 'inv:discard_yes:' . $rowId)],
-            [self::cb(__('menu.backpack'), 'inv:card:' . $rowId)],
+            [
+                self::cbDanger(__('telegram.btn.no'), 'inv:card:' . $rowId),
+                self::cbSuccess(__('telegram.btn.yes'), 'inv:discard_yes:' . $rowId),
+            ],
         ]);
     }
 
@@ -717,5 +995,31 @@ final class TelegramKeyboards
         }
 
         return self::inline($rows);
+    }
+
+    /**
+     * @return array{text: string, callback_data: string, style?: string}
+     */
+    private static function gearSlotButton(EquippedLoadout $loadout, SlotEnum $slot): array
+    {
+        $row = $loadout->row($slot);
+
+        if ($row instanceof BackpackItem) {
+            return self::cb(
+                __('menu.gear_slot', [
+                    'slot' => $slot->getLabel(),
+                    'item' => $row->item_name,
+                ]),
+                'gear:view:' . $row->id,
+            );
+        }
+
+        return self::cb(
+            __('menu.gear_slot', [
+                'slot' => $slot->getLabel(),
+                'item' => __('menu.gear_empty'),
+            ]),
+            'gear:pick:' . $slot->value,
+        );
     }
 }

@@ -125,6 +125,14 @@ final class RegistrationService
         Cache::forget($this->skinPreviewCacheKey($character->tg_id));
     }
 
+    public function forgetTelegramMessage(Character $character): Character
+    {
+        $character->tg_message_id = null;
+        $character->save();
+
+        return $character;
+    }
+
     public function rememberTelegramMessage(Character $character, int|string $chatId, int $messageId): Character
     {
         $character->tg_chat_id = (int) $chatId;

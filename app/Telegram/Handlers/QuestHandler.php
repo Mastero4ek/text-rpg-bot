@@ -310,7 +310,23 @@ final class QuestHandler
         } catch (Throwable) {
         }
 
-        $responder->edit($text, $markup);
+        if ($player->tg_chat_id !== null && $player->tg_message_id !== null) {
+            try {
+                $responder->editPhotoAt(
+                    $player->tg_chat_id,
+                    $player->tg_message_id,
+                    $image,
+                    $text,
+                    $markup,
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        $messageId = $responder->replyPhoto($image, $text, $markup);
+        $this->registration->rememberTelegramMessage($player, $responder->chatId(), $messageId);
     }
 
     private function editBlacksmithPanel(

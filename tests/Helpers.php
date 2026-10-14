@@ -644,11 +644,23 @@ function giveAndEquipStarterKnuckles(Character $character): Character
 
 function equipItemToSlot(Character $character, string $itemId, SlotEnum $slot): Character
 {
-    if (! backpack()->owns($character->tg_id, $itemId)) {
-        backpack()->addItem($character->tg_id, $itemId);
+    $row = null;
+
+    foreach (BackpackItem::query()
+        ->where('tg_id', $character->tg_id)
+        ->where('catalog_id', $itemId)
+        ->orderBy('id')
+        ->get() as $owned) {
+        if (! $owned->isEquipped()) {
+            $row = $owned;
+            break;
+        }
     }
 
-    $row = backpack()->findOwned($character->tg_id, $itemId);
+    if (! $row instanceof BackpackItem) {
+        $row = backpack()->addItem($character->tg_id, $itemId);
+    }
+
     $equip = loadout()->equipToSlot($character, $row->id, $slot);
 
     if (! $equip->ok || ! $equip->character instanceof Character) {

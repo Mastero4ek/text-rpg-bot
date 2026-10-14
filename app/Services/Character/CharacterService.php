@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Character;
 
+use App\Enums\Combat\ZoneEnum;
 use App\Enums\ProgressStepEnum;
+use App\Enums\SkinEnum;
 use App\Enums\StatKeyEnum;
 use App\Models\Character\Character;
 use App\Models\City;
@@ -12,6 +14,7 @@ use App\Services\Backpack\LoadoutService;
 use App\Services\Bag\BagService;
 use App\Services\GameConfig;
 use App\Support\ActionResult;
+use App\Support\Demo\DemoMode;
 use App\Support\Mf;
 use App\Support\Telegram\TelegramHtml;
 use Carbon\CarbonInterface;
@@ -86,9 +89,7 @@ final class CharacterService
 
     public function nextExpThreshold(Character $character): ?int
     {
-        $levelCfg = $this->characterLevelConfig();
-
-        if ($character->level >= $levelCfg['max']) {
+        if ($character->level >= $this->effectiveLevelMax()) {
             return null;
         }
 
@@ -284,8 +285,9 @@ final class CharacterService
     public function applyExperienceThresholds(Character $character, int $oldExp, int $newExp): bool
     {
         $levelCfg = $this->characterLevelConfig();
+        $levelMax = $this->effectiveLevelMax();
 
-        if ($character->level >= $levelCfg['max']) {
+        if ($character->level >= $levelMax) {
             return false;
         }
 
@@ -304,7 +306,7 @@ final class CharacterService
                 continue;
             }
 
-            if ($character->level >= $levelCfg['max']) {
+            if ($character->level >= $levelMax) {
                 break;
             }
 
@@ -330,6 +332,11 @@ final class CharacterService
     public function addExpSilver(Character $character, int $expGain, int $silverGain): Character
     {
         return DB::transaction(function () use ($character, $expGain, $silverGain): Character {
+            if (DemoMode::isProgressionCapped($character)) {
+                $expGain = 0;
+                $silverGain = 0;
+            }
+
             $oldExp = $character->exp;
             $character->exp += $expGain;
             $character->silver += $silverGain;
@@ -343,6 +350,10 @@ final class CharacterService
     public function grantExp(Character $character, int $amount): Character
     {
         return DB::transaction(function () use ($character, $amount): Character {
+            if (DemoMode::isProgressionCapped($character)) {
+                $amount = 0;
+            }
+
             $oldExp = $character->exp;
             $character->exp += $amount;
             $this->applyExperienceThresholds($character, $oldExp, $character->exp);
@@ -355,6 +366,10 @@ final class CharacterService
     public function grantSilver(Character $character, int $amount): Character
     {
         return DB::transaction(function () use ($character, $amount): Character {
+            if (DemoMode::isProgressionCapped($character)) {
+                return $character;
+            }
+
             $character->silver += $amount;
             $character->save();
 
@@ -365,6 +380,10 @@ final class CharacterService
     public function grantGold(Character $character, int $amount): Character
     {
         return DB::transaction(function () use ($character, $amount): Character {
+            if (DemoMode::isProgressionCapped($character)) {
+                return $character;
+            }
+
             $character->gold += $amount;
             $character->save();
 
@@ -400,11 +419,25 @@ final class CharacterService
     public function grantStatPoints(Character $character, int $amount): Character
     {
         return DB::transaction(function () use ($character, $amount): Character {
+            if (DemoMode::isProgressionCapped($character)) {
+                return $character;
+            }
+
             $character->stat_points += $amount;
             $character->save();
 
             return $character;
         });
+    }
+
+    public function effectiveLevelMax(): int
+    {
+        return DemoMode::effectiveLevelMax($this->characterLevelConfig()['max']);
+    }
+
+    public function isDemoProgressionCapped(Character $character): bool
+    {
+        return DemoMode::isProgressionCapped($character);
     }
 
     public function spendStatPoint(Character $character, string $stat): ActionResult
@@ -510,6 +543,39 @@ final class CharacterService
         return $total;
     }
 
+    public function gearPanelText(Character $character): string
+    {
+        if ($character->username === null) {
+            $name = __('common.unnamed');
+        } else {
+            $name = TelegramHtml::escape($character->username);
+        }
+
+        $loadout = $this->loadout->forCharacter($character);
+        $totalMf = $this->bodyMf($character)->merge($loadout->mf);
+
+        if ($loadout->weaponDamageMin === $loadout->weaponDamageMax) {
+            $damage = (string) $loadout->weaponDamageMin;
+        } else {
+            $damage = $loadout->weaponDamageMin . '–' . $loadout->weaponDamageMax;
+        }
+
+        return __('profile.gear_panel', [
+            'name' => $name,
+            'level' => $character->level,
+            'damage' => $damage,
+            'armor' => $loadout->armor,
+            'dodge' => $totalMf->dodge,
+            'antiDodge' => $totalMf->antiDodge,
+            'crit' => $totalMf->crit,
+            'antiCrit' => $totalMf->antiCrit,
+            'head' => $loadout->armorByZone[ZoneEnum::HEAD->value],
+            'chest' => $loadout->armorByZone[ZoneEnum::CHEST->value],
+            'belly' => $loadout->armorByZone[ZoneEnum::BELLY->value],
+            'legs' => $loadout->armorByZone[ZoneEnum::LEGS->value],
+        ]);
+    }
+
     public function profileText(Character $character): string
     {
         $cap = $this->maxHp($character);
@@ -535,35 +601,80 @@ final class CharacterService
             $city = '-';
         }
 
-        $lines = [
-            __('profile.card', [
-                'name' => $name,
-                'city' => $city,
-                'level' => $character->level,
-                'hp' => $character->current_hp,
-                'maxHp' => $cap,
-                'silver' => $character->silver,
-                'gold' => $character->gold,
-                'stamina' => $character->current_stamina,
-                'maxStamina' => $this->maxStamina($character),
-                'potions' => $this->bag->potionCount($character->tg_id),
-                'exp' => $need,
+        $loadout = $this->loadout->forCharacter($character);
+        $totalMf = $this->bodyMf($character)->merge($loadout->mf);
+
+        if ($loadout->weaponDamageMin === $loadout->weaponDamageMax) {
+            $damage = (string) $loadout->weaponDamageMin;
+        } else {
+            $damage = $loadout->weaponDamageMin . '–' . $loadout->weaponDamageMax;
+        }
+
+        if ($character->stat_points > 0) {
+            $stats = __('profile.stats_free', [
                 'str' => $character->strength,
                 'agi' => $character->agility,
                 'inst' => $character->instinct,
                 'vit' => $character->vitality,
-            ]),
-        ];
-
-        if ($character->stat_points > 0) {
-            $lines[] = __('profile.free_points', ['points' => $character->stat_points]);
+                'points' => $character->stat_points,
+            ]);
+        } else {
+            $stats = __('profile.stats', [
+                'str' => $character->strength,
+                'agi' => $character->agility,
+                'inst' => $character->instinct,
+                'vit' => $character->vitality,
+            ]);
         }
 
-        $lines[] = '';
-        $lines[] = __('profile.gear_heading');
-        $lines[] = $this->loadout->gearText($this->loadout->forCharacter($character));
+        $card = __('profile.card', [
+            'name' => $name,
+            'city' => $city,
+            'level' => $character->level,
+            'hp' => $character->current_hp,
+            'maxHp' => $cap,
+            'silver' => $character->silver,
+            'gold' => $character->gold,
+            'stamina' => $character->current_stamina,
+            'maxStamina' => $this->maxStamina($character),
+            'exp' => $need,
+            'damage' => $damage,
+            'armor' => $loadout->armor,
+            'dodge' => $totalMf->dodge,
+            'antiDodge' => $totalMf->antiDodge,
+            'crit' => $totalMf->crit,
+            'antiCrit' => $totalMf->antiCrit,
+            'stats' => $stats,
+        ]);
 
-        return implode("\n", $lines);
+        if (! DemoMode::enabled()) {
+            return $card;
+        }
+
+        return $card . "\n\n" . __('profile.demo_banner', ['max' => DemoMode::maxLevel()]);
+    }
+
+    public function skinImagePath(Character $character): ?string
+    {
+        $skin = $character->skin;
+
+        if (! $skin instanceof SkinEnum) {
+            return null;
+        }
+
+        $images = config('bot.character_skin_images');
+
+        if (! is_array($images) || ! isset($images[$skin->value]) || ! is_string($images[$skin->value])) {
+            return null;
+        }
+
+        $path = $images[$skin->value];
+
+        if ($path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     public function statsScreenText(Character $character): string

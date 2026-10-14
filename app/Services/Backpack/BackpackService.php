@@ -12,6 +12,7 @@ use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
 use App\Services\Shop\ShopCatalog;
 use App\Support\ActionResult;
+use App\Support\Demo\DemoMode;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -240,6 +241,12 @@ final class BackpackService
 
     public function sellPayout(BackpackItem $row): int
     {
+        $owner = Character::query()->find($row->tg_id);
+
+        if ($owner instanceof Character && DemoMode::isProgressionCapped($owner)) {
+            return 0;
+        }
+
         if (! $this->shop->hasItem($row->catalog_id)) {
             throw new RuntimeException("Catalog item {$row->catalog_id} missing for sell.");
         }

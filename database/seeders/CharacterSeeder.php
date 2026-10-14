@@ -155,12 +155,11 @@ final class CharacterSeeder extends Seeder
                 'silver' => 40,
                 'gold' => 0,
                 'backpack' => [
-                    'knuckles_0',
                     'worn_mail',
                     'knife_0',
                 ],
                 'equip' => [
-                    'knuckles_0',
+                    'knife_0',
                     'worn_mail',
                 ],
                 'potions' => [
@@ -185,7 +184,7 @@ final class CharacterSeeder extends Seeder
                 'backpack' => [
                     'sword_0',
                     'mobile_0',
-                    'mobile_3',
+                    'ward_1',
                     'focus_0',
                 ],
                 'equip' => [
@@ -218,7 +217,7 @@ final class CharacterSeeder extends Seeder
                     'hammer_0',
                     'heavy_1',
                     'mobile_1',
-                    'mobile_2',
+                    'ward_0',
                     'ancient_amulet',
                     'axe_0',
                 ],

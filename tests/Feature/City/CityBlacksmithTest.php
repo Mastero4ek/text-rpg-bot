@@ -133,8 +133,8 @@ describe('blacksmith repair', function (): void {
 
     it('repairs all damaged items for gold', function (): void {
         $p = placeInCity(characters()->createDraft(9313), City::KEY_ANKRAT);
-        backpack()->addItem($p->tg_id, 'mobile_3');
-        $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
+        backpack()->addItem($p->tg_id, 'ward_1');
+        $gloves = backpack()->findOwned($p->tg_id, 'ward_1');
         $gloves->durability = 10;
         $gloves->save();
         $gold = repair()->repairAllGoldCost($p);
@@ -151,8 +151,8 @@ describe('blacksmith repair', function (): void {
 
     it('rejects repair all when gold is short', function (): void {
         $p = placeInCity(characters()->createDraft(9314), City::KEY_ANKRAT);
-        backpack()->addItem($p->tg_id, 'mobile_3');
-        $gloves = backpack()->findOwned($p->tg_id, 'mobile_3');
+        backpack()->addItem($p->tg_id, 'ward_1');
+        $gloves = backpack()->findOwned($p->tg_id, 'ward_1');
         $gloves->durability = 10;
         $gloves->save();
         $p->gold = 0;

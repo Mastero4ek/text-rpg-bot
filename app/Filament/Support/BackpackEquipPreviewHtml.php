@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Support;
 
 use Illuminate\Support\HtmlString;
+use RuntimeException;
 
 final class BackpackEquipPreviewHtml
 {
@@ -12,7 +13,7 @@ final class BackpackEquipPreviewHtml
      * @param  list<array{
      *     kind: 'note'|'plain'|'delta',
      *     text?: string,
-     *     label?: string,
+     *     stat?: string,
      *     before?: string,
      *     after?: string,
      *     delta?: int
@@ -29,9 +30,11 @@ final class BackpackEquipPreviewHtml
                 continue;
             }
 
+            $label = self::statLabel((string) $line['stat']);
+
             if ($line['kind'] === 'plain') {
                 $parts[] = '<div>'
-                    . e((string) $line['label'])
+                    . e($label)
                     . ': '
                     . e((string) $line['before'])
                     . ' → '
@@ -52,7 +55,7 @@ final class BackpackEquipPreviewHtml
             }
 
             $parts[] = '<div>'
-                . e((string) $line['label'])
+                . e($label)
                 . ': '
                 . e((string) $line['before'])
                 . ' → '
@@ -63,5 +66,27 @@ final class BackpackEquipPreviewHtml
         return new HtmlString(
             '<div class="fi-equip-stat-changes">' . implode('', $parts) . '</div>',
         );
+    }
+
+    private static function statLabel(string $stat): string
+    {
+        $key = match ($stat) {
+            'max_hp' => 'admin.actions.equip.stat_max_hp',
+            'damage' => 'admin.actions.equip.stat_damage',
+            'armor' => 'admin.actions.equip.stat_armor',
+            'dodge' => 'admin.labels.mf_dodge',
+            'anti_dodge' => 'admin.labels.mf_anti_dodge',
+            'crit' => 'admin.labels.mf_crit',
+            'anti_crit' => 'admin.labels.mf_anti_crit',
+            default => throw new RuntimeException('Unknown equip preview stat: ' . $stat),
+        };
+
+        $text = __($key);
+
+        if (! is_string($text)) {
+            throw new RuntimeException($key . ' must be a string.');
+        }
+
+        return $text;
     }
 }
