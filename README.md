@@ -7,7 +7,7 @@
 - Telegram: `TelegramClient` + Laravel `Http` (fakeable outbound)
 - Dev: long poll · Prod: webhook + secret + IP + Redis queue
 
-## Local (Herd)
+## Local
 
 ```bash
 cp .env.example .env
@@ -20,10 +20,6 @@ composer check-parallel
 composer dev
 # или: php artisan telegram:poll
 ```
-
-Админка: `/` → `/admin` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
-
-Домен: [`docs/`](docs/README.md) — персонаж, экипировка, рюкзак, сумка, мобы.
 
 ## Prod
 

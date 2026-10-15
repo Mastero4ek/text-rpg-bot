@@ -23,60 +23,14 @@ final class FightReportStore
 
     public function clipCaption(string $text): string
     {
-        if (mb_strlen($text) <= self::CAPTION_MAX) {
-            return $text;
-        }
+        return $this->clipCaptionTo($text, self::CAPTION_MAX);
+    }
 
-        $marker = "\n\n…\n\n";
-        $lines = explode("\n", $text);
-        $lineCount = count($lines);
+    public function clipItalicCaption(string $text): string
+    {
+        $budget = self::CAPTION_MAX - mb_strlen('<i></i>');
 
-        $bestHead = 0;
-        $bestTail = 0;
-        $bestKept = -1;
-        $bestBalance = -1;
-
-        for ($headCount = 0; $headCount < $lineCount; $headCount++) {
-            $maxTail = $lineCount - $headCount - 1;
-
-            for ($tailCount = 0; $tailCount <= $maxTail; $tailCount++) {
-                if ($headCount === 0 && $tailCount === 0) {
-                    continue;
-                }
-
-                $chunk = $this->clipChunk($lines, $headCount, $tailCount, $marker);
-
-                if (mb_strlen($chunk) > self::CAPTION_MAX) {
-                    continue;
-                }
-
-                $kept = $headCount + $tailCount;
-                $balance = $headCount;
-
-                if ($tailCount < $balance) {
-                    $balance = $tailCount;
-                }
-
-                if ($kept < $bestKept) {
-                    continue;
-                }
-
-                if ($kept === $bestKept && $balance < $bestBalance) {
-                    continue;
-                }
-
-                $bestHead = $headCount;
-                $bestTail = $tailCount;
-                $bestKept = $kept;
-                $bestBalance = $balance;
-            }
-        }
-
-        if ($bestKept < 0) {
-            return $this->clipSingleLine($text, $marker);
-        }
-
-        return $this->clipChunk($lines, $bestHead, $bestTail, $marker);
+        return '<i>' . $this->clipCaptionTo($text, $budget) . '</i>';
     }
 
     /**
@@ -116,6 +70,68 @@ final class FightReportStore
         );
     }
 
+    private function clipCaptionTo(string $text, int $maxLen): string
+    {
+        if ($maxLen < 1) {
+            throw new RuntimeException('Fight report caption max length must be >= 1.');
+        }
+
+        if (mb_strlen($text) <= $maxLen) {
+            return $text;
+        }
+
+        $marker = "\n\n…\n\n";
+        $lines = explode("\n", $text);
+        $lineCount = count($lines);
+
+        $bestHead = 0;
+        $bestTail = 0;
+        $bestKept = -1;
+        $bestBalance = -1;
+
+        for ($headCount = 0; $headCount < $lineCount; $headCount++) {
+            $maxTail = $lineCount - $headCount - 1;
+
+            for ($tailCount = 0; $tailCount <= $maxTail; $tailCount++) {
+                if ($headCount === 0 && $tailCount === 0) {
+                    continue;
+                }
+
+                $chunk = $this->clipChunk($lines, $headCount, $tailCount, $marker);
+
+                if (mb_strlen($chunk) > $maxLen) {
+                    continue;
+                }
+
+                $kept = $headCount + $tailCount;
+                $balance = $headCount;
+
+                if ($tailCount < $balance) {
+                    $balance = $tailCount;
+                }
+
+                if ($kept < $bestKept) {
+                    continue;
+                }
+
+                if ($kept === $bestKept && $balance < $bestBalance) {
+                    continue;
+                }
+
+                $bestHead = $headCount;
+                $bestTail = $tailCount;
+                $bestKept = $kept;
+                $bestBalance = $balance;
+            }
+        }
+
+        if ($bestKept < 0) {
+            return $this->clipSingleLine($text, $marker, $maxLen);
+        }
+
+        return $this->clipChunk($lines, $bestHead, $bestTail, $marker);
+    }
+
     /**
      * @param  list<string>  $lines
      */
@@ -136,9 +152,9 @@ final class FightReportStore
         return implode("\n", $head) . $marker . implode("\n", $tail);
     }
 
-    private function clipSingleLine(string $text, string $marker): string
+    private function clipSingleLine(string $text, string $marker, int $maxLen): string
     {
-        $budget = self::CAPTION_MAX - mb_strlen($marker);
+        $budget = $maxLen - mb_strlen($marker);
 
         if ($budget < 2) {
             return '…';

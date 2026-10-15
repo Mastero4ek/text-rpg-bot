@@ -7,6 +7,7 @@ namespace App\Telegram\Keyboards;
 use App\Enums\Combat\ZoneEnum;
 use App\Enums\Equipment\SlotEnum;
 use App\Enums\Fight\FightEndUiEnum;
+use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Enums\StatKeyEnum;
@@ -150,6 +151,303 @@ final class TelegramKeyboards
         return self::inline([
             [self::cbDanger(__('telegram.btn.back'), 'journal:list:' . $filter . ':1')],
         ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function appealList(array $items, int $page, int $totalCount): array
+    {
+        $markup = PaginatedListKeyboard::markup(
+            $items,
+            [],
+            'all',
+            $page,
+            'appeal',
+            null,
+            null,
+            $totalCount,
+        );
+
+        $markup['inline_keyboard'][] = [
+            self::cbSuccess(__('telegram.appeal.btn.create'), 'appeal:new'),
+        ];
+
+        return $markup;
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function appealCard(int $ticketId, bool $canCancel): array
+    {
+        if ($canCancel) {
+            return self::inline([
+                [
+                    self::cbDanger(__('telegram.btn.back'), 'appeal:list:all:1'),
+                    self::cb(__('telegram.appeal.btn.cancel'), 'appeal:cancel:ask:' . $ticketId),
+                ],
+            ]);
+        }
+
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'appeal:list:all:1')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function appealCancelConfirm(int $ticketId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.no'), 'appeal:card:' . $ticketId),
+                self::cbSuccess(__('telegram.btn.yes'), 'appeal:cancel:yes:' . $ticketId),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function appealCompose(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'appeal:list:all:1')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryHome(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('telegram.library.btn.locations'), 'lib:loc'),
+                self::cb(__('telegram.library.btn.gear'), 'lib:gear'),
+            ],
+            [
+                self::cb(__('telegram.library.btn.potions'), 'lib:pot'),
+                self::cb(__('telegram.library.btn.gems'), 'lib:gem'),
+            ],
+            [
+                self::cb(__('telegram.library.btn.stats'), 'lib:stat'),
+                self::cb(__('telegram.library.btn.combat'), 'lib:combat'),
+            ],
+            [
+                self::cb(__('telegram.library.btn.enemies'), 'lib:enemy'),
+                self::cb(__('telegram.library.btn.minigames'), 'lib:game'),
+            ],
+            [
+                self::cb(__('telegram.library.btn.npcs'), 'lib:npc'),
+                self::cb(__('telegram.library.btn.contracts'), 'lib:contract'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryGear(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.library.btn.gear_wear'), 'lib:gear:wear')],
+            [self::cb(__('telegram.library.btn.gear_socket'), 'lib:gear:socket')],
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryGearCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:gear')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryPotionCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryGemCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryStatsCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryCombatCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryContractCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryLocationCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:loc')],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryNpcs(array $items): array
+    {
+        $rows = [];
+        $row = [];
+
+        foreach ($items as $item) {
+            $row[] = self::cb($item['text'], $item['callback_data']);
+
+            if (count($row) === 2) {
+                $rows[] = $row;
+                $row = [];
+            }
+        }
+
+        if (! empty($row)) {
+            $rows[] = $row;
+        }
+
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'lib:home')];
+
+        return self::inline($rows);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryNpcCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:npc')],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryEnemies(array $items): array
+    {
+        return self::libraryNpcs($items);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryEnemyCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:enemy')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryMinigames(): array
+    {
+        return self::inline([
+            [self::cb(__('telegram.btn.lucky_barrel'), 'lib:game:lucky_barrel')],
+            [self::cbDanger(__('telegram.btn.back'), 'lib:home')],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryMinigameCard(): array
+    {
+        return self::inline([
+            [self::cbDanger(__('telegram.btn.back'), 'lib:game')],
+        ]);
+    }
+
+    /**
+     * @param  list<array{text: string, callback_data: string}>  $items
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function libraryLocations(array $items): array
+    {
+        $fullWidth = [
+            'lib:loc:gates',
+            'lib:loc:board',
+            'lib:loc:training',
+        ];
+        $rows = [];
+        $row = [];
+
+        foreach ($items as $item) {
+            if (in_array($item['callback_data'], $fullWidth, true)) {
+                if (! empty($row)) {
+                    $rows[] = $row;
+                    $row = [];
+                }
+
+                $rows[] = [self::cb($item['text'], $item['callback_data'])];
+
+                continue;
+            }
+
+            $row[] = self::cb($item['text'], $item['callback_data']);
+
+            if (count($row) === 2) {
+                $rows[] = $row;
+                $row = [];
+            }
+        }
+
+        if (! empty($row)) {
+            $rows[] = $row;
+        }
+
+        $rows[] = [self::cbDanger(__('telegram.btn.back'), 'lib:home')];
+
+        return self::inline($rows);
     }
 
     /**
@@ -781,9 +1079,17 @@ final class TelegramKeyboards
      */
     public static function fightInlineForStep(Fight $fight): array
     {
+        if ($fight->step === FightStepEnum::WAIT) {
+            return self::inline([]);
+        }
+
         if ($fight->step === FightStepEnum::STANCE) {
             if ($fight->tutorial) {
                 return self::stance();
+            }
+
+            if ($fight->kind === FightKindEnum::PVP) {
+                return self::stanceWithPotionsNoFlee();
             }
 
             return self::stanceWithPotions();
@@ -801,7 +1107,7 @@ final class TelegramKeyboards
             $markup = self::defend();
         }
 
-        if ($fight->tutorial) {
+        if ($fight->tutorial || $fight->kind === FightKindEnum::PVP) {
             return $markup;
         }
 
@@ -813,9 +1119,17 @@ final class TelegramKeyboards
 
     public static function fightMarkupKind(Fight $fight): string
     {
+        if ($fight->step === FightStepEnum::WAIT) {
+            return 'wait';
+        }
+
         if ($fight->step === FightStepEnum::STANCE) {
             if ($fight->tutorial) {
                 return 'stance';
+            }
+
+            if ($fight->kind === FightKindEnum::PVP) {
+                return 'stance_potions_pvp';
             }
 
             return 'stance_potions';
@@ -867,6 +1181,42 @@ final class TelegramKeyboards
                 self::cbDanger(__('combat.btn_flee'), 'fight:flee'),
             ],
         ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function stanceWithPotionsNoFlee(): array
+    {
+        return self::inline([
+            [
+                self::cb(__('combat.btn_attack'), 'fight:stance:ATTACK'),
+                self::cb(__('combat.btn_defend'), 'fight:stance:DEFEND'),
+            ],
+            [
+                self::cb(__('combat.btn_potion_short'), 'fight:atk:POTION'),
+                self::cb(__('combat.btn_stamina_potion_short'), 'fight:atk:STAMINA_POTION'),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function pvpCard(int $challengeId, bool $canAccept): array
+    {
+        $rows = [];
+
+        if ($canAccept) {
+            $rows[] = [
+                self::cbDanger(__('telegram.btn.back'), 'pvp:list:all:1'),
+                self::cbSuccess(__('telegram.btn.pvp_accept'), 'pvp:accept:yes:' . $challengeId),
+            ];
+        } else {
+            $rows[] = [self::cbDanger(__('telegram.btn.back'), 'pvp:list:all:1')];
+        }
+
+        return self::inline($rows);
     }
 
     /**

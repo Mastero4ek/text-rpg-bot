@@ -81,21 +81,31 @@ it('discards backpack item through inv discard_yes callback', function (): void 
 
     expect(BackpackItem::query()->whereKey($axe->id)->exists())->toBeFalse();
 
-    Http::assertSent(function (Request $request) use ($axe): bool {
-        if (! str_contains($request->url(), '/editMessageText')
-            && ! str_contains($request->url(), '/sendMessage')) {
+    $header = __('profile.backpack_header_all', [
+        'current' => 0,
+        'max' => backpack()->maxRows(characters()->findByTgId($axe->tg_id)),
+    ]);
+    $discarded = __('profile.discarded', [
+        'name' => $axe->item_name,
+    ]);
+
+    Http::assertSent(function (Request $request) use ($header, $discarded): bool {
+        $url = $request->url();
+
+        if (
+            ! str_contains($url, '/editMessageMedia')
+            && ! str_contains($url, '/editMessageCaption')
+            && ! str_contains($url, '/editMessageText')
+            && ! str_contains($url, '/sendPhoto')
+            && ! str_contains($url, '/sendMessage')
+        ) {
             return false;
         }
 
-        $text = (string) ($request['text'] ?? '');
+        $body = urldecode($request->body());
 
-        return str_contains($text, __('profile.discarded', [
-            'name' => $axe->item_name,
-        ]))
-            && str_contains($text, __('profile.backpack_header_all', [
-                'current' => 0,
-                'max' => backpack()->maxRows(characters()->findByTgId($axe->tg_id)),
-            ]));
+        return (str_contains($body, $header) || str_contains($body, str_replace("\n", '\\n', $header)))
+            && (str_contains($body, $discarded) || str_contains($body, str_replace("\n", '\\n', $discarded)));
     });
 });
 
@@ -133,35 +143,30 @@ it('discards gem from bag through bag discard_yes callback', function (): void {
         ->and(looseGem($character, 'emerald_0')->durability)->toBe(4);
 
     $max = bag()->bagMaxRows($character);
-    $panel = null;
+    $header = __('profile.bag_header', [
+        'current' => 1,
+        'max' => $max,
+    ]);
+    $discarded = __('profile.discarded', [
+        'name' => 'Рубин ученика',
+    ]);
 
-    foreach (Http::recorded() as $pair) {
-        $request = $pair[0];
-
-        if (! $request instanceof Request) {
-            continue;
-        }
+    Http::assertSent(function (Request $request) use ($header, $discarded): bool {
+        $url = $request->url();
 
         if (
-            ! str_contains($request->url(), '/editMessageText')
-            && ! str_contains($request->url(), '/sendMessage')
+            ! str_contains($url, '/editMessageMedia')
+            && ! str_contains($url, '/editMessageCaption')
+            && ! str_contains($url, '/editMessageText')
+            && ! str_contains($url, '/sendPhoto')
+            && ! str_contains($url, '/sendMessage')
         ) {
-            continue;
+            return false;
         }
 
-        $text = $request['text'] ?? null;
+        $body = urldecode($request->body());
 
-        if (is_string($text)) {
-            $panel = $text;
-        }
-    }
-
-    expect($panel)->toBeString()
-        ->and($panel)->toContain(__('profile.bag_header', [
-            'current' => 1,
-            'max' => $max,
-        ]))
-        ->and($panel)->toContain(__('profile.discarded', [
-            'name' => 'Рубин ученика',
-        ]));
+        return (str_contains($body, $header) || str_contains($body, str_replace("\n", '\\n', $header)))
+            && (str_contains($body, $discarded) || str_contains($body, str_replace("\n", '\\n', $discarded)));
+    });
 });

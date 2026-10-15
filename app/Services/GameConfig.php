@@ -112,6 +112,30 @@ final class GameConfig
     /**
      * @return array<string, mixed>
      */
+    public function pvp(): array
+    {
+        if (! array_key_exists('pvp', $this->settings) || ! is_array($this->settings['pvp'])) {
+            throw new RuntimeException('settings.pvp missing.');
+        }
+
+        return $this->settings['pvp'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function appeal(): array
+    {
+        if (! array_key_exists('appeal', $this->settings) || ! is_array($this->settings['appeal'])) {
+            throw new RuntimeException('settings.appeal missing.');
+        }
+
+        return $this->settings['appeal'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function loadJson(string $filename): array
     {
         $path = resource_path('configs/' . $filename);

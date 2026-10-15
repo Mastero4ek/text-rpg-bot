@@ -6,10 +6,12 @@ namespace App\Services\Fight;
 
 use App\Enums\Combat\StanceEnum;
 use App\Enums\Combat\ZoneEnum;
+use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightStepEnum;
 use App\Enums\Fight\PlayerAttackEnum;
 use App\Models\Character\Character;
 use App\Models\Fight;
+use App\Models\Pvp\PvpDuel;
 use App\Support\Telegram\TelegramHtml;
 
 final class FightStatusFormatter
@@ -51,8 +53,12 @@ final class FightStatusFormatter
 
     public function stepPrompt(Fight $fight): string
     {
+        if ($fight->step === FightStepEnum::WAIT) {
+            return __('combat.log_prompt.WAIT');
+        }
+
         $prompt = __('combat.log_prompt.' . $fight->step->value, [
-            'round' => max(1, $fight->turn_seq),
+            'round' => $this->displayRound($fight),
         ]);
 
         if (
@@ -81,6 +87,19 @@ final class FightStatusFormatter
         return "\n\n" . __('combat.turn_timer', [
             'time' => $this->formatRemaining($this->fights->turnTimerDisplaySeconds($fight)),
         ]);
+    }
+
+    private function displayRound(Fight $fight): int
+    {
+        if ($fight->kind === FightKindEnum::PVP && $fight->duel_id !== null) {
+            $duel = PvpDuel::query()->find($fight->duel_id);
+
+            if ($duel instanceof PvpDuel) {
+                return max(1, $duel->round);
+            }
+        }
+
+        return max(1, $fight->turn_seq);
     }
 
     private function formatRemaining(int $remainingSeconds): string

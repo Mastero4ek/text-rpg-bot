@@ -99,6 +99,29 @@ final class FightService
         return $this->createFight($character, $enemy, FightKindEnum::QUEST_OVERSEER, true, false, null);
     }
 
+    public function createPvp(Character $character, Enemy $enemy, int $duelId): Fight
+    {
+        $fight = $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::PVP,
+            false,
+            false,
+            FightReturnEnum::Fights,
+        );
+        $fight->duel_id = $duelId;
+
+        return $this->save($fight);
+    }
+
+    public function clearTurnWatch(Fight $fight): Fight
+    {
+        $fight->turn_seq += 1;
+        $fight->turn_deadline_at = null;
+
+        return $this->save($fight);
+    }
+
     public function findByTgId(int $tgId): Fight
     {
         $fight = Fight::query()->find($tgId);
@@ -288,15 +311,19 @@ final class FightService
     /**
      * @param  list<string>  $lines
      */
-    public function appendLogLines(Fight $fight, array $lines): Fight
+    public function appendLogLines(Fight $fight, array $lines, int $round): Fight
     {
         if (empty($lines)) {
             return $fight;
         }
 
+        if ($round < 1) {
+            throw new RuntimeException('Fight log round must be >= 1.');
+        }
+
         $combined = $fight->log;
         $header = __('combat.log_round', [
-            'round' => max(1, $fight->turn_seq),
+            'round' => $round,
         ]);
 
         if (! in_array($header, $combined, true)) {

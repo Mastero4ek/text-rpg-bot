@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\City;
 
 use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
+use App\Actions\Pvp\PvpChallengeCancelAction;
 use App\Models\Character\Character;
 use App\Models\City;
 use App\Services\Quest\QuestUnlockService;
@@ -16,6 +17,7 @@ final class CityPortalAction
 {
     public function __construct(
         private readonly LuckyBarrelForfeitAction $forfeitLuckyBarrel,
+        private readonly PvpChallengeCancelAction $cancelPvpChallenge,
         private readonly QuestUnlockService $questUnlocks,
     ) {}
 
@@ -65,6 +67,14 @@ final class CityPortalAction
 
             if (! $fresh instanceof Character) {
                 throw new RuntimeException('Character missing after lucky barrel forfeit.');
+            }
+
+            $this->cancelPvpChallenge->handle($fresh);
+
+            $fresh = Character::query()->find($character->tg_id);
+
+            if (! $fresh instanceof Character) {
+                throw new RuntimeException('Character missing after pvp challenge cancel.');
             }
 
             $fresh->city_id = $target->id;

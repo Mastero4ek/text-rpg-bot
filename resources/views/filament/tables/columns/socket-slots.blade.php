@@ -16,7 +16,7 @@
                 <img
                     src="{{ $slot['url'] }}"
                     alt=""
-                    style="height: {{ $size }}; width: {{ $size }};"
+                    style="height: {{ $size }}; width: {{ $size }}; object-fit: cover; object-position: center top; border-radius: 9999px;"
                     @if (! empty($slot['tooltip']))
                         x-tooltip='{ content: @js($slot['tooltip']), theme: $store.theme }'
                     @endif

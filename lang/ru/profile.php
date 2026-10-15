@@ -6,7 +6,7 @@ return [
     'demo_banner' => '⚠️ Демо · опыт и награды до ур. :max',
     'demo_reward_frozen' => '⚠️ Демо · награда не начисляется',
     'demo_buyer_no_pay' => '⚠️ Демо · Скупщик не платит',
-    'card' => "<b>:name [:level] · :city</b>\n\n❤️ :hp/:maxHp\n💚 :stamina/:maxStamina\n⭐️ :exp\n\n🪙 :silver · 🥇 :gold\n\n⚔️ :damage · 🛡 :armor\n🤺 :dodge · 🎯 :antiDodge · 💥 :crit · 🪨 :antiCrit\n\n:stats",
+    'card' => "<b>:name [:level] · :city</b>\n\n❤️ :hp/:maxHp\n💚 :stamina/:maxStamina\n⭐️ :exp\n🏆 :arena\n\n🪙 :silver · 🥇 :gold\n\n⚔️ :damage · 🛡 :armor\n🤺 :dodge · 🎯 :antiDodge · 💥 :crit · 🪨 :antiCrit\n\n:stats",
     'stats' => '<i>С: :str · Л: :agi · И: :inst · Ж: :vit</i>',
     'stats_free' => "<i>С: :str · Л: :agi · И: :inst · Ж: :vit\nСвободно: :points</i>",
     'btn_gear' => 'Экипировка',

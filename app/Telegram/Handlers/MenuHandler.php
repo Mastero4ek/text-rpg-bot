@@ -25,6 +25,8 @@ final class MenuHandler
         private readonly CharacterResetStatsForGoldAction $resetStatsForGold,
         private readonly InventoryHandler $inventory,
         private readonly JournalHandler $journal,
+        private readonly LibraryHandler $library,
+        private readonly AppealHandler $appeal,
         private readonly TelegramPlayerGate $gate,
     ) {}
 
@@ -86,7 +88,7 @@ final class MenuHandler
         }
 
         if (
-            ! in_array($command, ['city', 'profile', 'backpack', 'bag', 'journal', 'character', 'skills'], true)
+            ! in_array($command, ['city', 'profile', 'backpack', 'bag', 'journal', 'library', 'appeal', 'character', 'skills'], true)
         ) {
             return;
         }
@@ -118,8 +120,7 @@ final class MenuHandler
         }
 
         if ($command === 'backpack') {
-            [$text, $markup] = $this->inventory->backpackPanel($player, 'WEAPON', 1);
-            $responder->reply($text, $markup);
+            $this->inventory->sendBackpack($responder, $player);
 
             return;
         }
@@ -130,8 +131,19 @@ final class MenuHandler
             return;
         }
 
-        [$text, $markup] = $this->inventory->bagPanel($player, 'POTION', 1);
-        $responder->reply($text, $markup);
+        if ($command === 'library') {
+            $this->library->sendHome($responder, $player);
+
+            return;
+        }
+
+        if ($command === 'appeal') {
+            $this->appeal->sendList($responder, $player);
+
+            return;
+        }
+
+        $this->inventory->sendBag($responder, $player);
     }
 
     public function handleText(TelegramUpdate $update, TelegramResponder $responder): void

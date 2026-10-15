@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Fight;
 
 use App\Enums\Fight\FightEndUiEnum;
+use App\Enums\Fight\FightKindEnum;
 use App\Models\Character\Character;
 use App\Models\Enemy\EnemyCatalog;
 use App\Models\Fight;
 use App\Quests\BruiserQuest;
 use App\Quests\HealerQuest;
+use App\Services\Character\CharacterService;
 use App\Services\Registration\RegistrationService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
@@ -21,6 +23,7 @@ final class FightPanelService
 {
     public function __construct(
         private readonly BruiserQuest $bruiserQuest,
+        private readonly CharacterService $characters,
         private readonly FightService $fights,
         private readonly FightStatusFormatter $fightStatus,
         private readonly FightReportStore $reports,
@@ -47,6 +50,40 @@ final class FightPanelService
             null,
         );
         $this->registration->rememberTelegramMessage($player, $responder->chatId(), $statusId);
+
+        return $fight;
+    }
+
+    public function openFresh(
+        TelegramClient $telegram,
+        int|string $chatId,
+        Fight $fight,
+        Character $player,
+        string $prefix,
+    ): Fight {
+        $caption = $prefix . "\n\n" . $this->fightStatus->panelCaption($fight, $player);
+        $markup = TelegramKeyboards::fightInlineForStep($fight);
+        $replyKind = TelegramKeyboards::fightMarkupKind($fight);
+        $imagePath = $this->enemyImagePath($fight);
+
+        if ($imagePath !== null) {
+            try {
+                $statusId = $telegram->sendPhoto($chatId, $imagePath, $caption, $markup);
+            } catch (RuntimeException) {
+                $statusId = $telegram->sendMessage($chatId, $caption, $markup);
+            }
+        } else {
+            $statusId = $telegram->sendMessage($chatId, $caption, $markup);
+        }
+
+        $fight = $this->fights->rememberTelegramPanel(
+            $fight,
+            (int) $chatId,
+            $statusId,
+            $replyKind,
+            null,
+        );
+        $this->registration->rememberTelegramMessage($player, $chatId, $statusId);
 
         return $fight;
     }
@@ -150,15 +187,13 @@ final class FightPanelService
             return false;
         }
 
-        $caption = '<i>' . $this->reports->clipCaption($payload['log']) . '</i>';
-        $telegram->editMessageCaption(
+        return $this->tryEditPanel(
+            $telegram,
             $chatId,
             $messageId,
-            $caption,
+            $this->reports->clipItalicCaption($payload['log']),
             TelegramKeyboards::fightReportSummary(),
         );
-
-        return true;
     }
 
     public function showReportSummary(TelegramClient $telegram, int|string $chatId, int $messageId): bool
@@ -169,19 +204,22 @@ final class FightPanelService
             return false;
         }
 
-        $telegram->editMessageCaption(
+        return $this->tryEditPanel(
+            $telegram,
             $chatId,
             $messageId,
             $this->reports->clipCaption($payload['summary']),
             TelegramKeyboards::fightReportLog(),
         );
-
-        return true;
     }
 
     private function enemyImagePath(Fight $fight): ?string
     {
         $enemy = $this->fights->enemy($fight);
+
+        if ($fight->kind === FightKindEnum::PVP) {
+            return $this->pvpOpponentSkinPath($enemy->catalogId);
+        }
 
         if ($enemy->catalogId === EnemyCatalog::BRUISER_CATALOG_ID) {
             $path = config('bot.bruiser_fight_image');
@@ -200,6 +238,27 @@ final class FightPanelService
         }
 
         return $catalog->localImagePath();
+    }
+
+    private function pvpOpponentSkinPath(string $catalogId): ?string
+    {
+        if (! str_starts_with($catalogId, 'pvp:')) {
+            return null;
+        }
+
+        $tgId = (int) mb_substr($catalogId, 4);
+
+        if ($tgId < 1) {
+            return null;
+        }
+
+        $opponent = Character::query()->find($tgId);
+
+        if (! $opponent instanceof Character) {
+            return null;
+        }
+
+        return $this->characters->skinImagePath($opponent);
     }
 
     private function isQuestFollowUp(FightEndResult $result): bool

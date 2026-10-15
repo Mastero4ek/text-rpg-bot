@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $tg_id
  * @property FightKindEnum $kind
+ * @property int|null $duel_id
  * @property bool $tutorial
  * @property bool $hall
  * @property int|null $daily_contract_id
@@ -50,6 +51,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'tg_id',
     'kind',
+    'duel_id',
     'tutorial',
     'hall',
     'daily_contract_id',
@@ -110,6 +112,7 @@ final class Fight extends Model
         return [
             'tg_id' => 'integer',
             'kind' => FightKindEnum::class,
+            'duel_id' => 'integer',
             'tutorial' => 'boolean',
             'hall' => 'boolean',
             'daily_contract_id' => 'integer',

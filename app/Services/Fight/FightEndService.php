@@ -21,6 +21,7 @@ use App\Quests\HealerQuest;
 use App\Quests\OverseerQuest;
 use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
+use App\Services\Pvp\PvpChallengeService;
 use App\Support\Demo\DemoMode;
 use App\Support\Telegram\TelegramHtml;
 
@@ -40,11 +41,16 @@ final class FightEndService
         private readonly DailyContractMarkReadyAction $dailyMarkReady,
         private readonly GameConfig $config,
         private readonly FightStatusFormatter $fightStatus,
+        private readonly PvpChallengeService $pvpChallenges,
     ) {}
 
     public function finishWin(Character $player, Fight $fight): FightEndResult
     {
         $text = $this->fightStatus->format($fight, $player);
+
+        if ($fight->kind === FightKindEnum::PVP) {
+            return $this->pvpWin($player, $fight, $text);
+        }
 
         if ($fight->kind === FightKindEnum::QUEST_OVERSEER) {
             return $this->overseerWin($player, $text);
@@ -104,6 +110,10 @@ final class FightEndService
     {
         $text = $this->fightStatus->format($fight, $player);
 
+        if ($fight->kind === FightKindEnum::PVP) {
+            return $this->pvpLose($player, $fight, $text);
+        }
+
         if ($fight->kind === FightKindEnum::QUEST_OVERSEER) {
             return $this->overseerLose($player, $text);
         }
@@ -129,6 +139,13 @@ final class FightEndService
         }
 
         return $this->trainingLose($player, $fight, $text);
+    }
+
+    public function finishPvpAbort(Character $player, Fight $fight): FightEndResult
+    {
+        $text = $this->fightStatus->format($fight, $player);
+
+        return $this->pvpAbort($player, $fight, $text);
     }
 
     private function dailyWin(Character $player, Fight $fight, string $text): FightEndResult
@@ -573,6 +590,121 @@ final class FightEndService
         return new FightEndResult(
             $player,
             $text . __('combat.flee') . $brokeSuffix,
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+            $logText,
+        );
+    }
+
+    private function pvpWin(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $logText = $this->fightLogText($fight);
+        $broken = $this->fightWear->handleAfterWin($player, $fight->pierce_count);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $brokeSuffix = $this->brokenGearSuffix($broken);
+        $delta = 0;
+
+        if (! DemoMode::isProgressionCapped($player)) {
+            $delta = $this->pvpChallenges->pointsPerWin();
+            $player->arena_points += $delta;
+            $player->save();
+        }
+
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        $winText = __('combat.pvp_win', ['points' => $delta]);
+
+        if (DemoMode::isProgressionCapped($player)) {
+            $winText .= "\n" . __('profile.demo_reward_frozen');
+        }
+
+        return new FightEndResult(
+            $player,
+            $text . $winText . $brokeSuffix,
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+            $logText,
+        );
+    }
+
+    private function pvpAbort(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $logText = $this->fightLogText($fight);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $delta = 0;
+
+        if (! DemoMode::isProgressionCapped($player)) {
+            $delta = $this->pvpChallenges->pointsPerLose();
+            $player->arena_points = max(0, $player->arena_points - $delta);
+            $player->save();
+        }
+
+        $player->current_hp = max(1, min($fight->player_hp, $this->characters->maxHp($player)));
+        $player->current_stamina = $this->characters->clampStamina(
+            $fight->player_stamina,
+            $this->characters->maxStamina($player),
+        );
+        $player->last_hp_update = now();
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        $abortText = __('combat.pvp_afk_abort', ['points' => $delta]);
+
+        if (DemoMode::isProgressionCapped($player)) {
+            $abortText .= "\n" . __('profile.demo_reward_frozen');
+        }
+
+        return new FightEndResult(
+            $player,
+            $text . $abortText,
+            FightEndUiEnum::BackToCity,
+            null,
+            FightEndUiEnum::None,
+            $logText,
+        );
+    }
+
+    private function pvpLose(Character $player, Fight $fight, string $text): FightEndResult
+    {
+        $logText = $this->fightLogText($fight);
+        $broken = $this->fightWear->handleAfterLose($player, $fight->pierce_count);
+        $gemBroken = $this->breakGems->handle($player);
+        $player = $this->characters->findByTgId($player->tg_id);
+        $brokeSuffix = $this->brokenGearSuffix($broken) . $this->brokenGemsSuffix($gemBroken);
+        $delta = 0;
+
+        if (! DemoMode::isProgressionCapped($player)) {
+            $delta = $this->pvpChallenges->pointsPerLose();
+            $player->arena_points = max(0, $player->arena_points - $delta);
+            $player->save();
+        }
+
+        $player->current_hp = 0;
+        $player->last_hp_update = now();
+        $player->current_stamina = 0;
+        $player->last_stamina_update = now();
+        $player->save();
+        $this->clearFight->handle($player->tg_id);
+
+        $loseText = __('combat.pvp_lose', ['points' => $delta]);
+
+        if (DemoMode::isProgressionCapped($player)) {
+            $loseText .= "\n" . __('profile.demo_reward_frozen');
+        }
+
+        return new FightEndResult(
+            $player,
+            $text . $loseText . $brokeSuffix,
             FightEndUiEnum::BackToCity,
             null,
             FightEndUiEnum::None,

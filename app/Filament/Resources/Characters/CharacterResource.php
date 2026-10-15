@@ -13,11 +13,9 @@ use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
 use App\Filament\Resources\Characters\Schemas\CharacterForm;
 use App\Filament\Resources\Characters\Tables\CharactersTable;
 use App\Models\Character\Character;
-use BackedEnum;
 use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -26,11 +24,9 @@ final class CharacterResource extends Resource
 {
     protected static ?string $model = Character::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
-
     protected static ?string $recordTitleAttribute = 'username';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     public static function canCreate(): bool
     {
@@ -54,7 +50,7 @@ final class CharacterResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return __('admin.navigation.characters');
+        return __('admin.navigation.players');
     }
 
     public static function getPages(): array

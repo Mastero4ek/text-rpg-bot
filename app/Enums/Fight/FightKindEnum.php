@@ -11,6 +11,7 @@ use Filament\Support\Contracts\HasLabel;
 enum FightKindEnum: string implements HasColor, HasLabel
 {
     case PVE = 'PVE';
+    case PVP = 'PVP';
     case QUEST_OVERSEER = 'QUEST_OVERSEER';
     case QUEST_BLACKSMITH = 'QUEST_BLACKSMITH';
     case QUEST_BRUISER = 'QUEST_BRUISER';
@@ -24,6 +25,7 @@ enum FightKindEnum: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::PVE => Color::Sky,
+            self::PVP => Color::Fuchsia,
             self::QUEST_OVERSEER => Color::Amber,
             self::QUEST_BLACKSMITH => Color::Orange,
             self::QUEST_BRUISER => Color::Rose,

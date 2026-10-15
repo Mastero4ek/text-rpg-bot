@@ -11,10 +11,8 @@ use App\Filament\Resources\BackpackCatalog\Pages\ViewBackpackCatalog;
 use App\Filament\Resources\BackpackCatalog\Schemas\BackpackCatalogForm;
 use App\Filament\Resources\BackpackCatalog\Tables\BackpackCatalogTable;
 use App\Models\Backpack\BackpackCatalog;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -24,11 +22,9 @@ final class BackpackCatalogResource extends Resource
 {
     protected static ?string $model = BackpackCatalog::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArchiveBox;
-
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $slug = 'backpack-catalog';
 

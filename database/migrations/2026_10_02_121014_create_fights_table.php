@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('fights', function (Blueprint $table) {
             $table->unsignedBigInteger('tg_id')->primary();
             $table->string('kind')->default(FightKindEnum::PVE->value);
+            $table->unsignedBigInteger('duel_id')->nullable();
             $table->boolean('tutorial');
             $table->boolean('hall')->default(false);
             $table->unsignedBigInteger('daily_contract_id')->nullable();

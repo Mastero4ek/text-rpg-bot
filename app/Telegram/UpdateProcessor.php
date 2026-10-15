@@ -15,6 +15,7 @@ use App\Services\Telegram\IdleSessionService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Support\Telegram\TelegramUpdate;
+use App\Telegram\Handlers\AppealHandler;
 use App\Telegram\Handlers\BarkeeperHandler;
 use App\Telegram\Handlers\BlacksmithHandler;
 use App\Telegram\Handlers\BruiserHandler;
@@ -25,8 +26,10 @@ use App\Telegram\Handlers\FightHandler;
 use App\Telegram\Handlers\HealerHandler;
 use App\Telegram\Handlers\InventoryHandler;
 use App\Telegram\Handlers\JournalHandler;
+use App\Telegram\Handlers\LibraryHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\OverseerHandler;
+use App\Telegram\Handlers\PvpHandler;
 use App\Telegram\Handlers\QuestHandler;
 use App\Telegram\Handlers\RegistrationHandler;
 use App\Telegram\Handlers\SmithHandler;
@@ -52,6 +55,8 @@ final class UpdateProcessor
         private readonly MenuHandler $menu,
         private readonly InventoryHandler $inventory,
         private readonly JournalHandler $journal,
+        private readonly LibraryHandler $library,
+        private readonly AppealHandler $appeal,
         private readonly SmithHandler $smith,
         private readonly BarkeeperHandler $barkeeper,
         private readonly BlacksmithHandler $blacksmith,
@@ -62,6 +67,7 @@ final class UpdateProcessor
         private readonly DailyContractHandler $daily,
         private readonly FightHandler $fight,
         private readonly CityHandler $city,
+        private readonly PvpHandler $pvp,
     ) {}
 
     /**
@@ -194,6 +200,18 @@ final class UpdateProcessor
             return;
         }
 
+        if (str_starts_with($data, 'lib:')) {
+            $this->library->handleCallback($update, $responder);
+
+            return;
+        }
+
+        if (str_starts_with($data, 'appeal:')) {
+            $this->appeal->handleCallback($update, $responder);
+
+            return;
+        }
+
         $questPlayer = Character::query()->find($update->userId());
 
         if ($questPlayer instanceof Character && $this->overseerQuest->isTrainLocked($questPlayer)) {
@@ -273,6 +291,12 @@ final class UpdateProcessor
             return;
         }
 
+        if (str_starts_with($data, 'pvp:')) {
+            $this->pvp->handleCallback($update, $responder);
+
+            return;
+        }
+
         if (
             str_starts_with($data, 'city:')
             || str_starts_with($data, 'portal:')
@@ -344,7 +368,14 @@ final class UpdateProcessor
 
         if ($character instanceof Character && $character->progress_step->canPlayCity()) {
             if ($update->botCommand() !== null) {
+                $this->appeal->clearAwait($character);
                 $this->menu->handleCommand($update, $responder);
+
+                return;
+            }
+
+            if ($this->appeal->isAwaiting($character)) {
+                $this->appeal->handleText($update, $responder);
 
                 return;
             }

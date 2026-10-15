@@ -369,7 +369,7 @@ final class FightRoundService
             }
         }
 
-        $fight = $this->fights->appendLogLines($fight, $logs);
+        $fight = $this->fights->appendLogLines($fight, $logs, max(1, $fight->turn_seq));
         $fight->enemy = $enemy->toArray();
         $fight->last_round = $this->lastRoundSnapshot(
             $skip,

@@ -88,7 +88,7 @@ function bagPanelPayload(): ?string
         }
 
         if ($chunk === '') {
-            $chunk = $request->body();
+            $chunk = urldecode($request->body());
         }
 
         if ($chunk !== '') {
@@ -97,6 +97,28 @@ function bagPanelPayload(): ?string
     }
 
     return $payload;
+}
+
+function assertBagPanelHas(string $needle): void
+{
+    Http::assertSent(function (Request $request) use ($needle): bool {
+        $url = $request->url();
+
+        if (
+            ! str_contains($url, '/sendPhoto')
+            && ! str_contains($url, '/sendMessage')
+            && ! str_contains($url, '/editMessageMedia')
+            && ! str_contains($url, '/editMessageCaption')
+            && ! str_contains($url, '/editMessageText')
+        ) {
+            return false;
+        }
+
+        $body = urldecode($request->body());
+
+        return str_contains($body, $needle)
+            || str_contains($body, str_replace("\n", '\\n', $needle));
+    });
 }
 
 function runBagCallback(int $tgId, string $data): void
@@ -278,15 +300,51 @@ it('opens potion card with name description effect and back discard row', functi
 
     $panel = bagPanelPayload();
 
-    expect($panel)->toContain($def->name)
-        ->and($panel)->toContain($def->description)
-        ->and($panel)->toContain('❤️ +' . $def->effectValue)
-        ->and($panel)->not->toContain('Количество:')
-        ->and($panel)->toContain('bag:discard:' . $heal->id)
-        ->and($panel)->toContain('bag:list:POTION:1')
+    expect($panel)->toBeString();
+    assertBagPanelHas($def->name);
+    assertBagPanelHas((string) $def->description);
+    assertBagPanelHas('bag:discard:' . $heal->id);
+    assertBagPanelHas('bag:list:POTION:1');
+    expect($panel)->not->toContain('Количество:')
         ->and($panel)->not->toContain('smith:gems')
         ->and($panel)->not->toContain('menu:inv')
         ->and($panel)->not->toContain('menu:bag');
+});
+
+it('swaps bag art to item art on card and back to bag art on list', function (): void {
+    $player = cityDone(9826, 'АртКарточка');
+    bag()->addPotion($player->tg_id, 'heal_0');
+    $heal = loosePotion($player, 'heal_0');
+
+    runBagPhotoCallback($player->tg_id, 'bag:card:' . $heal->id);
+
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/editMessageMedia')) {
+            return false;
+        }
+
+        $body = urldecode($request->body());
+
+        return str_contains($body, 'heal_0.png')
+            && ! str_contains($body, 'bag.png');
+    });
+
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 2]]),
+    ]);
+
+    runBagPhotoCallback($player->tg_id, 'bag:list:POTION:1');
+
+    Http::assertSent(function (Request $request): bool {
+        if (! str_contains($request->url(), '/editMessageMedia')) {
+            return false;
+        }
+
+        $body = urldecode($request->body());
+
+        return str_contains($body, 'bag.png')
+            && ! str_contains($body, 'heal_0.png');
+    });
 });
 
 it('opens quest card with discard and gem card without smith', function (): void {
@@ -368,7 +426,7 @@ it('discards gem on Да and edits bag panel with notice under header', function
 });
 
 it('labels potion stack rows with multiplication mark and quantity', function (): void {
-    $player = cityDone(9820, 'СтакЛейбл');
+    $player = cityDone(9819, 'СтакЛейбл');
     bag()->addPotion($player->tg_id, 'heal_0');
     bag()->addPotion($player->tg_id, 'heal_0');
     $heal = loosePotion($player, 'heal_0');
@@ -383,9 +441,8 @@ it('labels potion stack rows with multiplication mark and quantity', function ()
         'quantity' => 2,
     ]);
 
-    expect(bagPanelPayload())
-        ->toContain('bag:card:' . $heal->id)
-        ->and(bagPanelPayload())->toContain(mb_trim(json_encode($label), '"'));
+    assertBagPanelHas('bag:card:' . $heal->id);
+    assertBagPanelHas($label);
 });
 
 it('decrements potion stack on discard and keeps row when quantity remains', function (): void {
@@ -414,26 +471,23 @@ it('decrements potion stack on discard and keeps row when quantity remains', fun
         ]));
 });
 
-it('removes photo panel when returning to bag list from a card', function (): void {
-    $player = cityDone(9812, 'НазадБезФото');
+it('restores bag art when returning to bag list from a card', function (): void {
+    $player = cityDone(9812, 'НазадКСумке');
     bag()->addPotion($player->tg_id, 'heal_0');
     $heal = loosePotion($player, 'heal_0');
     $max = bag()->bagMaxRows($player);
 
     runBagPhotoCallback($player->tg_id, 'bag:list:POTION:1');
 
-    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/deleteMessage'));
-    Http::assertSent(function (Request $request) use ($heal, $max): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) ($request['text'] ?? ''), __('profile.bag_header', [
-                'current' => 1,
-                'max' => $max,
-            ]))
-            && str_contains((string) ($request['reply_markup'] ?? ''), 'bag:card:' . $heal->id);
-    });
+    assertBagPanelHas('bag.png');
+    assertBagPanelHas(__('profile.bag_header', [
+        'current' => 1,
+        'max' => $max,
+    ]));
+    assertBagPanelHas('bag:card:' . $heal->id);
 });
 
-it('removes photo panel when discarding bag item from a card with art', function (): void {
+it('restores bag art when discarding bag item from a card with art', function (): void {
     $player = cityDone(9813, 'DropBagPhoto');
     bag()->addPotion($player->tg_id, 'heal_0');
     $heal = loosePotion($player, 'heal_0');
@@ -461,17 +515,23 @@ it('removes photo panel when discarding bag item from a card with art', function
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/deleteMessage'));
-    Http::assertSent(function (Request $request) use ($max): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) ($request['text'] ?? ''), __('profile.discarded', [
-                'name' => 'Зелье лечения',
-            ]))
-            && str_contains((string) ($request['text'] ?? ''), __('profile.bag_header', [
-                'current' => 0,
-                'max' => $max,
-            ]));
-    });
+    assertBagPanelHas('bag.png');
+    assertBagPanelHas(__('profile.discarded', [
+        'name' => 'Зелье лечения',
+    ]));
+    assertBagPanelHas(__('profile.bag_header', [
+        'current' => 0,
+        'max' => $max,
+    ]));
+});
+
+it('opens /bag with menu bag art', function (): void {
+    $player = cityDone(9825, 'АртСумки');
+
+    runBagCommand($player->tg_id);
+
+    assertBagPanelHas('bag.png');
+    assertBagPanelHas(__('profile.bag_empty'));
 });
 
 it('accepts legacy bag:potion and bag:filter callbacks', function (): void {

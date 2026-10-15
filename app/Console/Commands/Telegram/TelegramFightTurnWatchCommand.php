@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Telegram;
 
-use App\Jobs\IdleSessionResetJob;
+use App\Jobs\FightTurnWatchJob;
 use Illuminate\Console\Command;
 use Illuminate\Support\Sleep;
 
-final class TelegramIdleSessionResetCommand extends Command
+final class TelegramFightTurnWatchCommand extends Command
 {
-    protected $signature = 'telegram:idle-session-reset {tgId} {actionAtUnix} {sleepSeconds}';
+    protected $signature = 'telegram:fight-turn-watch {tgId} {turnSeq} {sleepSeconds}';
 
-    protected $description = 'Send idle session panel after the player has been inactive.';
+    protected $description = 'Refresh fight turn timer or skip the turn after the deadline.';
 
     public function handle(): int
     {
@@ -23,9 +23,9 @@ final class TelegramIdleSessionResetCommand extends Command
         }
 
         app()->call([
-            new IdleSessionResetJob(
+            new FightTurnWatchJob(
                 (int) $this->argument('tgId'),
-                (int) $this->argument('actionAtUnix'),
+                (int) $this->argument('turnSeq'),
             ),
             'handle',
         ]);

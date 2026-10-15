@@ -361,7 +361,7 @@ it('discards item on Да and edits backpack panel with notice under header', fu
     });
 });
 
-it('removes photo panel when returning to backpack list from a card', function (): void {
+it('restores backpack art when returning to list from a card', function (): void {
     $player = cityDone(9726, 'НазадРюкзакФото');
     backpack()->addItem($player->tg_id, 'knife_0');
     $knife = backpack()->findOwned($player->tg_id, 'knife_0');
@@ -374,18 +374,23 @@ it('removes photo panel when returning to backpack list from a card', function (
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/deleteMessage'));
     Http::assertSent(function (Request $request) use ($knife, $max): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) ($request['text'] ?? ''), __('profile.backpack_header_all', [
+        if (! str_contains($request->url(), '/editMessageMedia')) {
+            return false;
+        }
+
+        $body = urldecode($request->body());
+
+        return str_contains($body, 'backpack.png')
+            && str_contains($body, __('profile.backpack_header_all', [
                 'current' => 1,
                 'max' => $max,
             ]))
-            && str_contains((string) ($request['reply_markup'] ?? ''), 'inv:card:' . $knife->id);
+            && str_contains($body, 'inv:card:' . $knife->id);
     });
 });
 
-it('removes photo panel when discarding from an item card with art', function (): void {
+it('restores backpack art when discarding from an item card with art', function (): void {
     $player = cityDone(9725, 'DropNoPhoto');
     backpack()->addItem($player->tg_id, 'worn_mail');
     $mail = backpack()->findOwned($player->tg_id, 'worn_mail');
@@ -413,13 +418,18 @@ it('removes photo panel when discarding from an item card with art', function ()
         new TelegramResponder(app(TelegramClient::class), $update),
     );
 
-    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/deleteMessage'));
     Http::assertSent(function (Request $request) use ($mail, $max): bool {
-        return str_contains($request->url(), '/sendMessage')
-            && str_contains((string) ($request['text'] ?? ''), __('profile.discarded', [
+        if (! str_contains($request->url(), '/editMessageMedia')) {
+            return false;
+        }
+
+        $body = urldecode($request->body());
+
+        return str_contains($body, 'backpack.png')
+            && str_contains($body, __('profile.discarded', [
                 'name' => $mail->item_name,
             ]))
-            && str_contains((string) ($request['text'] ?? ''), __('profile.backpack_header_all', [
+            && str_contains($body, __('profile.backpack_header_all', [
                 'current' => 0,
                 'max' => $max,
             ]));

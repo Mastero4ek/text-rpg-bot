@@ -26,6 +26,8 @@ use App\Services\DailyContract\DailyContractService;
 use App\Services\EnemyService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightService;
+use App\Services\Pvp\PvpBoardService;
+use App\Services\Pvp\PvpChallengeService;
 use App\Services\Quest\QuestNpcPlacement;
 use App\Services\Quest\QuestUnlockService;
 use App\Services\Registration\RegistrationService;
@@ -47,6 +49,7 @@ final class CityHandler
         private readonly CityMenuService $cityMenu,
         private readonly CityQuery $cityQuery,
         private readonly CityPortalAction $portal,
+        private readonly PvpChallengeService $pvpChallenges,
         private readonly EnemyService $enemies,
         private readonly FightService $fights,
         private readonly FightPanelService $fightPanel,
@@ -204,6 +207,7 @@ final class CityHandler
                 return;
             }
 
+            app(PvpBoardService::class)->stopWatch($player->tg_id);
             $this->lists($responder, $player);
 
             return;
@@ -243,12 +247,22 @@ final class CityHandler
             return;
         }
 
-        if (preg_match('/^portal:(\d+)$/', $data, $m) === 1) {
+        if (preg_match('/^portal:yes:(\d+)$/', $data, $m) === 1) {
             if ($this->showFogIfLocked($responder, $player, LocationEnum::Portal)) {
                 return;
             }
 
             $this->travel($responder, $player, (int) $m[1]);
+
+            return;
+        }
+
+        if (preg_match('/^portal:(\d+)$/', $data, $m) === 1) {
+            if ($this->showFogIfLocked($responder, $player, LocationEnum::Portal)) {
+                return;
+            }
+
+            $this->portalCityClick($responder, $player, (int) $m[1]);
 
             return;
         }
@@ -453,6 +467,12 @@ final class CityHandler
 
         if ($returnTo === FightReturnEnum::Training) {
             $this->sendTrainingPick($responder, $player);
+
+            return;
+        }
+
+        if ($returnTo === FightReturnEnum::Fights) {
+            app(PvpHandler::class)->sendList($responder, $player, 1);
 
             return;
         }
@@ -819,34 +839,7 @@ final class CityHandler
 
     private function fightsList(TelegramResponder $responder, Character $player, int $page): void
     {
-        $city = $this->cityMenu->currentCity($player);
-
-        if (! $city instanceof City || ! $city->has_fights_list) {
-            $responder->answerCallback();
-            $this->editLocationGate(
-                $responder,
-                __('telegram.location.error.city_unavailable'),
-                CityKeyboard::backToArena(),
-            );
-
-            return;
-        }
-
-        $arenaImage = config('bot.city_arena_image');
-
-        if (! is_string($arenaImage) || $arenaImage === '' || ! is_file($arenaImage)) {
-            $arenaImage = null;
-        }
-
-        $responder->answerCallback();
-        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-        $this->replaceCityPanel(
-            $responder,
-            $player,
-            __('telegram.location.fights_empty'),
-            CityKeyboard::fightsList([], $page),
-            $arenaImage,
-        );
+        app(PvpHandler::class)->showList($responder, $player, $page);
     }
 
     private function pveZone(
@@ -1467,6 +1460,34 @@ final class CityHandler
 
         $messageId = $responder->reply($text, $markup);
         $this->registrationService->rememberTelegramMessage($player, $responder->chatId(), $messageId);
+    }
+
+    private function portalCityClick(TelegramResponder $responder, Character $player, int $targetCityId): void
+    {
+        if (! $this->pvpChallenges->openChallengeFor($player) instanceof \App\Models\Pvp\PvpChallenge) {
+            $this->travel($responder, $player, $targetCityId);
+
+            return;
+        }
+
+        $target = City::query()->whereKey($targetCityId)->where('enabled', true)->first();
+
+        if (! $target instanceof City) {
+            $this->editLocationGate(
+                $responder,
+                $this->portalTravelErrorText(__('errors.city_unavailable')),
+                CityKeyboard::backToGates(),
+            );
+
+            return;
+        }
+
+        $responder->edit(
+            __('telegram.location.portal_pvp_challenge', [
+                'name' => TelegramHtml::escape($target->name),
+            ]),
+            CityKeyboard::portalPvpConfirm($targetCityId),
+        );
     }
 
     private function travel(TelegramResponder $responder, Character $player, int $targetCityId): void

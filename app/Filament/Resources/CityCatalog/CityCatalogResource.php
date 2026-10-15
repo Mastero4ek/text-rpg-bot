@@ -127,7 +127,7 @@ final class CityCatalogResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make(__('admin.navigation.characters'), [
+            RelationGroup::make(__('admin.navigation.players'), [
                 CharactersRelationManager::class,
             ]),
         ];

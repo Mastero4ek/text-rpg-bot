@@ -11,10 +11,8 @@ use App\Filament\Resources\EnemyCatalog\Pages\ViewEnemyCatalog;
 use App\Filament\Resources\EnemyCatalog\Schemas\EnemyCatalogForm;
 use App\Filament\Resources\EnemyCatalog\Tables\EnemyCatalogTable;
 use App\Models\Enemy\EnemyCatalog;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -24,11 +22,9 @@ final class EnemyCatalogResource extends Resource
 {
     protected static ?string $model = EnemyCatalog::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBugAnt;
-
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $slug = 'enemy-catalog';
 

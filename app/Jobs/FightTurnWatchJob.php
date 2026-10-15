@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\Fight\FightEndUiEnum;
+use App\Enums\Fight\FightKindEnum;
 use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Services\Fight\FightEndResult;
@@ -12,6 +13,8 @@ use App\Services\Fight\FightEndService;
 use App\Services\Fight\FightPanelService;
 use App\Services\Fight\FightRoundService;
 use App\Services\Fight\FightService;
+use App\Services\Pvp\PvpDuelOutcome;
+use App\Services\Pvp\PvpRoundService;
 use App\Support\Telegram\TelegramClient;
 use App\Support\Telegram\TelegramResponder;
 use App\Telegram\Handlers\CityHandler;
@@ -30,6 +33,7 @@ final class FightTurnWatchJob implements ShouldQueue
     public function handle(
         FightService $fights,
         FightRoundService $rounds,
+        PvpRoundService $pvpRounds,
         FightEndService $ends,
         FightPanelService $panel,
         TelegramClient $telegram,
@@ -60,6 +64,18 @@ final class FightTurnWatchJob implements ShouldQueue
         if ($remainingSeconds > 0) {
             $panel->refresh($telegram, $fight, $player);
             $fights->dispatchTurnWatch($fight);
+
+            return;
+        }
+
+        if ($fight->kind === FightKindEnum::PVP) {
+            $this->applyPvpOutcome(
+                $pvpRounds->submitSkip($player),
+                $ends,
+                $panel,
+                $telegram,
+                $city,
+            );
 
             return;
         }
@@ -95,6 +111,68 @@ final class FightTurnWatchJob implements ShouldQueue
         }
 
         $panel->refresh($telegram, $outcome->fight, $outcome->character);
+    }
+
+    private function applyPvpOutcome(
+        PvpDuelOutcome $outcome,
+        FightEndService $ends,
+        FightPanelService $panel,
+        TelegramClient $telegram,
+        CityHandler $city,
+    ): void {
+        if ($outcome->kind === 'missing') {
+            return;
+        }
+
+        if ($outcome->kind === 'waiting') {
+            if ($outcome->characterA instanceof Character && $outcome->fightA instanceof Fight) {
+                $panel->refresh($telegram, $outcome->fightA, $outcome->characterA);
+            }
+
+            return;
+        }
+
+        if (
+            ! $outcome->characterA instanceof Character
+            || ! $outcome->fightA instanceof Fight
+            || ! $outcome->characterB instanceof Character
+            || ! $outcome->fightB instanceof Fight
+        ) {
+            return;
+        }
+
+        if ($outcome->kind === 'continue') {
+            $panel->refresh($telegram, $outcome->fightA, $outcome->characterA);
+            $panel->refresh($telegram, $outcome->fightB, $outcome->characterB);
+
+            return;
+        }
+
+        $fightA = $outcome->fightA;
+        $fightB = $outcome->fightB;
+        $charA = $outcome->characterA;
+        $charB = $outcome->characterB;
+
+        if ($outcome->kind === 'aborted') {
+            $this->publishEnd($ends->finishPvpAbort($charA, $fightA), $fightA, $panel, $telegram, $city);
+            $this->publishEnd($ends->finishPvpAbort($charB, $fightB), $fightB, $panel, $telegram, $city);
+
+            return;
+        }
+
+        if ($outcome->kind !== 'finished' || $outcome->winnerTgId === null) {
+            return;
+        }
+
+        if ($outcome->winnerTgId === $charA->tg_id) {
+            $this->publishEnd($ends->finishWin($charA, $fightA), $fightA, $panel, $telegram, $city);
+            $this->publishEnd($ends->finishLose($charB, $fightB), $fightB, $panel, $telegram, $city);
+
+            return;
+        }
+
+        $this->publishEnd($ends->finishWin($charB, $fightB), $fightB, $panel, $telegram, $city);
+        $this->publishEnd($ends->finishLose($charA, $fightA), $fightA, $panel, $telegram, $city);
     }
 
     private function publishEnd(

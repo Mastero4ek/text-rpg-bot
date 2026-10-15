@@ -33,7 +33,7 @@ final class CharactersRelationManager extends RelationManager
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
-        return __('admin.navigation.characters');
+        return __('admin.navigation.players');
     }
 
     public static function tableCapacityToolbar(): Htmlable
@@ -76,7 +76,7 @@ final class CharactersRelationManager extends RelationManager
             ->components([
                 $this->getTabsContentComponent(),
                 RenderHook::make(PanelsRenderHook::RESOURCE_RELATION_MANAGER_BEFORE),
-                Section::make(__('admin.navigation.characters'))
+                Section::make(__('admin.navigation.players'))
                     ->icon(Heroicon::OutlinedUserGroup)
                     ->collapsed()
                     ->schema([
