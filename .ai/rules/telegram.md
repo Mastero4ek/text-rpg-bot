@@ -41,9 +41,17 @@
 - Одна непрерывная история на флоу: каждый экран опирается на предыдущий. Не противоречить уже сказанному (где герой, есть ли имя/город).
 - Ошибки — в том же голосе, что соседний экран, плюс ясный next action.
 - Строки игроку — в `lang/ru/` (`__()`), не хардкод в Services/Actions/Handlers.
+- **Именованные сущности — с большой буквы** (и в кнопках, и в прозе, во всех падежах). Канон голоса — `README.md` (демо для игроков) + `telegram.btn.*` / `telegram.commands.*`. Не писать «таверна / арена / кузнец» строчными, если речь о локации, NPC или системе игры.
+  - Локации / хаб: `Город`, `Городские ворота`, `Таверна`, `Доска объявлений` (кратко `Доска`), `Арена`, `Портал`, `Лес`, `Болото`/`Болота`, `Руины`, `Порт`, `Тренировочный зал`, `Ристалище`, `Список боёв`.
+  - NPC: `Смотритель`, `Лекарь`, `Кузнец`, `Скупщик`, `Трактирщик`, `Громила`.
+  - Инвентарь / меню: `Рюкзак`, `Сумка`, `Профиль`, `Экипировка`, `Задания`, `Библиотека`.
+  - Мини-игра: `Бочки удачи` (как `telegram.btn.lucky_barrel`).
+  - Исключения (строчные ок): деревянные «доски» указателя на регистрации; бытовая «сумка» как квестовый предмет Кузнеца (не инвентарь); прилагательные вроде «болотные крысы», «лесные мобы».
+  - Новая/правимая строка в `lang/ru/` (telegram, errors, combat, profile, menu, shop, smith, …) — сразу в этом регистре; `/library` держать в том же каноне ([`library.md`](../guidelines/library.md)).
 - Канон-флоу из `docs/telegram/` (registration, city, …) — **только** `lang/ru/telegram.php` → `telegram.{flow}.*` (экраны + `btn_*`). В доках — ключи и поведение, **не** полные абзацы.
 - Сейчас: `telegram.registration.*` (+ `registration.error.*`), `telegram.city.*` (хаб), `telegram.location.*`, `telegram.library.*`, `telegram.npc.{barkeeper,overseer,healer,blacksmith,buyer}.*` (+ `npc.*.error.*` — нарративные отказы NPC), `telegram.btn.*`, `telegram.commands.*`. Новый ТГ-флоу — новый ключ верхнего уровня в том же файле, не отдельный `lang/ru/{flow}.php`.
 - Bot Menu (`setMyCommands`): `/city` `/profile` `/backpack` `/bag` `/journal` `/library` `/appeal` — sync через `BotCommandsSync` / `telegram:commands` (и при webhook set / poll start). `/journal` → `JournalHandler::sendList`; `/library` → `LibraryHandler::sendHome`; `/appeal` → `AppealHandler::sendList`; `/city` → `CityHandler::sendHomePanel`; `/profile` (= legacy `/character`) → профиль.
+- Bot profile (`setMyName` / `setMyShortDescription` / `setMyDescription` / `setMyProfilePhoto`): тексты `telegram.bot.name|about|description` + аватар `config('bot.logo_image')` (`menu/logo.png`) — sync через `BotProfileSync` / `telegram:profile` (и при webhook set / poll start). Plain text, без HTML. Profile photo API принимает static **JPG** (PNG конвертим в клиенте). **Description picture** и privacy URL — только BotFather (Bot API нет).
 - Сухие game-rule отказы (`item_not_found`, `no_blacksmith`, …) — `lang/ru/errors.php`. Нарративные отказы канон-флоу / NPC — `telegram.*.error.*`.
 - Вне канон-флоу пока: `telegram.quest.*` (квестовая цепочка) / `menu` (инв/профиль UI) / `combat` / `shop` (sell copy) / `errors` / …
 
@@ -90,6 +98,7 @@
 | `menu/library-closed.png`    | корень `/library` (`bot.library_image`)                                                                                                                             |
 | `menu/library-opened.png`    | списки/карточки разделов `/library` (`bot.library_opened_image`)                                                                                                    |
 | `menu/appeal-letter.png`    | `/appeal` список/карточка/compose (`bot.appeal_image`)                                                                                                            |
+| `menu/logo.png`             | аватар бота (`bot.logo_image` → `setMyProfilePhoto` в `telegram:profile`)                                                                                       |
 | `npc/*.png`                  | NPC-панели (`overseer`, `healer_tavern`, …)                                                                                                                         |
 | `enemy/{catalog_id}.png`     | арт моба (`EnemyCatalogSeeder` media)                                                                                                                               |
 | `equipment/{catalog_id}.png` | gear (`BackpackCatalogSeeder` media)                                                                                                                                |

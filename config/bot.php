@@ -51,6 +51,7 @@ return [
     'backpack_image' => resource_path('images/telegram/menu/backpack.png'),
     'journal_image' => resource_path('images/telegram/menu/contracts.png'),
     'appeal_image' => resource_path('images/telegram/menu/appeal-letter.png'),
+    'logo_image' => resource_path('images/telegram/menu/logo.png'),
     /*
      * Official Telegram Bot API IP ranges (IPv4).
      * @see https://core.telegram.org/bots/webhooks#the-short-version

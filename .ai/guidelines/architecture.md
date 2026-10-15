@@ -21,7 +21,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Models** (`app/Models/`) — Eloquent relationships only, no domain logic. Подпапки по домену при ≥2 файлах (`Backpack/`, `Bag/`, `Enemy/`); одиночные модели в корне.
 - **Enums** (`app/Enums/`) — progress/quest phases, stats, combat zones, etc.
 - **Quests** (`app/Quests/`) — one class per quest.
-- **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
+- **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (сейчас; `en` + выбор языка на reg — [`ROADMAP.md`](../../ROADMAP.md) § Язык; no i18n codegen).
 
 ## Actions
 
@@ -78,9 +78,10 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 ## Document map
 
-- `.ai/guidelines/` — always-on agent rules (`library.md` — sync `/library` after player-facing changes); `.ai/rules/` — path-scoped rules.
+- `.ai/guidelines/` — always-on agent rules (`library.md` — sync `/library` after player-facing changes; `roadmap.md` — sync `docs/` when `ROADMAP.md` changes); `.ai/rules/` — path-scoped rules.
 - `docs/` — индекс; игра — `docs/game/` (CHARACTER / EQUIPMENT / …); Telegram-флоу — `docs/telegram/` (стиль текстов — `.ai/rules/telegram.md`).
+- Player plan: root [`ROADMAP.md`](../../ROADMAP.md) (что задумано, но ещё не в демо).
 
 ## Out of scope
 
-Roadmap stages 1–6 (equipment slots, gold/VIP, PvP, clans, mass fights, world, …). Do not extend the schema for them.
+Не расширять схему под идеи **вне** [`ROADMAP.md`](../../ROADMAP.md) и текущего канона `docs/`. Вычеркнутое из ROADMAP — не держать в `docs/` как «позже».

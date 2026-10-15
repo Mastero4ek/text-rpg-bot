@@ -24,7 +24,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 - **Models** (`app/Models/`) — Eloquent relationships only, no domain logic. Подпапки по домену при ≥2 файлах (`Backpack/`, `Bag/`, `Enemy/`); одиночные модели в корне.
 - **Enums** (`app/Enums/`) — progress/quest phases, stats, combat zones, etc.
 - **Quests** (`app/Quests/`) — one class per quest.
-- **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (no i18n codegen).
+- **Game balance** — JSON in `resources/configs/`, not PHP arrays for now. UI strings in `lang/ru/` (сейчас; `en` + выбор языка на reg — `ROADMAP.md` § Язык; no i18n codegen).
 
 ## Actions
 
@@ -81,12 +81,13 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 ## Document map
 
-- `.ai/guidelines/` — always-on agent rules (`library.md` — sync `/library` after player-facing changes); `.ai/rules/` — path-scoped rules.
+- `.ai/guidelines/` — always-on agent rules (`library.md` — sync `/library` after player-facing changes; `roadmap.md` — sync `docs/` when `ROADMAP.md` changes); `.ai/rules/` — path-scoped rules.
 - `docs/` — индекс; игра — `docs/game/`; Telegram — `docs/telegram/`; квесты — `docs/quests/`.
+- Player plan: root `ROADMAP.md` (что задумано, но ещё не в демо).
 
 ## Out of scope
 
-Roadmap stages 1–6 (equipment slots, gold/VIP, PvP, clans, mass fights, world, …). Do not extend the schema for them.
+Не расширять схему под идеи **вне** `ROADMAP.md` и текущего канона `docs/`. Вычеркнутое из ROADMAP — не держать в `docs/` как «позже».
 
 === .ai/code-style rules ===
 
@@ -168,7 +169,7 @@ These apply to project code in `app/` (Services, Actions, Controllers, Models), 
 - Always use PHP Enums where possible instead of hardcoded string values, if Enum class exists: in DB migrations, Pest tests and elsewhere.
 - Never chain multiple migration-creating commands (e.g., `make:model -m`, `make:migration`) with `&&` or `;` - they may get identical timestamps. Run each command separately and wait for completion before running the next.
 - Unreleased local alters (ещё не в shared/prod) — схлопывать в исходный `create_*` migration; отдельный `create_*` для новых таблиц оставлять. После схлопа — `migrate:fresh` локально.
-- Game balance lives in `resources/configs/*.json`; UI copy in `lang/ru/`. Do not hardcode player-facing Russian strings in Services/Actions.
+- Game balance lives in `resources/configs/*.json`; UI copy in `lang/ru/` (позже ещё `en` — `ROADMAP.md` § Язык). Do not hardcode player-facing strings in Services/Actions.
 - Players are `characters` (PK `tg_id`). Filament operators are `users`.
 - Fight state lives in the `fights` table (session columns + JSON enemy/log), not in HTTP session and not as a single `data` blob.
 - Expected game-rule failures return an `ActionResult` DTO; do not throw for those.

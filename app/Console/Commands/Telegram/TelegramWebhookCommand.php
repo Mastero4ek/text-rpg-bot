@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Telegram;
 
 use App\Services\BotCommandsSync;
+use App\Services\BotProfileSync;
 use App\Support\Telegram\TelegramClient;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -15,7 +16,7 @@ final class TelegramWebhookCommand extends Command
 
     protected $description = 'Set or delete Telegram webhook for the configured bot token.';
 
-    public function handle(TelegramClient $client, BotCommandsSync $commands): int
+    public function handle(TelegramClient $client, BotCommandsSync $commands, BotProfileSync $profile): int
     {
         $action = $this->argument('action');
 
@@ -40,8 +41,10 @@ final class TelegramWebhookCommand extends Command
 
             $client->setWebhook($url, $secret);
             $commands->sync();
+            $profile->sync();
             $this->info('Webhook set to ' . $url);
             $this->info('Bot commands synced.');
+            $this->info('Bot profile synced.');
 
             return self::SUCCESS;
         }
