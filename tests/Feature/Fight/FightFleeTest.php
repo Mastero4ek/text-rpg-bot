@@ -154,7 +154,7 @@ it('keeps fight alive on flee fail and shows flee_fail then stance', function ()
     expect(fights()->exists($p->tg_id))->toBeTrue()
         ->and($fight->step)->toBe(FightStepEnum::STANCE)
         ->and($fight->log)->toContain(__('combat.flee_fail'))
-        ->and($fight->log)->not->toContain(__('combat.turn_timeout'));
+        ->and($fight->log)->not->toContain('пропускает ход');
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), '/editMessageCaption')

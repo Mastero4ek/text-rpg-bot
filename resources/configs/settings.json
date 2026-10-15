@@ -35,6 +35,21 @@
         "exp": 0,
         "silver": 0
     },
+    "pvp": {
+        "challengeTtlSeconds": 3600,
+        "boardTickSeconds": 5,
+        "levelBracket": 2,
+        "minHpPercent": 50,
+        "pointsPerWin": 10,
+        "pointsPerLose": 10,
+        "mutualSkipAbortRounds": 3
+    },
+    "appeal": {
+        "maxBodyLength": 1000,
+        "awaitTtlSeconds": 600,
+        "cooldownSeconds": 60,
+        "maxOpenAppeals": 3
+    },
     "gems": {
         "breakChanceOnLose": 40,
         "premiumBreakChanceReduce": 15
@@ -42,6 +57,8 @@
     "combat": {
         "aiDefendChance": 0.55,
         "dualWieldMinLevel": 0,
+        "turnTimeoutSeconds": 30,
+        "turnTickSeconds": 5,
         "mfPerStat": 3,
         "stamina": {
             "maxPerStrength": 10,

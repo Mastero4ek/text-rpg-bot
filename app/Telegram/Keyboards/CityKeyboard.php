@@ -76,20 +76,44 @@ final class CityKeyboard
 
     /**
      * @param  list<array{text: string, callback_data: string}>  $items
+     * @param  array{text: string, callback_data: string, style?: string}|null  $extraFooter
      * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
      */
-    public static function fightsList(array $items, int $page): array
+    public static function fightsList(array $items, int $page, ?array $extraFooter = null): array
     {
-        return PaginatedListKeyboard::markup(
+        $markup = PaginatedListKeyboard::markup(
             $items,
             [],
             'all',
             $page,
-            'city:fights',
-            'city:lists',
+            'pvp',
+            null,
             null,
             count($items),
         );
+
+        $rows = $markup['inline_keyboard'];
+        $back = self::cbDanger(__('telegram.btn.back'), 'city:lists');
+
+        if ($extraFooter === null) {
+            $rows[] = [$back];
+        } elseif (array_key_exists('style', $extraFooter)) {
+            $rows[] = [
+                $back,
+                [
+                    'text' => $extraFooter['text'],
+                    'callback_data' => $extraFooter['callback_data'],
+                    'style' => $extraFooter['style'],
+                ],
+            ];
+        } else {
+            $rows[] = [
+                $back,
+                self::cb($extraFooter['text'], $extraFooter['callback_data']),
+            ];
+        }
+
+        return self::inline($rows);
     }
 
     /**
@@ -897,6 +921,19 @@ final class CityKeyboard
             ['id' => 'free', 'label' => __('telegram.btn.filter_portal_free')],
             ['id' => 'paid', 'label' => __('telegram.btn.filter_portal_paid')],
         ];
+    }
+
+    /**
+     * @return array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}
+     */
+    public static function portalPvpConfirm(int $targetCityId): array
+    {
+        return self::inline([
+            [
+                self::cbDanger(__('telegram.btn.portal_stay'), 'city:portal'),
+                self::cbSuccess(__('telegram.btn.portal_leave'), 'portal:yes:' . $targetCityId),
+            ],
+        ]);
     }
 
     /**

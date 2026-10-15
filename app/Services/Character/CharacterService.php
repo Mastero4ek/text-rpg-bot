@@ -638,6 +638,7 @@ final class CharacterService
             'stamina' => $character->current_stamina,
             'maxStamina' => $this->maxStamina($character),
             'exp' => $need,
+            'arena' => $character->arena_points,
             'damage' => $damage,
             'armor' => $loadout->armor,
             'dodge' => $totalMf->dodge,
@@ -652,6 +653,56 @@ final class CharacterService
         }
 
         return $card . "\n\n" . __('profile.demo_banner', ['max' => DemoMode::maxLevel()]);
+    }
+
+    public function pvpFighterCardText(Character $character): string
+    {
+        $cap = $this->maxHp($character);
+        $next = $this->nextExpThreshold($character);
+
+        if ($next === null) {
+            $need = '—';
+        } else {
+            $need = $character->exp . '/' . $next;
+        }
+
+        if ($character->username === null) {
+            $name = __('common.unnamed');
+        } else {
+            $name = TelegramHtml::escape($character->username);
+        }
+
+        $loadout = $this->loadout->forCharacter($character);
+        $totalMf = $this->bodyMf($character)->merge($loadout->mf);
+
+        if ($loadout->weaponDamageMin === $loadout->weaponDamageMax) {
+            $damage = (string) $loadout->weaponDamageMin;
+        } else {
+            $damage = $loadout->weaponDamageMin . '–' . $loadout->weaponDamageMax;
+        }
+
+        return __('telegram.pvp.card', [
+            'name' => $name,
+            'level' => $character->level,
+            'hp' => $character->current_hp,
+            'maxHp' => $cap,
+            'stamina' => $character->current_stamina,
+            'maxStamina' => $this->maxStamina($character),
+            'exp' => $need,
+            'arena' => $character->arena_points,
+            'damage' => $damage,
+            'armor' => $loadout->armor,
+            'dodge' => $totalMf->dodge,
+            'antiDodge' => $totalMf->antiDodge,
+            'crit' => $totalMf->crit,
+            'antiCrit' => $totalMf->antiCrit,
+            'stats' => __('profile.stats', [
+                'str' => $character->strength,
+                'agi' => $character->agility,
+                'inst' => $character->instinct,
+                'vit' => $character->vitality,
+            ]),
+        ]);
     }
 
     public function skinImagePath(Character $character): ?string

@@ -20,6 +20,6 @@ final class CharacterSkinArt
             return null;
         }
 
-        return asset($relative);
+        return '/' . $relative;
     }
 }

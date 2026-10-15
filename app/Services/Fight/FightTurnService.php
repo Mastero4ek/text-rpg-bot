@@ -210,7 +210,7 @@ final class FightTurnService
                     'name' => $actor,
                     'heal' => $heal,
                 ]),
-            ]);
+            ], max(1, $fight->turn_seq));
         } else {
             $fight->player_hp = $this->characters->clampHp(
                 $fight->player_hp + $heal,
@@ -221,7 +221,7 @@ final class FightTurnService
                     'name' => $actor,
                     'heal' => $heal,
                 ]),
-            ]);
+            ], max(1, $fight->turn_seq));
         }
 
         $fight->use_potion = false;

@@ -11,4 +11,5 @@ enum FightReturnEnum: string
     case Ruins = 'ruins';
     case Port = 'port';
     case Training = 'training';
+    case Fights = 'fights';
 }

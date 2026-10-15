@@ -40,7 +40,8 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 | Telegram handlers | `app/Telegram/Handlers/` (плоско: `RegistrationHandler`, `CityHandler`, …) |
 | Telegram keyboards | `app/Telegram/Keyboards/` (`CityKeyboard`, `RegistrationKeyboard`, `TelegramKeyboards` + trait) |
 | Services | `app/Services/` (подпапки при ≥2 файлах: `Backpack/`, `Bag/`, `Character/`, `DailyContract/`, `Fight/`, `Shop/`, `Registration/`, `Quest/`; иначе корень) |
-| Jobs | `app/Jobs/` (подпапки при ≥2 файлах: `Character/`, `DailyContract/`; telegram-generic — корень) |
+| Jobs | `app/Jobs/` (подпапки при ≥2 файлах: `Character/`, `DailyContract/`, `Pvp/`; telegram-generic — корень) |
+| Console commands | `app/Console/Commands/` (подпапки при ≥2: `Telegram/`; иначе корень) |
 | Actions | `app/Actions/{Entity}/{Entity}{Verb}Action.php` (`Registration/SetNickAction`, `SetLocationAction`) |
 | Queries | `app/Queries/{Domain}/{Entity}Query.php` |
 | Quests | `app/Quests/` |
@@ -80,7 +81,7 @@ Request flow: Telegram handler / Filament Resource -> Service -> Action -> Model
 
 ## Document map
 
-- `.ai/guidelines/` — always-on agent rules; `.ai/rules/` — path-scoped rules.
+- `.ai/guidelines/` — always-on agent rules (`library.md` — sync `/library` after player-facing changes); `.ai/rules/` — path-scoped rules.
 - `docs/` — индекс; игра — `docs/game/`; Telegram — `docs/telegram/`; квесты — `docs/quests/`.
 
 ## Out of scope

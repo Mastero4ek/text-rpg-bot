@@ -15,6 +15,7 @@ enum FightStepEnum: string implements HasColor, HasLabel
     case DEFEND = 'DEFEND';
     case DEFEND_SECOND = 'DEFEND_SECOND';
     case STANCE = 'STANCE';
+    case WAIT = 'WAIT';
 
     /**
      * @return array<int|string, string>
@@ -27,6 +28,7 @@ enum FightStepEnum: string implements HasColor, HasLabel
             self::DEFEND => Color::Green,
             self::DEFEND_SECOND => Color::Emerald,
             self::STANCE => Color::Gray,
+            self::WAIT => Color::Slate,
         };
     }
 

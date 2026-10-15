@@ -52,7 +52,7 @@ final class JournalHandler
     public function sendList(TelegramResponder $responder, Character $player): void
     {
         [$text, $markup] = $this->journalPanel($player, 'all', 1);
-        $responder->reply($text, $markup);
+        $this->sendJournalPanel($responder, $player, $text, $markup);
     }
 
     /**
@@ -99,7 +99,7 @@ final class JournalHandler
             || ! $this->isTakenStatus($contract->status)
         ) {
             [$text, $markup] = $this->journalPanel($player, $filter, 1);
-            $this->showJournalTextPanel($responder, $player, $text, $markup);
+            $this->showJournalPanel($responder, $player, $text, $markup);
 
             return;
         }
@@ -117,12 +117,7 @@ final class JournalHandler
             }
         }
 
-        if ($responder->callbackHasPhoto()) {
-            $this->showJournalTextPanel($responder, $player, $text, $markup);
-
-            return;
-        }
-
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
         $responder->edit($text, $markup);
     }
 
@@ -144,6 +139,17 @@ final class JournalHandler
         return 'all';
     }
 
+    private function journalImagePath(): ?string
+    {
+        $path = config('bot.journal_image');
+
+        if (! is_string($path) || $path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        return $path;
+    }
+
     private function listScreen(
         TelegramResponder $responder,
         Character $player,
@@ -154,12 +160,6 @@ final class JournalHandler
         $filteredCount = $this->dailyContracts->takenForJournal($player, $filter)->count();
         $edge = PaginatedListKeyboard::isOutOfRange($page, $filteredCount);
         [$text, $markup] = $this->journalPanel($player, $filter, $page);
-
-        if ($responder->callbackHasPhoto()) {
-            $this->showJournalTextPanel($responder, $player, $text, $markup);
-
-            return;
-        }
 
         if ($edge && $filteredCount > 0) {
             app(FlashListPageEdgeAction::class)->handle(
@@ -173,26 +173,79 @@ final class JournalHandler
         }
 
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-        $responder->edit($text, $markup);
+        $this->showJournalPanel($responder, $player, $text, $markup);
     }
 
     /**
      * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
      */
-    private function showJournalTextPanel(
+    private function sendJournalPanel(
         TelegramResponder $responder,
         Character $player,
         string $text,
         array $markup,
     ): void {
-        if ($responder->callbackHasPhoto()) {
-            $responder->deleteUpdateMessage();
-            $messageId = $responder->reply($text, $markup);
+        $imagePath = $this->journalImagePath();
+
+        if ($imagePath !== null) {
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
             app(RegistrationService::class)->rememberTelegramMessage(
                 $player,
                 $responder->chatId(),
                 $messageId,
             );
+
+            return;
+        }
+
+        $messageId = $responder->reply($text, $markup);
+        app(RegistrationService::class)->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $messageId,
+        );
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function showJournalPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $imagePath = $this->journalImagePath();
+
+        if ($imagePath !== null) {
+            try {
+                $responder->editPhoto($imagePath, $text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        if ($responder->callbackHasPhoto()) {
+            try {
+                $responder->edit($text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+
+            $responder->deleteUpdateMessage();
+            $this->sendJournalPanel($responder, $player, $text, $markup);
 
             return;
         }

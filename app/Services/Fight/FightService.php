@@ -7,17 +7,21 @@ namespace App\Services\Fight;
 use App\Enums\Fight\FightKindEnum;
 use App\Enums\Fight\FightReturnEnum;
 use App\Enums\Fight\FightStepEnum;
+use App\Jobs\FightTurnWatchJob;
 use App\Models\Character\Character;
 use App\Models\Fight;
 use App\Services\Character\CharacterService;
+use App\Services\GameConfig;
 use App\Support\Enemy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 final class FightService
 {
     public function __construct(
         private readonly CharacterService $characters,
+        private readonly GameConfig $config,
     ) {}
 
     public function createBlacksmithQuest(Character $character, Enemy $enemy): Fight
@@ -95,6 +99,29 @@ final class FightService
         return $this->createFight($character, $enemy, FightKindEnum::QUEST_OVERSEER, true, false, null);
     }
 
+    public function createPvp(Character $character, Enemy $enemy, int $duelId): Fight
+    {
+        $fight = $this->createFight(
+            $character,
+            $enemy,
+            FightKindEnum::PVP,
+            false,
+            false,
+            FightReturnEnum::Fights,
+        );
+        $fight->duel_id = $duelId;
+
+        return $this->save($fight);
+    }
+
+    public function clearTurnWatch(Fight $fight): Fight
+    {
+        $fight->turn_seq += 1;
+        $fight->turn_deadline_at = null;
+
+        return $this->save($fight);
+    }
+
     public function findByTgId(int $tgId): Fight
     {
         $fight = Fight::query()->find($tgId);
@@ -162,24 +189,141 @@ final class FightService
     public function scheduleTurn(Fight $fight): Fight
     {
         $fight->turn_seq += 1;
-        $fight->turn_deadline_at = null;
+        $fight->turn_deadline_at = now()->addSeconds($this->turnTimeoutSeconds());
         $this->save($fight);
+        $this->dispatchTurnWatch($fight);
 
         return $fight;
+    }
+
+    public function dispatchTurnWatch(Fight $fight): void
+    {
+        if ($fight->turn_deadline_at === null) {
+            return;
+        }
+
+        $this->dispatchWatchJob(
+            $fight->tg_id,
+            $fight->turn_seq,
+            $this->turnWatchDelayMs($fight),
+        );
+    }
+
+    public function turnTimeoutSeconds(): int
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('turnTimeoutSeconds', $combat) || ! is_int($combat['turnTimeoutSeconds'])) {
+            throw new RuntimeException('settings.combat.turnTimeoutSeconds missing.');
+        }
+
+        if ($combat['turnTimeoutSeconds'] < 1) {
+            throw new RuntimeException('settings.combat.turnTimeoutSeconds must be >= 1.');
+        }
+
+        return $combat['turnTimeoutSeconds'];
+    }
+
+    public function turnTickSeconds(): int
+    {
+        $combat = $this->config->combat();
+
+        if (! array_key_exists('turnTickSeconds', $combat) || ! is_int($combat['turnTickSeconds'])) {
+            throw new RuntimeException('settings.combat.turnTickSeconds missing.');
+        }
+
+        if ($combat['turnTickSeconds'] < 1) {
+            throw new RuntimeException('settings.combat.turnTickSeconds must be >= 1.');
+        }
+
+        return $combat['turnTickSeconds'];
+    }
+
+    public function turnTimerDisplaySeconds(Fight $fight): int
+    {
+        if ($fight->turn_deadline_at === null) {
+            return 0;
+        }
+
+        $timeout = $this->turnTimeoutSeconds();
+        $tick = $this->turnTickSeconds();
+        $remaining = $fight->turn_deadline_at->getTimestamp() - now()->getTimestamp();
+
+        if ($remaining <= 0) {
+            return 0;
+        }
+
+        $elapsed = $timeout - $remaining;
+
+        if ($elapsed < 0) {
+            $elapsed = 0;
+        }
+
+        $ticksPassed = intdiv($elapsed, $tick);
+        $display = $timeout - ($ticksPassed * $tick);
+
+        if ($display < 0) {
+            return 0;
+        }
+
+        return $display;
+    }
+
+    public function turnWatchDelayMs(Fight $fight): int
+    {
+        if ($fight->turn_deadline_at === null) {
+            return 0;
+        }
+
+        $timeout = $this->turnTimeoutSeconds();
+        $tick = $this->turnTickSeconds();
+        $deadlineAt = $fight->turn_deadline_at->getTimestamp();
+        $nowAt = now()->getTimestamp();
+        $remaining = $deadlineAt - $nowAt;
+
+        if ($remaining <= 0) {
+            return 0;
+        }
+
+        $elapsed = $timeout - $remaining;
+
+        if ($elapsed < 0) {
+            $elapsed = 0;
+        }
+
+        $ticksPassed = intdiv($elapsed, $tick);
+        $startedAt = $deadlineAt - $timeout;
+        $nextTickAt = $startedAt + (($ticksPassed + 1) * $tick);
+
+        if ($nextTickAt > $deadlineAt) {
+            $nextTickAt = $deadlineAt;
+        }
+
+        $delaySeconds = $nextTickAt - $nowAt;
+
+        if ($delaySeconds < 0) {
+            return 0;
+        }
+
+        return $delaySeconds * 1000;
     }
 
     /**
      * @param  list<string>  $lines
      */
-    public function appendLogLines(Fight $fight, array $lines): Fight
+    public function appendLogLines(Fight $fight, array $lines, int $round): Fight
     {
         if (empty($lines)) {
             return $fight;
         }
 
+        if ($round < 1) {
+            throw new RuntimeException('Fight log round must be >= 1.');
+        }
+
         $combined = $fight->log;
         $header = __('combat.log_round', [
-            'round' => max(1, $fight->turn_seq),
+            'round' => $round,
         ]);
 
         if (! in_array($header, $combined, true)) {
@@ -197,6 +341,42 @@ final class FightService
         $fight->log = $combined;
 
         return $fight;
+    }
+
+    private function dispatchWatchJob(int $tgId, int $turnSeq, int $delayMs): void
+    {
+        dispatch(new FightTurnWatchJob($tgId, $turnSeq))
+            ->onConnection($this->watchQueueConnection())
+            ->delay(now()->addMilliseconds(max(0, $delayMs)));
+    }
+
+    private function queueSupportsDelay(string $driver): bool
+    {
+        if ($driver === 'redis') {
+            return true;
+        }
+
+        if ($driver === 'database') {
+            return true;
+        }
+
+        if ($driver === 'beanstalkd') {
+            return true;
+        }
+
+        return $driver === 'sqs';
+    }
+
+    private function watchQueueConnection(): string
+    {
+        $driver = config('queue.default');
+
+        if (is_string($driver) && $this->queueSupportsDelay($driver)) {
+            return $driver;
+        }
+
+        // composer dev: QUEUE_CONNECTION=sync + queue:listen database
+        return 'database';
     }
 
     private function createFight(

@@ -53,4 +53,13 @@ return [
     'gem_socket_empty' => 'В этом слоте нет камня.',
     'needs_vip_smith' => 'Это чинит только VIP-кузнец.',
     'vip_smith_only_vip' => 'VIP-кузнец чинит только top-tier.',
+    'pvp_hp_low' => 'Нужно хотя бы половина здоровья.',
+    'pvp_busy' => 'Сначала закончи текущий бой.',
+    'pvp_already_challenging' => 'У тебя уже висит вызов.',
+    'pvp_no_challenge' => 'Нет своего вызова.',
+    'pvp_challenge_gone' => 'Вызов уже снят.',
+    'pvp_own_challenge' => 'Нельзя принять свой вызов.',
+    'pvp_wrong_city' => 'Вызов из другого города.',
+    'pvp_opponent_busy' => 'Соперник сейчас занят.',
+    'pvp_level_bracket' => 'Разница уровней больше двух.',
 ];

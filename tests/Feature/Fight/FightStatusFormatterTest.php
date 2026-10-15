@@ -139,5 +139,5 @@ it('puts step prompt into panel caption', function (): void {
 
     expect($panel)->toContain(__('combat.log_prompt.STANCE', ['round' => max(1, $fight->turn_seq)]))
         ->and($panel)->toContain('PromptHero')
-        ->and($panel)->not->toContain('сек');
+        ->and($panel)->toContain('сек.');
 });

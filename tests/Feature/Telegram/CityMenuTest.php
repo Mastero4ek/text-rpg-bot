@@ -206,5 +206,7 @@ it('exposes bot command descriptions from lang', function (): void {
         ->and(__('telegram.commands.profile'))->toBe('Профиль')
         ->and(__('telegram.commands.backpack'))->toBe('Рюкзак')
         ->and(__('telegram.commands.bag'))->toBe('Сумка')
-        ->and(__('telegram.commands.journal'))->toBe('Задания');
+        ->and(__('telegram.commands.journal'))->toBe('Задания')
+        ->and(__('telegram.commands.library'))->toBe('Библиотека')
+        ->and(__('telegram.commands.appeal'))->toBe('Письмо глашатаю');
 });

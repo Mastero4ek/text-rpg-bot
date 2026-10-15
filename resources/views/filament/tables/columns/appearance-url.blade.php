@@ -10,7 +10,7 @@
         <img
             src="{{ $url }}"
             alt=""
-            style="height: {{ $size }}; width: {{ $size }};"
+            style="height: {{ $size }}; width: {{ $size }}; object-fit: cover; object-position: center top; border-radius: 9999px;"
         />
     @else
         <div class="fi-ta-appearance-placeholder" style="height: {{ $size }}; width: {{ $size }};">

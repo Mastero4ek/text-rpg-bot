@@ -9,7 +9,7 @@ use App\Filament\Resources\Characters\Pages\ViewCharacter;
 use App\Filament\Resources\Characters\RelationManagers\BackpackRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\BagRelationManager;
 use App\Filament\Resources\Characters\RelationManagers\LoadoutRelationManager;
-use App\Filament\Resources\Fights\Pages\ListFights;
+use App\Filament\Resources\Fights\Pages\ListPveFights;
 use App\Filament\Resources\Fights\Pages\ViewFight;
 use App\Models\Backpack\BackpackItem;
 use App\Models\Fight;
@@ -505,7 +505,7 @@ it('lists and views live fights', function (): void {
 
     $fight = fights()->createTraining($character, woodenSoldier($character));
 
-    livewire(ListFights::class)
+    livewire(ListPveFights::class)
         ->assertOk()
         ->assertCanSeeTableRecords([$fight]);
 
@@ -543,5 +543,5 @@ it('rejects guests from admin resources', function (): void {
     auth()->logout();
 
     $this->get(ListCharacters::getUrl())->assertRedirect();
-    $this->get(ListFights::getUrl())->assertRedirect();
+    $this->get(ListPveFights::getUrl())->assertRedirect();
 });

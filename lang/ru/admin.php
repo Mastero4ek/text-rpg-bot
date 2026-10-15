@@ -11,6 +11,8 @@ return [
         'equipped' => 'Надето',
         'equipped_count' => 'Слотов надето',
         'created_at' => 'Создан',
+        'appeal_body' => 'Текст',
+        'appeal_status' => 'Статус',
         'currency' => 'Валюта',
         'body_stamina' => 'Макс. выносливость',
         'current_hp' => 'HP',
@@ -27,6 +29,9 @@ return [
         'fight_kind' => 'Вид',
         'fight_log' => 'Лог',
         'fight_step' => 'Шаг',
+        'pvp_duel_status' => 'Статус',
+        'pvp_round' => 'Раунд',
+        'round_deadline_at' => 'Дедлайн раунда',
         'gem_slots' => 'Слоты камней',
         'socketed_gems' => 'Сокеты',
         'has_socketed_gems' => 'Камни',
@@ -47,7 +52,7 @@ return [
         'bag_filled' => 'Заполненность сумки',
         'city_characters_capacity' => 'Макс. вместительность города',
         'city_characters_capacity_of' => 'из',
-        'city_characters_filled' => 'Персонажей в городе',
+        'city_characters_filled' => 'Игроков в городе',
         'image' => 'Изображение',
         'enemy_kind' => 'Тип',
         'power_pct' => 'Сила %',
@@ -156,8 +161,8 @@ return [
     ],
     'models' => [
         'character' => [
-            'plural' => 'Персонажи',
-            'singular' => 'Персонаж',
+            'plural' => 'Игроки',
+            'singular' => 'Игрок',
         ],
         'backpack_catalog' => [
             'plural' => 'Снаряжение',
@@ -167,14 +172,22 @@ return [
             'plural' => 'Бои',
             'singular' => 'Бой',
         ],
+        'pvp_duel' => [
+            'plural' => 'Дуэли',
+            'singular' => 'Дуэль',
+        ],
+        'appeal' => [
+            'plural' => 'Обращения',
+            'singular' => 'Обращение',
+        ],
         'bag_catalog' => [
             'plural' => 'Ресурсы',
             'singular' => 'Ресурс',
         ],
         'enemy_catalog' => [
-            'plural' => 'Мобы',
-            'singular' => 'Моб',
-            'create' => 'Создать Моба',
+            'plural' => 'Существа',
+            'singular' => 'Существо',
+            'create' => 'Создать Существо',
         ],
         'city_catalog' => [
             'plural' => 'Города',
@@ -182,12 +195,18 @@ return [
         ],
     ],
     'navigation' => [
-        'characters' => 'Персонажи',
-        'backpack_catalog' => 'Снаряжение',
-        'fights' => 'Бои',
-        'bag_catalog' => 'Ресурсы',
-        'enemy_catalog' => 'Мобы',
+        'group_items' => 'Предметы',
+        'group_characters' => 'Персонажи',
+        'group_fights' => 'Бои',
         'city_catalog' => 'Города',
+        'backpack_catalog' => 'Снаряжение',
+        'bag_catalog' => 'Ресурсы',
+        'characters' => 'Персонажи',
+        'players' => 'Игроки',
+        'enemy_catalog' => 'Существа',
+        'fights_pve' => 'PvE',
+        'fights_pvp' => 'PvP',
+        'appeals' => 'Обращения',
         'backpack' => 'Рюкзак',
         'bag' => 'Сумка',
         'loadout' => 'Экипировка',
@@ -210,28 +229,36 @@ return [
             'description' => 'В каталоге нет предметов.',
         ],
         'characters' => [
-            'heading' => 'Нет персонажей',
-            'description' => 'Персонажей нет.',
+            'heading' => 'Нет игроков',
+            'description' => 'Игроков пока нет.',
         ],
         'city_catalog' => [
             'heading' => 'Нет городов',
             'description' => 'Городов нет.',
         ],
         'city_characters' => [
-            'heading' => 'Нет персонажей',
-            'description' => 'В городе нет персонажей.',
+            'heading' => 'Нет игроков',
+            'description' => 'В городе нет игроков.',
         ],
         'drops' => [
             'heading' => 'Дроп пуст',
-            'description' => 'У моба нет предметов.',
+            'description' => 'У существа нет предметов.',
         ],
         'enemy_catalog' => [
-            'heading' => 'Нет мобов',
-            'description' => 'В каталоге нет мобов.',
+            'heading' => 'Нет существ',
+            'description' => 'В каталоге нет существ.',
         ],
         'fights' => [
             'heading' => 'Нет боёв',
             'description' => 'Активных боёв нет.',
+        ],
+        'pvp_duels' => [
+            'heading' => 'Нет дуэлей',
+            'description' => 'Активных дуэлей нет.',
+        ],
+        'appeals' => [
+            'heading' => 'Нет обращений',
+            'description' => 'Игроки ещё не оставляли обращений.',
         ],
         'loadout' => [
             'heading' => 'Экипировка пуста',
@@ -241,6 +268,12 @@ return [
     'pages' => [
         'fight' => [
             'view' => 'Просмотр Боя',
+        ],
+        'pvp_duel' => [
+            'view' => 'Просмотр дуэли',
+        ],
+        'appeal' => [
+            'view' => 'Просмотр обращения',
         ],
     ],
     'filters' => [
@@ -353,6 +386,12 @@ return [
             'with' => 'С архив. записями',
             'only' => 'Только архив. записи',
         ],
+        'appeal_close' => [
+            'label' => 'Закрыть',
+            'modal_heading' => 'Закрыть обращение',
+            'modal_submit' => 'Закрыть',
+            'notification' => 'Обращение закрыто',
+        ],
         'delete' => [
             'label' => 'Удалить',
             'modal_heading' => 'Удалить :label',
@@ -437,9 +476,18 @@ return [
     ],
     'notifications' => [
         'character_appeared' => [
-            'title' => 'Новый персонаж',
-            'body' => 'Персонаж «:nick» появился в локации «:location»',
+            'title' => 'Новый игрок',
+            'body' => 'Игрок «:nick» появился в локации «:location»',
         ],
+        'appeal' => [
+            'title' => 'Новое обращение',
+            'body' => ':username: :preview',
+        ],
+    ],
+    'pvp_duel_status' => [
+        'ACTIVE' => 'Активен',
+        'DONE' => 'Завершен',
+        'CANCELLED' => 'Отменен',
     ],
     'progress_steps' => [
         'SPLASH' => 'Старт',
@@ -540,6 +588,8 @@ return [
         'backpack_catalog_requirements' => 'Требования',
         'fight_log' => 'Лог',
         'fight_session' => 'Сессия',
+        'pvp_duel' => 'Дуэль',
+        'appeal' => 'Обращение',
         'bag_catalog_durability' => 'Прочность',
         'bag_catalog_economy' => 'Экономика',
         'bag_catalog_identity' => 'Идентичность',

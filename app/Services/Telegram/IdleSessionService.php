@@ -6,10 +6,13 @@ namespace App\Services\Telegram;
 
 use App\Actions\Fight\FightAbandonOnIdleAction;
 use App\Actions\LuckyBarrel\LuckyBarrelForfeitAction;
+use App\Actions\Pvp\PvpChallengeCancelAction;
 use App\Jobs\IdleSessionResetJob;
 use App\Models\Character\Character;
+use App\Models\Fight;
 use App\Services\Character\CharacterService;
 use App\Services\GameConfig;
+use App\Services\Pvp\PvpBoardService;
 use App\Support\Telegram\TelegramResponder;
 use App\Telegram\Handlers\CityHandler;
 use Illuminate\Support\Facades\Process;
@@ -23,6 +26,8 @@ final class IdleSessionService
         private readonly FightAbandonOnIdleAction $abandonFight,
         private readonly GameConfig $config,
         private readonly LuckyBarrelForfeitAction $forfeitLuckyBarrel,
+        private readonly PvpBoardService $pvpBoard,
+        private readonly PvpChallengeCancelAction $cancelPvpChallenge,
     ) {}
 
     public function actionAtMatches(Character $character, int $actionAtUnix): bool
@@ -47,6 +52,14 @@ final class IdleSessionService
             $character = $forfeit->character;
         }
 
+        $cancel = $this->cancelPvpChallenge->handle($character);
+
+        if ($cancel->character instanceof Character) {
+            $character = $cancel->character;
+        }
+
+        $this->pvpBoard->stopWatch($character->tg_id);
+
         $this->city->sendIdleHomePanel($responder, $character);
         $this->touch($character);
     }
@@ -62,6 +75,10 @@ final class IdleSessionService
         }
 
         if (! $character->progress_step->canPlayCity()) {
+            return false;
+        }
+
+        if (Fight::query()->whereKey($character->tg_id)->exists()) {
             return false;
         }
 

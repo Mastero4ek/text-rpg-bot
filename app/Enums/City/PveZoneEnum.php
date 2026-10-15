@@ -23,6 +23,7 @@ enum PveZoneEnum: string
             FightReturnEnum::Ruins => self::Ruins,
             FightReturnEnum::Port => self::Port,
             FightReturnEnum::Training => null,
+            FightReturnEnum::Fights => null,
         };
     }
 

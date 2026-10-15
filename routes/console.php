@@ -18,3 +18,7 @@ Schedule::command('daily-contracts:refresh')
 Schedule::command('characters:release-expired-bans')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('pvp:expire-challenges')
+    ->everyMinute()
+    ->withoutOverlapping();

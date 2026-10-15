@@ -164,5 +164,7 @@ it('keeps player stamina on skip while enemy spends for the free hit', function 
 
     expect($fight->player_stamina)->toBe(60)
         ->and($enemyAfter->stamina)->toBe(60 - $stamina['drainAttack'])
-        ->and($fight->log)->toContain(__('combat.turn_timeout'));
+        ->and($fight->log)->toContain(__('combat.turn_timeout', [
+            'name' => combat()->logName('IdleDrain', $p->level),
+        ]));
 });

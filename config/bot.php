@@ -45,6 +45,12 @@ return [
     'city_tavern_image' => resource_path('images/telegram/location/tavern.png'),
     'city_lists_image' => resource_path('images/telegram/location/arena_outer.png'),
     'city_arena_image' => resource_path('images/telegram/location/arena.png'),
+    'library_image' => resource_path('images/telegram/menu/library-closed.png'),
+    'library_opened_image' => resource_path('images/telegram/menu/library-opened.png'),
+    'bag_image' => resource_path('images/telegram/menu/bag.png'),
+    'backpack_image' => resource_path('images/telegram/menu/backpack.png'),
+    'journal_image' => resource_path('images/telegram/menu/contracts.png'),
+    'appeal_image' => resource_path('images/telegram/menu/appeal-letter.png'),
     /*
      * Official Telegram Bot API IP ranges (IPv4).
      * @see https://core.telegram.org/bots/webhooks#the-short-version

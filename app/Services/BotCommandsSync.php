@@ -35,6 +35,14 @@ final class BotCommandsSync
                 'command' => 'journal',
                 'description' => __('telegram.commands.journal'),
             ],
+            [
+                'command' => 'library',
+                'description' => __('telegram.commands.library'),
+            ],
+            [
+                'command' => 'appeal',
+                'description' => __('telegram.commands.appeal'),
+            ],
         ]);
     }
 }

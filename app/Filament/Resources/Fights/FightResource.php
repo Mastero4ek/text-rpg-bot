@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Fights;
 
-use App\Filament\Resources\Fights\Pages\ListFights;
 use App\Filament\Resources\Fights\Pages\ViewFight;
 use App\Filament\Resources\Fights\Schemas\FightForm;
-use App\Filament\Resources\Fights\Tables\FightsTable;
 use App\Models\Fight;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -21,9 +17,7 @@ final class FightResource extends Resource
 {
     protected static ?string $model = Fight::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFire;
-
-    protected static ?int $navigationSort = 6;
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function canCreate(): bool
     {
@@ -55,20 +49,19 @@ final class FightResource extends Resource
         return parent::getEloquentQuery()->with(['character.media']);
     }
 
+    public static function getIndexUrl(array $parameters = [], bool $isAbsolute = true, ?string $panel = null, ?Model $tenant = null, bool $shouldGuessMissingParameters = false): string
+    {
+        return PveFightResource::getUrl('index', $parameters, $isAbsolute, $panel, $tenant, $shouldGuessMissingParameters);
+    }
+
     public static function getModelLabel(): string
     {
         return __('admin.models.fight.singular');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('admin.navigation.fights');
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => ListFights::route('/'),
             'view' => ViewFight::route('/{record}'),
         ];
     }
@@ -95,6 +88,6 @@ final class FightResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return FightsTable::configure($table);
+        return $table;
     }
 }

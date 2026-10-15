@@ -400,6 +400,18 @@ final class InventoryHandler
         return [$text, TelegramKeyboards::bagList($items, $filter, $page, $current)];
     }
 
+    public function sendBag(TelegramResponder $responder, Character $player): void
+    {
+        [$text, $markup] = $this->bagPanel($player, 'POTION', 1);
+        $this->sendBagPanel($responder, $player, $text, $markup);
+    }
+
+    public function sendBackpack(TelegramResponder $responder, Character $player): void
+    {
+        [$text, $markup] = $this->backpackPanel($player, 'WEAPON', 1);
+        $this->sendBackpackPanel($responder, $player, $text, $markup);
+    }
+
     private function canonicalCallback(string $data): string
     {
         if (str_starts_with($data, 'menu:backpack')) {
@@ -708,6 +720,7 @@ final class InventoryHandler
 
         $this->editBagItemPanel(
             $responder,
+            $player,
             $gem->catalog_id,
             $text,
             TelegramKeyboards::gearGemSocketConfirm($hostId, $bagItemId, $pickSlot),
@@ -775,7 +788,7 @@ final class InventoryHandler
         $text = $this->gemCardText($def, (int) $gem->durability);
         $markup = TelegramKeyboards::gearGemViewCard($this->gearItemBackCallback($host, $pickSlot));
 
-        $this->editBagItemPanel($responder, $gem->catalog_id, $text, $markup);
+        $this->editBagItemPanel($responder, $player, $gem->catalog_id, $text, $markup);
     }
 
     private function gearViewScreen(TelegramResponder $responder, Character $player, int $rowId): void
@@ -833,12 +846,6 @@ final class InventoryHandler
         $edge = PaginatedListKeyboard::isOutOfRange($page, $filteredCount);
         [$text, $markup] = $this->bagPanel($player, $filter, $page);
 
-        if ($responder->callbackHasPhoto()) {
-            $this->showInventoryTextPanel($responder, $player, $text, $markup);
-
-            return;
-        }
-
         if ($edge && $filteredCount > 0) {
             app(FlashListPageEdgeAction::class)->handle(
                 $responder,
@@ -851,7 +858,7 @@ final class InventoryHandler
         }
 
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-        $responder->edit($text, $markup);
+        $this->showBagPanel($responder, $player, $text, $markup);
     }
 
     private function backpackFilter(string $filter): string
@@ -875,12 +882,6 @@ final class InventoryHandler
         $edge = PaginatedListKeyboard::isOutOfRange($page, $filteredCount);
         [$text, $markup] = $this->backpackPanel($player, $filter, $page);
 
-        if ($responder->callbackHasPhoto()) {
-            $this->showInventoryTextPanel($responder, $player, $text, $markup);
-
-            return;
-        }
-
         if ($edge && $filteredCount > 0) {
             app(FlashListPageEdgeAction::class)->handle(
                 $responder,
@@ -893,7 +894,7 @@ final class InventoryHandler
         }
 
         app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
-        $responder->edit($text, $markup);
+        $this->showBackpackPanel($responder, $player, $text, $markup);
     }
 
     private function itemCardScreen(
@@ -970,6 +971,7 @@ final class InventoryHandler
             $def = $this->bagCatalog->findGem($row->catalog_id);
             $this->editBagItemPanel(
                 $responder,
+                $player,
                 $row->catalog_id,
                 $this->gemCardText($def, (int) $row->durability),
                 TelegramKeyboards::bagCard($row->id, $row->kind->value),
@@ -1010,6 +1012,7 @@ final class InventoryHandler
 
             $this->editBagItemPanel(
                 $responder,
+                $player,
                 $row->catalog_id,
                 $text,
                 TelegramKeyboards::bagCard($row->id, $row->kind->value),
@@ -1039,6 +1042,7 @@ final class InventoryHandler
         ]);
         $this->editBagItemPanel(
             $responder,
+            $player,
             $row->catalog_id,
             $text,
             TelegramKeyboards::bagCard($row->id, $row->kind->value),
@@ -1124,7 +1128,7 @@ final class InventoryHandler
             $text = $parts[0] . "\n\n" . $notice . "\n\n" . $parts[1];
         }
 
-        $this->showInventoryTextPanel($responder, $res->character, $text, $markup);
+        $this->showBagPanel($responder, $res->character, $text, $markup);
     }
 
     private function runDiscardItem(TelegramResponder $responder, Character $player, int $rowId): void
@@ -1161,12 +1165,187 @@ final class InventoryHandler
             $text = $parts[0] . "\n\n" . $notice . "\n\n" . $parts[1];
         }
 
-        $this->showInventoryTextPanel($responder, $res->character, $text, $markup);
+        $this->showBackpackPanel($responder, $res->character, $text, $markup);
+    }
+
+    private function bagImagePath(): ?string
+    {
+        $path = config('bot.bag_image');
+
+        if (! is_string($path) || $path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    private function backpackImagePath(): ?string
+    {
+        $path = config('bot.backpack_image');
+
+        if (! is_string($path) || $path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     /**
      * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
      */
+    private function sendBagPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $imagePath = $this->bagImagePath();
+
+        if ($imagePath !== null) {
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+            app(RegistrationService::class)->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $messageId,
+            );
+
+            return;
+        }
+
+        $messageId = $responder->reply($text, $markup);
+        app(RegistrationService::class)->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $messageId,
+        );
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function sendBackpackPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $imagePath = $this->backpackImagePath();
+
+        if ($imagePath !== null) {
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+            app(RegistrationService::class)->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $messageId,
+            );
+
+            return;
+        }
+
+        $messageId = $responder->reply($text, $markup);
+        app(RegistrationService::class)->rememberTelegramMessage(
+            $player,
+            $responder->chatId(),
+            $messageId,
+        );
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function showBagPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $imagePath = $this->bagImagePath();
+
+        if ($imagePath !== null) {
+            try {
+                $responder->editPhoto($imagePath, $text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        if ($responder->callbackHasPhoto()) {
+            try {
+                $responder->edit($text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+
+            $responder->deleteUpdateMessage();
+            $this->sendBagPanel($responder, $player, $text, $markup);
+
+            return;
+        }
+
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+        $responder->edit($text, $markup);
+    }
+
+    /**
+     * @param  array{inline_keyboard: list<list<array{text: string, callback_data: string, style?: string}>>}  $markup
+     */
+    private function showBackpackPanel(
+        TelegramResponder $responder,
+        Character $player,
+        string $text,
+        array $markup,
+    ): void {
+        $imagePath = $this->backpackImagePath();
+
+        if ($imagePath !== null) {
+            try {
+                $responder->editPhoto($imagePath, $text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+        }
+
+        if ($responder->callbackHasPhoto()) {
+            try {
+                $responder->edit($text, $markup);
+                app(RegistrationService::class)->rememberTelegramMessage(
+                    $player,
+                    $responder->chatId(),
+                    $responder->messageId(),
+                );
+
+                return;
+            } catch (Throwable) {
+            }
+
+            $responder->deleteUpdateMessage();
+            $this->sendBackpackPanel($responder, $player, $text, $markup);
+
+            return;
+        }
+
+        app(FlashListPageEdgeAction::class)->touch($responder->chatId(), $responder->messageId());
+        $responder->edit($text, $markup);
+    }
+
     private function showInventoryTextPanel(
         TelegramResponder $responder,
         Character $player,
@@ -1217,11 +1396,23 @@ final class InventoryHandler
     {
         $model = BagCatalogModel::query()->find($catalogId);
 
-        if (! $model instanceof BagCatalogModel) {
-            return null;
+        if ($model instanceof BagCatalogModel) {
+            $mediaPath = $model->localImagePath();
+
+            if ($mediaPath !== null) {
+                return $mediaPath;
+            }
         }
 
-        return $model->localImagePath();
+        foreach (['png', 'webp', 'jpg', 'jpeg'] as $ext) {
+            $path = resource_path('images/telegram/resource/' . $catalogId . '.' . $ext);
+
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     private function gemCardText(GemDef $def, int $current): string
@@ -1264,6 +1455,7 @@ final class InventoryHandler
      */
     private function editBagItemPanel(
         TelegramResponder $responder,
+        Character $player,
         string $catalogId,
         string $text,
         array $markup,
@@ -1277,6 +1469,31 @@ final class InventoryHandler
                 return;
             } catch (Throwable) {
             }
+
+            if ($responder->callbackHasPhoto()) {
+                $responder->deleteUpdateMessage();
+            }
+
+            $messageId = $responder->replyPhoto($imagePath, $text, $markup);
+            app(RegistrationService::class)->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $messageId,
+            );
+
+            return;
+        }
+
+        if ($responder->callbackHasPhoto()) {
+            $responder->deleteUpdateMessage();
+            $messageId = $responder->reply($text, $markup);
+            app(RegistrationService::class)->rememberTelegramMessage(
+                $player,
+                $responder->chatId(),
+                $messageId,
+            );
+
+            return;
         }
 
         $responder->edit($text, $markup);
