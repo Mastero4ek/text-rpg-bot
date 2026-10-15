@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Text RPG Bot'),
+    'name' => env('APP_NAME', 'BladeBoard'),
 
     /*
     |--------------------------------------------------------------------------

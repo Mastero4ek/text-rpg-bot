@@ -301,12 +301,114 @@ final class TelegramClient
         ]);
     }
 
+    public function setMyDescription(string $description): void
+    {
+        $this->post('setMyDescription', [
+            'description' => $description,
+        ]);
+    }
+
+    public function setMyName(string $name): void
+    {
+        $this->post('setMyName', [
+            'name' => $name,
+        ]);
+    }
+
+    public function setMyProfilePhoto(string $photoPath): void
+    {
+        if (! is_file($photoPath)) {
+            throw new RuntimeException('Telegram logo missing: ' . $photoPath);
+        }
+
+        $jpeg = $this->jpegBytesForProfilePhoto($photoPath);
+
+        $photo = json_encode([
+            'type' => 'static',
+            'photo' => 'attach://photo',
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->http()
+            ->attach('photo', $jpeg, 'logo.jpg')
+            ->post($this->methodUrl('setMyProfilePhoto'), [
+                'photo' => $photo,
+            ]);
+
+        if ($response->successful()) {
+            $json = $response->json();
+
+            if (is_array($json) && array_key_exists('ok', $json) && $json['ok'] === true) {
+                return;
+            }
+        }
+
+        throw new RuntimeException('Telegram setMyProfilePhoto failed: ' . $response->body());
+    }
+
+    public function setMyShortDescription(string $shortDescription): void
+    {
+        $this->post('setMyShortDescription', [
+            'short_description' => $shortDescription,
+        ]);
+    }
+
     public function setWebhook(string $url, string $secretToken): void
     {
         $this->post('setWebhook', [
             'url' => $url,
             'secret_token' => $secretToken,
         ]);
+    }
+
+    private function jpegBytesForProfilePhoto(string $photoPath): string
+    {
+        $extension = mb_strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
+
+        if ($extension === 'jpg' || $extension === 'jpeg') {
+            $bytes = file_get_contents($photoPath);
+
+            if ($bytes === false || $bytes === '') {
+                throw new RuntimeException('Telegram logo unreadable: ' . $photoPath);
+            }
+
+            return $bytes;
+        }
+
+        if ($extension !== 'png') {
+            throw new RuntimeException('Telegram logo must be PNG or JPG: ' . $photoPath);
+        }
+
+        $source = imagecreatefrompng($photoPath);
+
+        if ($source === false) {
+            throw new RuntimeException('Telegram logo PNG decode failed: ' . $photoPath);
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $canvas = imagecreatetruecolor($width, $height);
+
+        if ($canvas === false) {
+            imagedestroy($source);
+
+            throw new RuntimeException('Telegram logo canvas failed.');
+        }
+
+        $background = imagecolorallocate($canvas, 18, 22, 30);
+        imagefilledrectangle($canvas, 0, 0, $width, $height, $background);
+        imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height);
+        imagedestroy($source);
+
+        ob_start();
+        imagejpeg($canvas, null, 90);
+        $bytes = ob_get_clean();
+        imagedestroy($canvas);
+
+        if ($bytes === false || $bytes === '') {
+            throw new RuntimeException('Telegram logo JPEG encode failed.');
+        }
+
+        return $bytes;
     }
 
     /**

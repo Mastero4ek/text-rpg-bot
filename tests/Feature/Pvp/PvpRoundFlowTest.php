@@ -141,8 +141,8 @@ it('awards win and lose arena points when one fighter reaches zero hp', function
         ->and($pair['b']->fresh()->arena_points)->toBe(40)
         ->and(fights()->exists($pair['a']->tg_id))->toBeFalse()
         ->and(fights()->exists($pair['b']->tg_id))->toBeFalse()
-        ->and($win->editText)->toContain('Победа на арене')
-        ->and($lose->editText)->toContain('Поражение на арене')
+        ->and($win->editText)->toContain('Победа на Арене')
+        ->and($lose->editText)->toContain('Поражение на Арене')
         ->and($pair['b']->fresh()->current_hp)->toBe(0);
 });
 
